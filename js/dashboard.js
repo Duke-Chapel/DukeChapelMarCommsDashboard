@@ -567,28 +567,32 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Update the dashboard with current data and filters
   const updateDashboard = () => {
-    // Calculate key metrics
-    const totalYoutubeViews = youtubeGeographyData ? 
-      youtubeGeographyData.reduce((sum, item) => sum + (item.Views || 0), 0) : null;
-
-    const emailRecipients = emailData && emailData.length > 0 ? 
-      Math.max(...emailData.map(campaign => parseInt(campaign['Emails sent'] || 0))) : null;
-
-    // Filter data based on date range
-    const filteredEmailData = emailData ? applyDateFilter(emailData, 'Date') : null;
-    const filteredFbVideos = fbVideosData ? applyDateFilter(fbVideosData, 'Date') : null;
-    const filteredIgPosts = igPostsData ? applyDateFilter(igPostsData, 'Date') : null;
-    
-    // Calculate filtered metrics
-    const totalFbVideoViews = filteredFbVideos && filteredFbVideos.length > 0 ? 
-      filteredFbVideos.reduce((sum, video) => sum + (video['3-second video views'] || 0), 0) : 
-      null;
-    
-    const totalIgReach = filteredIgPosts && filteredIgPosts.length > 0 ? 
-      filteredIgPosts.reduce((sum, post) => sum + (post.Reach || 0), 0) : 
-      null;
-    
     try {
+      // Calculate key metrics
+      const totalYoutubeViews = youtubeGeographyData ? 
+        youtubeGeographyData.reduce((sum, item) => sum + (item.Views || 0), 0) : null;
+
+      const emailRecipients = emailData && emailData.length > 0 ? 
+        Math.max(...emailData.map(campaign => parseInt(campaign['Emails sent'] || 0))) : null;
+
+      // Filter data based on date range
+      const filteredEmailData = emailData ? applyDateFilter(emailData, 'Date') : null;
+      const filteredFbVideos = fbVideosData ? applyDateFilter(fbVideosData, 'Date') : null;
+      const filteredIgPosts = igPostsData ? applyDateFilter(igPostsData, 'Date') : null;
+      
+      // Calculate filtered metrics
+      const totalFbVideoViews = filteredFbVideos && filteredFbVideos.length > 0 ? 
+        filteredFbVideos.reduce((sum, video) => sum + (video['3-second video views'] || 0), 0) : null;
+      
+      const totalIgReach = filteredIgPosts && filteredIgPosts.length > 0 ? 
+        filteredIgPosts.reduce((sum, post) => sum + (post.Reach || 0), 0) : null;
+      
+      console.log('Updating dashboard with filtered data:', {
+        emailData: filteredEmailData?.length || 0,
+        fbVideos: filteredFbVideos?.length || 0,
+        igPosts: filteredIgPosts?.length || 0
+      });
+      
       // Update Overview tab
       updateOverviewTab(filteredEmailData, filteredFbVideos, filteredIgPosts, 
                        totalYoutubeViews, emailRecipients, totalFbVideoViews, totalIgReach);
