@@ -140,7 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!data || !dateRange.startDate || !dateRange.endDate) return data;
     
     return data.filter(item => {
-      const itemDate = parseDate(item[dateField] || item['Publish time']);
+      let itemDate;
+      if (item[dateField]) {
+        itemDate = parseDate(item[dateField]);
+      } else if (item['Publish time']) {
+        itemDate = parseDate(item['Publish time']);
+      } else if (item['Date']) {
+        itemDate = parseDate(item['Date']);
+      }
+      
       if (!itemDate) return false;
       
       return itemDate >= dateRange.startDate && itemDate <= dateRange.endDate;
@@ -345,6 +353,39 @@ document.addEventListener('DOMContentLoaded', () => {
       
       console.log('All CSV files loaded or attempted');
       
+      // Extract dates from all datasets
+      try {
+        // Check for date fields in each dataset
+        const extractDatesFromDataset = (dataset, dateFields) => {
+          if (!dataset || !dataset.length) return [];
+          
+          return dataset.reduce((dates, item) => {
+            for (const field of dateFields) {
+              if (item[field]) {
+                const date = parseDate(item[field]);
+                if (date) dates.push(date);
+              }
+            }
+            return dates;
+          }, []);
+        };
+        
+        // Extract dates from all datasets
+        const dateFields = ['Date', 'Publish time'];
+        const allExtractedDates = [
+          ...extractDatesFromDataset(emailData, dateFields),
+          ...extractDatesFromDataset(fbVideosData, dateFields),
+          ...extractDatesFromDataset(igPostsData, dateFields)
+        ];
+        
+        if (allExtractedDates.length > 0) {
+          allDates = allExtractedDates;
+          console.log(`Found ${allDates.length} dates across all datasets`);
+        }
+      } catch (error) {
+        console.error('Error extracting dates:', error);
+      }
+      
       // Set date range from all available dates
       if (allDates.length > 0) {
         const earliest = new Date(Math.min(...allDates));
@@ -488,50 +529,112 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Update the dashboard with current data and filters
   const updateDashboard = () => {
+    // Calculate key metrics
+    const totalYoutubeViews = youtubeGeographyData ? 
+      youtubeGeographyData.reduce((sum, item) => sum + (item.Views || 0), 0) : null;
+
+    const emailRecipients = emailData && emailData.length > 0 ? 
+      Math.max(...emailData.map(campaign => parseInt(campaign['Emails sent'] || 0))) : null;
+
     // Filter data based on date range
     const filteredEmailData = emailData ? applyDateFilter(emailData, 'Date') : null;
     const filteredFbVideos = fbVideosData ? applyDateFilter(fbVideosData, 'Date') : null;
     const filteredIgPosts = igPostsData ? applyDateFilter(igPostsData, 'Date') : null;
     
-    // Update Overview tab
-    updateOverviewTab(filteredEmailData, filteredFbVideos, filteredIgPosts);
-    
-    // Update Email tab
-    updateEmailTab(filteredEmailData);
-    
-    // Update YouTube tab
-    updateYouTubeTab();
-    
-    // Update Facebook tab
-    updateFacebookTab(filteredFbVideos);
-    
-    // Update Instagram tab
-    updateInstagramTab(filteredIgPosts);
-  };
-  
-  // Update Overview tab
-  const updateOverviewTab = (filteredEmailData, filteredFbVideos, filteredIgPosts) => {
-    // Calculate metrics
-    const emailRecipients = emailData && emailData.length > 0 ? 
-      Math.max(...emailData.map(campaign => parseInt(campaign['Emails sent'] || 0))) : null;
-    
-    const totalFbVideoViews = filteredFbVideos ? 
+    // Calculate filtered metrics
+    const totalFbVideoViews = filteredFbVideos && filteredFbVideos.length > 0 ? 
       filteredFbVideos.reduce((sum, video) => sum + (video['3-second video views'] || 0), 0) : 
       null;
     
-    const totalIgReach = filteredIgPosts ? 
+    const totalIgReach = filteredIgPosts && filteredIgPosts.length > 0 ? 
       filteredIgPosts.reduce((sum, post) => sum + (post.Reach || 0), 0) : 
       null;
     
-    const totalYoutubeViews = youtubeGeographyData ? 
-      youtubeGeographyData.reduce((sum, item) => sum + (item.Views || 0), 0) : 
-      null;
-    
+    try {
+      // Update Overview tab
+      updateOverviewTab(filteredEmailData, filteredFbVideos, filteredIgPosts, 
+                       totalYoutubeViews, emailRecipients, totalFbVideoViews, totalIgReach);
+      
+      // Update Email tab
+      updateEmailTab(filteredEmailData);
+      
+      // Update YouTube tab
+      updateYouTubeTab();
+      
+      // Update Facebook tab
+      updateFacebookTab(filteredFbVideos);
+      
+      // Update Instagram tab
+      updateInstagramTab(filteredIgPosts);
+    } catch (error) {
+      console.error('Error updating dashboard:', error);
+    }
+  };
+  
+  // Update Overview tab
+  const updateOverviewTab = (filteredEmailData, filteredFbVideos, filteredIgPosts, 
+                            totalYoutubeViews, emailRecipients, totalFbVideoViews, totalIgReach) => {
     // Update metric cards
-    document.getElementById('total-website-visitors').innerHTML = 'N/A';
-    document.getElementById('total-followers').innerHTML = 'N/A';
-    document.getElementById('total-subscribers').innerHTML = emailRecipients !== null ? formatNumber(emailRecipients) : 'No data';
-    document.getElementById('total-youtube-views').innerHTML = totalYoutubeViews !== null ? formatNumber(totalYoutubeViews) : 'No data';
+    const updateMetricCard = (id, value, errorDataset) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      
+      if (value !== null && value !== undefined) {
+        element.innerHTML = formatNumber(value);
+      } else {
+        element.innerHTML = 'No data';
+      }
+      
+      // Check for error message
+      if (errorDataset && dataErrors[errorDataset]) {
+        const parentCard = element.closest('.metric-card');
+        if (parentCard) {
+          let errorElement = parentCard.querySelector('.error-message');
+          if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.className = 'error-message';
+            parentCard.appendChild(errorElement);
+          }
+          errorElement.textContent = `Error: ${dataErrors[errorDataset]}`;
+        }
+      }
+    };
+    
+    updateMetricCard('total-subscribers', emailRecipients, 'Email_Campaign_Performance.csv');
+    updateMetricCard('total-youtube-views', totalYoutubeViews, 'YouTube_Geography.csv');
+    
+    // These metrics are filtered and might be empty due to date range
+    if (document.getElementById('total-website-visitors')) {
+      document.getElementById('total-website-visitors').innerHTML = 'N/A';
+    }
+    
+    if (document.getElementById('total-followers')) {
+      document.getElementById('total-followers').innerHTML = 'N/A';
+    }
+    
+    // Update Facebook video views with filtered data
+    if (totalFbVideoViews !== null) {
+      updateMetricCard('total-facebook-views', totalFbVideoViews, 'FB_Videos.csv');
+    } else if (document.getElementById('total-facebook-views')) {
+      if (filteredFbVideos && filteredFbVideos.length === 0 && fbVideosData && fbVideosData.length > 0) {
+        // We have data but nothing matches the filter
+        document.getElementById('total-facebook-views').innerHTML = 'No data in range';
+      } else {
+        document.getElementById('total-facebook-views').innerHTML = 'No data';
+      }
+    }
+    
+    // Update Instagram reach with filtered data
+    if (totalIgReach !== null) {
+      updateMetricCard('total-instagram-reach', totalIgReach, 'IG_Posts.csv');
+    } else if (document.getElementById('total-instagram-reach')) {
+      if (filteredIgPosts && filteredIgPosts.length === 0 && igPostsData && igPostsData.length > 0) {
+        // We have data but nothing matches the filter
+        document.getElementById('total-instagram-reach').innerHTML = 'No data in range';
+      } else {
+        document.getElementById('total-instagram-reach').innerHTML = 'No data';
+      }
+    }
     
     // Update email performance chart
     const emailPerformanceChart = document.getElementById('email-performance-chart');
@@ -648,86 +751,74 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update Email tab
   const updateEmailTab = (filteredEmailData) => {
     // Email performance chart
-    const emailPerformanceChart = document.getElementById('email-performance-chart');
-    if (emailPerformanceChart) {
-      const ctx = emailPerformanceChart.getContext('2d');
-      if (window.emailPerformanceChart) window.emailPerformanceChart.destroy();
-      
-      if (filteredEmailData && filteredEmailData.length > 0) {
-        const sortedData = [...filteredEmailData]
-          .sort((a, b) => {
-            const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
-            const openRateB = parseFloat(b['Email open rate (MPP excluded)'] || 0);
-            return openRateB - openRateA;
-          })
-          .slice(0, 8);
-        
-        window.emailPerformanceChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: sortedData.map(campaign => campaign.Campaign.substring(0, 15) + '...'),
-            datasets: [
-              {
-                label: 'Open Rate',
-                data: sortedData.map(campaign => parseFloat(campaign['Email open rate (MPP excluded)']) * 100),
-                backgroundColor: '#4299e1',
-                borderColor: '#3182ce',
-                borderWidth: 1
-              },
-              {
-                label: 'Click Rate',
-                data: sortedData.map(campaign => parseFloat(campaign['Email click rate']) * 100),
-                backgroundColor: '#38b2ac',
-                borderColor: '#319795',
-                borderWidth: 1
-              }
-            ]
+    const emailChartConfig = {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Open Rate',
+            data: [],
+            backgroundColor: '#4299e1',
+            borderColor: '#3182ce',
+            borderWidth: 1
           },
-          options: {
-            responsive: true,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  callback: function(value) {
-                    return value + '%';
-                  }
-                }
-              },
-              x: {
-                ticks: {
-                  autoSkip: false,
-                  maxRotation: 45,
-                  minRotation: 45
-                }
+          {
+            label: 'Click Rate',
+            data: [],
+            backgroundColor: '#38b2ac',
+            borderColor: '#319795',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
               }
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
-                  }
-                }
+            }
+          },
+          x: {
+            ticks: {
+              autoSkip: false,
+              maxRotation: 45,
+              minRotation: 45
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
               }
             }
           }
-        });
-      } else {
-        // Show empty state
-        ctx.font = '14px Arial';
-        ctx.fillStyle = '#f6ad55';
-        ctx.textAlign = 'center';
-        ctx.fillText('No email data available for selected date range', emailPerformanceChart.width / 2, emailPerformanceChart.height / 2);
+        }
       }
-    }
+    };
     
-    // Email engagement segmentation
-    const emailEngagementChart = document.getElementById('email-engagement-chart');
-    if (emailEngagementChart) {
-      const ctx = emailEngagementChart.getContext('2d');
-      if (window.emailEngagementChart) window.emailEngagementChart.destroy();
+    if (filteredEmailData && filteredEmailData.length > 0) {
+      const sortedData = [...filteredEmailData]
+        .sort((a, b) => {
+          const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
+          const openRateB = parseFloat(b['Email open rate (MPP excluded)'] || 0);
+          return openRateB - openRateA;
+        })
+        .slice(0, 8);
       
+      emailChartConfig.data.labels = sortedData.map(campaign => campaign.Campaign.substring(0, 15) + '...');
+      emailChartConfig.data.datasets[0].data = sortedData.map(campaign => parseFloat(campaign['Email open rate (MPP excluded)']) * 100);
+      emailChartConfig.data.datasets[1].data = sortedData.map(campaign => parseFloat(campaign['Email click rate']) * 100);
+      
+      createChart('email-performance-chart', emailChartConfig);
+      
+      // Email engagement segmentation chart
       if (filteredEmailData && filteredEmailData.length > 0) {
         // Calculate engagement segments
         let notOpened = 0;
@@ -746,7 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const total = notOpened + openedNotClicked + clicked;
         
-        window.emailEngagementChart = new Chart(ctx, {
+        const engagementChartConfig = {
           type: 'pie',
           data: {
             labels: ['Not Opened', 'Opened (No Click)', 'Clicked'],
@@ -771,20 +862,14 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
-        });
-      } else {
-        // Show empty state
-        ctx.font = '14px Arial';
-        ctx.fillStyle = '#f6ad55';
-        ctx.textAlign = 'center';
-        ctx.fillText('No email data available for selected date range', emailEngagementChart.width / 2, emailEngagementChart.height / 2);
+        };
+        
+        createChart('email-engagement-chart', engagementChartConfig);
       }
-    }
-    
-    // Top email campaigns table
-    const topEmailCampaignsTable = document.getElementById('top-email-campaigns-table');
-    if (topEmailCampaignsTable) {
-      if (filteredEmailData && filteredEmailData.length > 0) {
+      
+      // Top email campaigns table
+      const topEmailCampaignsTable = document.getElementById('top-email-campaigns-table');
+      if (topEmailCampaignsTable) {
         const sortedData = [...filteredEmailData]
           .sort((a, b) => {
             const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
@@ -820,7 +905,48 @@ document.addEventListener('DOMContentLoaded', () => {
         
         tableHtml += '</tbody>';
         topEmailCampaignsTable.innerHTML = tableHtml;
-      } else {
+      }
+    } else {
+      // Show empty state when no data available
+      const emailPerformanceChart = document.getElementById('email-performance-chart');
+      if (emailPerformanceChart) {
+        const ctx = emailPerformanceChart.getContext('2d');
+        // Clear any existing chart
+        if (chartInstances['email-performance-chart']) {
+          chartInstances['email-performance-chart'].destroy();
+          chartInstances['email-performance-chart'] = null;
+        }
+        // Show empty state
+        ctx.clearRect(0, 0, emailPerformanceChart.width, emailPerformanceChart.height);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No email data available for selected date range', 
+                    emailPerformanceChart.width / 2, 
+                    emailPerformanceChart.height / 2);
+      }
+      
+      const emailEngagementChart = document.getElementById('email-engagement-chart');
+      if (emailEngagementChart) {
+        const ctx = emailEngagementChart.getContext('2d');
+        // Clear any existing chart
+        if (chartInstances['email-engagement-chart']) {
+          chartInstances['email-engagement-chart'].destroy();
+          chartInstances['email-engagement-chart'] = null;
+        }
+        // Show empty state
+        ctx.clearRect(0, 0, emailEngagementChart.width, emailEngagementChart.height);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No email data available for selected date range', 
+                    emailEngagementChart.width / 2, 
+                    emailEngagementChart.height / 2);
+      }
+      
+      // Update table with no data message
+      const topEmailCampaignsTable = document.getElementById('top-email-campaigns-table');
+      if (topEmailCampaignsTable) {
         topEmailCampaignsTable.innerHTML = `
           <thead>
             <tr>
