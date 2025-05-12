@@ -28,8 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // DOM elements
   const lastUpdatedElement = document.getElementById('last-updated');
   
+  // Debug logging helper
+  const debugLog = (message, data = null) => {
+    console.debug(`[Dashboard] ${message}`, data || '');
+  };
+  
   // Helper function to safely create a chart
   const createChart = (canvasId, config) => {
+    debugLog(`Creating chart for ${canvasId}`);
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
       console.warn(`Canvas with ID ${canvasId} not found`);
@@ -38,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Clear any existing chart - CRITICAL FIX
     if (chartInstances[canvasId]) {
-      console.log(`Destroying existing chart in ${canvasId}`);
+      debugLog(`Destroying existing chart in ${canvasId}`);
       chartInstances[canvasId].destroy();
       delete chartInstances[canvasId]; // Proper cleanup
     }
@@ -51,8 +57,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
       }
       
+      // Verify the data for the chart
+      const hasData = checkChartHasData(config);
+      if (!hasData) {
+        debugLog(`No data available for chart ${canvasId}`, config);
+        // Show empty state
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available for the selected period', canvas.width / 2, canvas.height / 2);
+        return null;
+      }
+      
       // Create a new chart
       chartInstances[canvasId] = new Chart(ctx, config);
+      debugLog(`Successfully created chart for ${canvasId}`);
       return chartInstances[canvasId];
     } catch (error) {
       console.error(`Error creating chart on ${canvasId}:`, error);
@@ -69,10 +89,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
+  // Helper function to check if a chart config has valid data
+  const checkChartHasData = (config) => {
+    if (!config || !config.data || !config.data.datasets) {
+      return false;
+    }
+    
+    // Check if any dataset has data
+    return config.data.datasets.some(dataset => {
+      if (!dataset.data) return false;
+      
+      // For numeric data arrays
+      if (Array.isArray(dataset.data)) {
+        // Check if array has any non-zero values
+        return dataset.data.some(val => val !== null && val !== undefined && val !== 0);
+      }
+      
+      // For object data
+      return Object.keys(dataset.data).length > 0;
+    });
+  };
+  
   // Helper function to safely clear a chart if it exists
   const clearChart = (canvasId) => {
     if (chartInstances[canvasId]) {
-      console.log(`Destroying chart in ${canvasId}`);
+      debugLog(`Destroying chart in ${canvasId}`);
       chartInstances[canvasId].destroy();
       delete chartInstances[canvasId];
     }
@@ -116,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Format numbers for display
   const formatNumber = (num) => {
-    if (num === undefined || num === null) return '--';
+    if (num === undefined || num === null || isNaN(num)) return '--';
     
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
@@ -124,6 +165,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return (num / 1000).toFixed(1) + 'K';
     }
     return num.toString();
+  };
+  
+  // Safe number parsing (returns 0 instead of NaN)
+  const safeParseInt = (value, defaultValue = 0) => {
+    if (value === undefined || value === null || value === '') {
+      return defaultValue;
+    }
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  };
+  
+  const safeParseFloat = (value, defaultValue = 0) => {
+    if (value === undefined || value === null || value === '') {
+      return defaultValue;
+    }
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? defaultValue : parsed;
   };
   
   // Parse dates from different formats
@@ -194,7 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const applyDateFilter = (data, dateField) => {
     if (!data || !dateRange.startDate || !dateRange.endDate) return data;
     
-    return data.filter(item => {
+    debugLog(`Applying date filter to ${data.length} records. Range: ${dateRange.startDate.toISOString()} - ${dateRange.endDate.toISOString()}`);
+    
+    const filtered = data.filter(item => {
       let itemDate;
       if (item[dateField]) {
         itemDate = parseDate(item[dateField]);
@@ -208,6 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       return itemDate >= dateRange.startDate && itemDate <= dateRange.endDate;
     });
+    
+    debugLog(`Date filter resulted in ${filtered.length} records`);
+    return filtered;
   };
   
   // Create date filter UI
@@ -286,12 +349,31 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (clearFilterBtn) {
       clearFilterBtn.addEventListener('click', () => {
-        dateRange.startDate = null;
-        dateRange.endDate = null;
+        dateRange.startDate = availableDates.earliestDate;
+        dateRange.endDate = availableDates.latestDate;
         renderDateFilter();
         updateDashboard();
       });
     }
+  };
+  
+  // Get proper path for CSV files based on deployment environment
+  const getFilePath = (filename) => {
+    // For GitHub Pages, need to include the repository name in the path
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    if (isGitHubPages) {
+      // Extract repo name from the path
+      const pathParts = window.location.pathname.split('/');
+      const repoName = pathParts[1]; // First part after the domain
+      
+      // If we're in a repo (not a user pages site)
+      if (repoName && repoName !== '') {
+        return `/${repoName}/${filename}`;
+      }
+    }
+    
+    // Otherwise use relative path for local development
+    return filename;
   };
   
   // Load CSV files
@@ -301,22 +383,22 @@ document.addEventListener('DOMContentLoaded', () => {
     dataErrors = {};
     let allDates = [];
     
-    console.log('Loading CSV data...');
+    debugLog('Loading CSV data...');
     
     // Function to load and parse a CSV file
     const loadCSVFile = (filename) => {
       return new Promise((resolve, reject) => {
-        console.log(`Attempting to load ${filename}...`);
+        const filepath = getFilePath(filename);
+        debugLog(`Attempting to load ${filename} from ${filepath}...`);
         
         try {
-          // Use the filename directly for relative path loading
-          Papa.parse(filename, {
+          Papa.parse(filepath, {
             download: true,
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
             complete: (results) => {
-              console.log(`Successfully loaded ${filename}, found ${results.data.length} rows`);
+              debugLog(`Successfully loaded ${filename}, found ${results.data.length} rows`);
               
               // Extract dates if available
               if (results.data.length > 0 && (results.data[0].Date || results.data[0]['Publish time'])) {
@@ -325,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   .filter(date => date !== null);
                 
                 if (dates.length > 0) {
-                  console.log(`Found ${dates.length} valid dates in ${filename}`);
+                  debugLog(`Found ${dates.length} valid dates in ${filename}`);
                   allDates = [...allDates, ...dates];
                 }
               }
@@ -345,13 +427,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     };
     
-    
     try {
       // Load all required CSV files
-      console.log('Starting to load all CSV files...');
+      debugLog('Starting to load all CSV files...');
       
       try {
-        console.log('Loading Email_Campaign_Performance.csv');
+        debugLog('Loading Email_Campaign_Performance.csv');
         emailData = await loadCSVFile('Email_Campaign_Performance.csv');
       } catch (error) {
         console.error('Failed to load Email_Campaign_Performance.csv:', error);
@@ -359,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       try {
-        console.log('Loading FB_Videos.csv');
+        debugLog('Loading FB_Videos.csv');
         fbVideosData = await loadCSVFile('FB_Videos.csv');
       } catch (error) {
         console.error('Failed to load FB_Videos.csv:', error);
@@ -367,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       try {
-        console.log('Loading IG_Posts.csv');
+        debugLog('Loading IG_Posts.csv');
         igPostsData = await loadCSVFile('IG_Posts.csv');
       } catch (error) {
         console.error('Failed to load IG_Posts.csv:', error);
@@ -375,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       try {
-        console.log('Loading YouTube_Age.csv');
+        debugLog('Loading YouTube_Age.csv');
         youtubeAgeData = await loadCSVFile('YouTube_Age.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Age.csv:', error);
@@ -383,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       try {
-        console.log('Loading YouTube_Gender.csv');
+        debugLog('Loading YouTube_Gender.csv');
         youtubeGenderData = await loadCSVFile('YouTube_Gender.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Gender.csv:', error);
@@ -391,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       try {
-        console.log('Loading YouTube_Geography.csv');
+        debugLog('Loading YouTube_Geography.csv');
         youtubeGeographyData = await loadCSVFile('YouTube_Geography.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Geography.csv:', error);
@@ -399,14 +480,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       try {
-        console.log('Loading YouTube_Subscription_Status.csv');
+        debugLog('Loading YouTube_Subscription_Status.csv');
         youtubeSubscriptionData = await loadCSVFile('YouTube_Subscription_Status.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Subscription_Status.csv:', error);
         dataErrors['YouTube_Subscription_Status.csv'] = error.message || "File not found or inaccessible";
       }
       
-      console.log('All CSV files loaded or attempted');
+      debugLog('All CSV files loaded or attempted');
       
       // Extract dates from all datasets
       try {
@@ -435,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (allExtractedDates.length > 0) {
           allDates = allExtractedDates;
-          console.log(`Found ${allDates.length} dates across all datasets`);
+          debugLog(`Found ${allDates.length} dates across all datasets`);
         }
       } catch (error) {
         console.error('Error extracting dates:', error);
@@ -446,19 +527,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const earliest = new Date(Math.min(...allDates));
         const latest = new Date(Math.max(...allDates));
         
-        console.log(`Found date range from ${earliest.toISOString()} to ${latest.toISOString()}`);
+        debugLog(`Found date range from ${earliest.toISOString()} to ${latest.toISOString()}`);
         
         availableDates.earliestDate = earliest;
         availableDates.latestDate = latest;
         
-        // Default to last 30 days if data available
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
-        dateRange.startDate = thirtyDaysAgo > earliest ? thirtyDaysAgo : earliest;
+        // Set to the full range by default to show all data
+        dateRange.startDate = earliest;
         dateRange.endDate = latest;
       } else {
-        console.log('No dates found in the data');
+        debugLog('No dates found in the data');
       }
       
       isLoading = false;
@@ -589,12 +667,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update the dashboard with current data and filters
   const updateDashboard = () => {
     try {
+      debugLog('Updating dashboard with current data and filters');
+      
       // Calculate key metrics
       const totalYoutubeViews = youtubeGeographyData ? 
-        youtubeGeographyData.reduce((sum, item) => sum + (item.Views || 0), 0) : null;
+        youtubeGeographyData.reduce((sum, item) => sum + safeParseInt(item.Views), 0) : null;
 
       const emailRecipients = emailData && emailData.length > 0 ? 
-        Math.max(...emailData.map(campaign => parseInt(campaign['Emails sent'] || 0))) : null;
+        Math.max(...emailData.map(campaign => safeParseInt(campaign['Emails sent']))) : null;
 
       // Filter data based on date range
       const filteredEmailData = emailData ? applyDateFilter(emailData, 'Date') : null;
@@ -603,15 +683,17 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Calculate filtered metrics
       const totalFbVideoViews = filteredFbVideos && filteredFbVideos.length > 0 ? 
-        filteredFbVideos.reduce((sum, video) => sum + (video['3-second video views'] || 0), 0) : null;
+        filteredFbVideos.reduce((sum, video) => sum + safeParseInt(video['3-second video views']), 0) : null;
       
       const totalIgReach = filteredIgPosts && filteredIgPosts.length > 0 ? 
-        filteredIgPosts.reduce((sum, post) => sum + (post.Reach || 0), 0) : null;
+        filteredIgPosts.reduce((sum, post) => sum + safeParseInt(post.Reach), 0) : null;
       
-      console.log('Updating dashboard with filtered data:', {
+      debugLog('Filtered data stats:', {
         emailData: filteredEmailData?.length || 0,
         fbVideos: filteredFbVideos?.length || 0,
-        igPosts: filteredIgPosts?.length || 0
+        igPosts: filteredIgPosts?.length || 0,
+        totalFbVideoViews,
+        totalIgReach
       });
       
       // Update Overview tab
@@ -630,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update Instagram tab
       updateInstagramTab(filteredIgPosts);
       
-      // New: Update Cross-Channel Analysis
+      // Update Cross-Channel Analysis
       updateCrossChannelAnalysis(filteredEmailData, filteredFbVideos, filteredIgPosts, youtubeGeographyData);
       
     } catch (error) {
@@ -638,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // NEW FUNCTION: Update Cross-Channel Analysis
+  // Update Cross-Channel Analysis
   const updateCrossChannelAnalysis = (emailData, fbVideos, igPosts, youtubeData) => {
     // Check if the cross-channel chart elements exist
     const channelTrafficChart = document.getElementById('channel-traffic-chart');
@@ -650,16 +732,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (channelTrafficChart) {
       // Calculate total traffic/views by channel
       const emailOpens = emailData ? 
-        emailData.reduce((sum, campaign) => sum + parseInt(campaign['Email opened (MPP excluded)'] || 0), 0) : 0;
+        emailData.reduce((sum, campaign) => sum + safeParseInt(campaign['Email opened (MPP excluded)']), 0) : 0;
       
       const fbViews = fbVideos ? 
-        fbVideos.reduce((sum, video) => sum + (video['3-second video views'] || 0), 0) : 0;
+        fbVideos.reduce((sum, video) => sum + safeParseInt(video['3-second video views']), 0) : 0;
       
       const igReach = igPosts ? 
-        igPosts.reduce((sum, post) => sum + (post.Reach || 0), 0) : 0;
+        igPosts.reduce((sum, post) => sum + safeParseInt(post.Reach), 0) : 0;
       
       const youtubeViews = youtubeData ? 
-        youtubeData.reduce((sum, item) => sum + (item.Views || 0), 0) : 0;
+        youtubeData.reduce((sum, item) => sum + safeParseInt(item.Views), 0) : 0;
+      
+      debugLog('Channel traffic comparison data:', { emailOpens, fbViews, igReach, youtubeViews });
+      
+      // Check if there's any data to display
+      if (emailOpens === 0 && fbViews === 0 && igReach === 0 && youtubeViews === 0) {
+        clearChart('channel-traffic-chart');
+        const ctx = channelTrafficChart.getContext('2d');
+        if (ctx) {
+          ctx.font = '14px Arial';
+          ctx.fillStyle = '#f6ad55';
+          ctx.textAlign = 'center';
+          ctx.fillText('No data available for the selected period', channelTrafficChart.width / 2, channelTrafficChart.height / 2);
+        }
+        return;
+      }
       
       // Create the chart
       const trafficChartConfig = {
@@ -708,24 +805,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (engagementChart) {
       // Calculate engagement metrics by channel
       const emailClickRate = emailData && emailData.length > 0 ? 
-        emailData.reduce((sum, campaign) => sum + parseFloat(campaign['Email click rate'] || 0), 0) / emailData.length * 100 : 0;
+        emailData.reduce((sum, campaign) => sum + safeParseFloat(campaign['Email click rate']), 0) / emailData.length * 100 : 0;
       
       const fbEngagementRate = fbVideos && fbVideos.length > 0 ? 
         fbVideos.reduce((sum, video) => {
-          const views = video['3-second video views'] || 0;
-          const engagement = (video.Reactions || 0) + (video.Comments || 0) + (video.Shares || 0);
+          const views = safeParseInt(video['3-second video views']);
+          const engagement = safeParseInt(video.Reactions) + safeParseInt(video.Comments) + safeParseInt(video.Shares);
           return sum + (views > 0 ? engagement / views : 0);
         }, 0) / fbVideos.length * 100 : 0;
       
       const igEngagementRate = igPosts && igPosts.length > 0 ? 
         igPosts.reduce((sum, post) => {
-          const reach = post.Reach || 0;
-          const engagement = (post.Likes || 0) + (post.Comments || 0) + (post.Shares || 0) + (post.Saves || 0);
+          const reach = safeParseInt(post.Reach);
+          const engagement = safeParseInt(post.Likes) + safeParseInt(post.Comments) + safeParseInt(post.Shares) + safeParseInt(post.Saves);
           return sum + (reach > 0 ? engagement / reach : 0);
         }, 0) / igPosts.length * 100 : 0;
       
       // YouTube engagement calculation (likes + comments + shares) / views
       const youtubeEngagementRate = 4.5; // Placeholder value since detailed engagement metrics aren't available
+      
+      debugLog('Channel engagement data:', { emailClickRate, fbEngagementRate, igEngagementRate, youtubeEngagementRate });
+      
+      // Check if there's any data to display
+      if (emailClickRate === 0 && fbEngagementRate === 0 && igEngagementRate === 0 && youtubeEngagementRate === 0) {
+        clearChart('engagement-chart');
+        const ctx = engagementChart.getContext('2d');
+        if (ctx) {
+          ctx.font = '14px Arial';
+          ctx.fillStyle = '#f6ad55';
+          ctx.textAlign = 'center';
+          ctx.fillText('No engagement data available for the selected period', engagementChart.width / 2, engagementChart.height / 2);
+        }
+        return;
+      }
       
       // Create the chart
       const engagementChartConfig = {
@@ -850,12 +962,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailEngagementChart = document.getElementById('email-engagement-chart');
     
     if (filteredEmailData && filteredEmailData.length > 0) {
+      debugLog(`Updating email charts with ${filteredEmailData.length} campaigns`);
+      
       // Email Performance Chart
       if (emailPerformanceChart) {
         const sortedData = [...filteredEmailData]
           .sort((a, b) => {
-            const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
-            const openRateB = parseFloat(b['Email open rate (MPP excluded)'] || 0);
+            const openRateA = safeParseFloat(a['Email open rate (MPP excluded)']);
+            const openRateB = safeParseFloat(b['Email open rate (MPP excluded)']);
             return openRateB - openRateA;
           })
           .slice(0, 8);
@@ -863,18 +977,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const emailChartConfig = {
           type: 'bar',
           data: {
-            labels: sortedData.map(campaign => campaign.Campaign.substring(0, 15) + '...'),
+            labels: sortedData.map(campaign => {
+              // Ensure campaign name exists and is properly truncated
+              const name = campaign.Campaign || 'Unnamed Campaign';
+              return name.length > 15 ? name.substring(0, 15) + '...' : name;
+            }),
             datasets: [
               {
                 label: 'Open Rate',
-                data: sortedData.map(campaign => parseFloat(campaign['Email open rate (MPP excluded)']) * 100),
+                data: sortedData.map(campaign => safeParseFloat(campaign['Email open rate (MPP excluded)']) * 100),
                 backgroundColor: '#4299e1',
                 borderColor: '#3182ce',
                 borderWidth: 1
               },
               {
                 label: 'Click Rate',
-                data: sortedData.map(campaign => parseFloat(campaign['Email click rate']) * 100),
+                data: sortedData.map(campaign => safeParseFloat(campaign['Email click rate']) * 100),
                 backgroundColor: '#38b2ac',
                 borderColor: '#319795',
                 borderWidth: 1
@@ -923,9 +1041,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let clicked = 0;
         
         filteredEmailData.forEach(campaign => {
-          const sent = parseInt(campaign['Emails sent'] || 0);
-          const opened = parseInt(campaign['Email opened (MPP excluded)'] || 0);
-          const clickedCount = parseInt(campaign['Email clicked'] || 0);
+          const sent = safeParseInt(campaign['Emails sent']);
+          const opened = safeParseInt(campaign['Email opened (MPP excluded)']);
+          const clickedCount = safeParseInt(campaign['Email clicked']);
           
           notOpened += (sent - opened);
           openedNotClicked += (opened - clickedCount);
@@ -933,6 +1051,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         const total = notOpened + openedNotClicked + clicked;
+        
+        debugLog('Email engagement segments:', { notOpened, openedNotClicked, clicked, total });
+        
+        // Ensure we have valid data
+        if (total <= 0) {
+          clearChart('email-engagement-chart');
+          const ctx = emailEngagementChart.getContext('2d');
+          if (ctx) {
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#f6ad55';
+            ctx.textAlign = 'center';
+            ctx.fillText('No email engagement data available', emailEngagementChart.width / 2, emailEngagementChart.height / 2);
+          }
+          return;
+        }
         
         const engagementChartConfig = {
           type: 'pie',
@@ -969,8 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (topEmailCampaignsTable) {
         const sortedData = [...filteredEmailData]
           .sort((a, b) => {
-            const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
-            const openRateB = parseFloat(b['Email open rate (MPP excluded)'] || 0);
+            const openRateA = safeParseFloat(a['Email open rate (MPP excluded)']);
+            const openRateB = safeParseFloat(b['Email open rate (MPP excluded)']);
             return openRateB - openRateA;
           })
           .slice(0, 10);
@@ -991,11 +1124,11 @@ document.addEventListener('DOMContentLoaded', () => {
         sortedData.forEach(campaign => {
           tableHtml += `
             <tr>
-              <td>${campaign.Campaign}</td>
-              <td>${(parseFloat(campaign['Email open rate (MPP excluded)']) * 100).toFixed(2)}%</td>
-              <td>${(parseFloat(campaign['Email click rate']) * 100).toFixed(2)}%</td>
+              <td>${campaign.Campaign || 'Unnamed Campaign'}</td>
+              <td>${(safeParseFloat(campaign['Email open rate (MPP excluded)']) * 100).toFixed(2)}%</td>
+              <td>${(safeParseFloat(campaign['Email click rate']) * 100).toFixed(2)}%</td>
               <td>${formatNumber(campaign['Email deliveries'])}</td>
-              <td>${(parseFloat(campaign['Email unsubscribe rate']) * 100).toFixed(2)}%</td>
+              <td>${(safeParseFloat(campaign['Email unsubscribe rate']) * 100).toFixed(2)}%</td>
             </tr>
           `;
         });
@@ -1054,16 +1187,34 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Update YouTube tab
   const updateYouTubeTab = () => {
+    debugLog('Updating YouTube tab');
+    
     // YouTube demographics - age
     const youtubeAgeChart = document.getElementById('youtube-age-chart');
     if (youtubeAgeChart && youtubeAgeData) {
+      debugLog('Creating YouTube age chart with', youtubeAgeData.length, 'entries');
+      
+      // Verify data has values
+      const hasValidData = youtubeAgeData.some(item => !isNaN(safeParseFloat(item['Views (%)'])));
+      if (!hasValidData) {
+        clearChart('youtube-age-chart');
+        const ctx = youtubeAgeChart.getContext('2d');
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No valid age data available', 
+                    youtubeAgeChart.width / 2, 
+                    youtubeAgeChart.height / 2);
+        return;
+      }
+      
       const ageChartConfig = {
         type: 'bar',
         data: {
           labels: youtubeAgeData.map(data => data['Viewer age']),
           datasets: [{
             label: 'Views %',
-            data: youtubeAgeData.map(data => data['Views (%)']),
+            data: youtubeAgeData.map(data => safeParseFloat(data['Views (%)'])),
             backgroundColor: '#4c51bf',
             borderColor: '#434190',
             borderWidth: 1
@@ -1099,12 +1250,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // YouTube demographics - gender
     const youtubeGenderChart = document.getElementById('youtube-gender-chart');
     if (youtubeGenderChart && youtubeGenderData) {
+      debugLog('Creating YouTube gender chart with', youtubeGenderData.length, 'entries');
+      
+      // Verify data has values
+      const hasValidData = youtubeGenderData.some(item => !isNaN(safeParseFloat(item['Views (%)'])));
+      if (!hasValidData) {
+        clearChart('youtube-gender-chart');
+        const ctx = youtubeGenderChart.getContext('2d');
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No valid gender data available', 
+                    youtubeGenderChart.width / 2, 
+                    youtubeGenderChart.height / 2);
+        return;
+      }
+      
       const genderChartConfig = {
         type: 'pie',
         data: {
           labels: youtubeGenderData.map(data => data['Viewer gender']),
           datasets: [{
-            data: youtubeGenderData.map(data => data['Views (%)']),
+            data: youtubeGenderData.map(data => safeParseFloat(data['Views (%)'])),
             backgroundColor: ['#4c51bf', '#ed64a6', '#ecc94b'],
             borderColor: ['#434190', '#d53f8c', '#d69e2e'],
             borderWidth: 1
@@ -1130,14 +1297,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // YouTube subscriber status
     const youtubeSubscriberChart = document.getElementById('youtube-subscriber-chart');
     if (youtubeSubscriberChart && youtubeSubscriptionData) {
-      const totalViews = youtubeSubscriptionData.reduce((sum, data) => sum + (data.Views || 0), 0);
+      debugLog('Creating YouTube subscriber chart with', youtubeSubscriptionData.length, 'entries');
+      
+      const totalViews = youtubeSubscriptionData.reduce((sum, data) => sum + safeParseInt(data.Views), 0);
+      
+      // Verify data has values
+      if (totalViews <= 0) {
+        clearChart('youtube-subscriber-chart');
+        const ctx = youtubeSubscriberChart.getContext('2d');
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No valid subscriber data available', 
+                    youtubeSubscriberChart.width / 2, 
+                    youtubeSubscriberChart.height / 2);
+        return;
+      }
       
       const subscriberChartConfig = {
         type: 'doughnut',
         data: {
           labels: youtubeSubscriptionData.map(data => data['Subscription status']),
           datasets: [{
-            data: youtubeSubscriptionData.map(data => data.Views),
+            data: youtubeSubscriptionData.map(data => safeParseInt(data.Views)),
             backgroundColor: ['#48bb78', '#4299e1'],
             borderColor: ['#38a169', '#3182ce'],
             borderWidth: 1
@@ -1165,10 +1347,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // YouTube geography
     const youtubeGeographyChart = document.getElementById('youtube-geography-chart');
     if (youtubeGeographyChart && youtubeGeographyData) {
+      debugLog('Creating YouTube geography chart with', youtubeGeographyData.length, 'entries');
+      
       // Sort by views and take top 10
       const topCountries = [...youtubeGeographyData]
-        .sort((a, b) => (b.Views || 0) - (a.Views || 0))
+        .sort((a, b) => safeParseInt(b.Views) - safeParseInt(a.Views))
         .slice(0, 10);
+      
+      // Verify data has values
+      if (topCountries.length === 0 || topCountries.every(country => safeParseInt(country.Views) === 0)) {
+        clearChart('youtube-geography-chart');
+        const ctx = youtubeGeographyChart.getContext('2d');
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText('No valid geography data available', 
+                    youtubeGeographyChart.width / 2, 
+                    youtubeGeographyChart.height / 2);
+        return;
+      }
       
       const geographyChartConfig = {
         type: 'bar',
@@ -1176,7 +1373,7 @@ document.addEventListener('DOMContentLoaded', () => {
           labels: topCountries.map(data => data.Geography),
           datasets: [{
             label: 'Views',
-            data: topCountries.map(data => data.Views),
+            data: topCountries.map(data => safeParseInt(data.Views)),
             backgroundColor: '#4c51bf',
             borderColor: '#434190',
             borderWidth: 1
@@ -1214,12 +1411,16 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Update Facebook tab
   const updateFacebookTab = (filteredFbVideos) => {
+    debugLog('Updating Facebook tab');
+    
     // Facebook videos table
     const fbVideosTable = document.getElementById('fb-videos-table');
     if (fbVideosTable) {
       if (filteredFbVideos && filteredFbVideos.length > 0) {
+        debugLog(`Creating Facebook videos table with ${filteredFbVideos.length} videos`);
+        
         const topVideos = [...filteredFbVideos]
-          .sort((a, b) => (b['3-second video views'] || 0) - (a['3-second video views'] || 0))
+          .sort((a, b) => safeParseInt(b['3-second video views']) - safeParseInt(a['3-second video views']))
           .slice(0, 5);
         
         let tableHtml = `
@@ -1239,11 +1440,11 @@ document.addEventListener('DOMContentLoaded', () => {
         topVideos.forEach(video => {
           tableHtml += `
             <tr>
-              <td>${video.Title}</td>
-              <td>${formatNumber(video['3-second video views'] || 0)}</td>
-              <td>${formatNumber(video.Reactions || 0)}</td>
-              <td>${formatNumber(video.Comments || 0)}</td>
-              <td>${formatNumber(video.Shares || 0)}</td>
+              <td>${video.Title || 'Untitled Video'}</td>
+              <td>${formatNumber(video['3-second video views'])}</td>
+              <td>${formatNumber(video.Reactions)}</td>
+              <td>${formatNumber(video.Comments)}</td>
+              <td>${formatNumber(video.Shares)}</td>
               <td>${video['Average Seconds viewed'] || '0'}s</td>
             </tr>
           `;
@@ -1276,20 +1477,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const fbDemographicsChart = document.getElementById('fb-demographics-chart');
     if (fbDemographicsChart) {
       if (filteredFbVideos && filteredFbVideos.length > 0) {
+        debugLog('Creating Facebook demographics chart');
+        
         const topVideo = filteredFbVideos
-          .sort((a, b) => (b['3-second video views'] || 0) - (a['3-second video views'] || 0))[0];
+          .sort((a, b) => safeParseInt(b['3-second video views']) - safeParseInt(a['3-second video views']))[0];
         
         // Extract demographic data
         const demographicData = [
-          {name: 'F, 18-24', value: topVideo ? topVideo['3-second video views by top audience (F, 18-24)'] || 0 : 0},
-          {name: 'F, 25-34', value: topVideo ? topVideo['3-second video views by top audience (F, 25-34)'] || 0 : 0},
-          {name: 'F, 35-44', value: topVideo ? topVideo['3-second video views by top audience (F, 35-44)'] || 0 : 0},
-          {name: 'F, 45-54', value: topVideo ? topVideo['3-second video views by top audience (F, 45-54)'] || 0 : 0},
-          {name: 'M, 18-24', value: topVideo ? topVideo['3-second video views by top audience (M, 18-24)'] || 0 : 0},
-          {name: 'M, 25-34', value: topVideo ? topVideo['3-second video views by top audience (M, 25-34)'] || 0 : 0},
-          {name: 'M, 35-44', value: topVideo ? topVideo['3-second video views by top audience (M, 35-44)'] || 0 : 0},
-          {name: 'M, 45-54', value: topVideo ? topVideo['3-second video views by top audience (M, 45-54)'] || 0 : 0},
+          {name: 'F, 18-24', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 18-24)']) : 0},
+          {name: 'F, 25-34', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 25-34)']) : 0},
+          {name: 'F, 35-44', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 35-44)']) : 0},
+          {name: 'F, 45-54', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 45-54)']) : 0},
+          {name: 'M, 18-24', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 18-24)']) : 0},
+          {name: 'M, 25-34', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 25-34)']) : 0},
+          {name: 'M, 35-44', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 35-44)']) : 0},
+          {name: 'M, 45-54', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 45-54)']) : 0},
         ].filter(item => item.value > 0);
+        
+        // Verify data has values
+        if (demographicData.length === 0) {
+          clearChart('fb-demographics-chart');
+          const ctx = fbDemographicsChart.getContext('2d');
+          ctx.font = '14px Arial';
+          ctx.fillStyle = '#f6ad55';
+          ctx.textAlign = 'center';
+          ctx.fillText('No demographic data available for selected videos', 
+                      fbDemographicsChart.width / 2, 
+                      fbDemographicsChart.height / 2);
+          return;
+        }
         
         const demographicsChartConfig = {
           type: 'bar',
@@ -1362,12 +1578,16 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Update Instagram tab
   const updateInstagramTab = (filteredIgPosts) => {
+    debugLog('Updating Instagram tab');
+    
     // Instagram posts table
     const topIgPostsTable = document.getElementById('top-ig-posts-table');
     if (topIgPostsTable) {
       if (filteredIgPosts && filteredIgPosts.length > 0) {
+        debugLog(`Creating Instagram posts table with ${filteredIgPosts.length} posts`);
+        
         const topPosts = [...filteredIgPosts]
-          .sort((a, b) => (b.Reach || 0) - (a.Reach || 0))
+          .sort((a, b) => safeParseInt(b.Reach) - safeParseInt(a.Reach))
           .slice(0, 5);
         
         let tableHtml = `
@@ -1385,14 +1605,15 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         topPosts.forEach(post => {
+          const description = post.Description || 'No description';
           tableHtml += `
             <tr>
-              <td>${post.Description ? post.Description.substring(0, 30) + '...' : 'No description'}</td>
-              <td>${formatNumber(post.Reach || 0)}</td>
-              <td>${formatNumber(post.Likes || 0)}</td>
-              <td>${formatNumber(post.Comments || 0)}</td>
-              <td>${formatNumber(post.Shares || 0)}</td>
-              <td>${formatNumber(post.Saves || 0)}</td>
+              <td>${description.length > 30 ? description.substring(0, 30) + '...' : description}</td>
+              <td>${formatNumber(post.Reach)}</td>
+              <td>${formatNumber(post.Likes)}</td>
+              <td>${formatNumber(post.Comments)}</td>
+              <td>${formatNumber(post.Shares)}</td>
+              <td>${formatNumber(post.Saves)}</td>
             </tr>
           `;
         });
@@ -1424,14 +1645,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const igDemographicsChart = document.getElementById('ig-demographics-chart');
     if (igDemographicsChart) {
       if (filteredIgPosts && filteredIgPosts.length > 0) {
+        debugLog('Creating Instagram engagement chart');
+        
         const engagementData = [
-          { name: 'Likes', value: filteredIgPosts.reduce((sum, post) => sum + (post.Likes || 0), 0) },
-          { name: 'Comments', value: filteredIgPosts.reduce((sum, post) => sum + (post.Comments || 0), 0) },
-          { name: 'Shares', value: filteredIgPosts.reduce((sum, post) => sum + (post.Shares || 0), 0) },
-          { name: 'Saves', value: filteredIgPosts.reduce((sum, post) => sum + (post.Saves || 0), 0) }
+          { name: 'Likes', value: filteredIgPosts.reduce((sum, post) => sum + safeParseInt(post.Likes), 0) },
+          { name: 'Comments', value: filteredIgPosts.reduce((sum, post) => sum + safeParseInt(post.Comments), 0) },
+          { name: 'Shares', value: filteredIgPosts.reduce((sum, post) => sum + safeParseInt(post.Shares), 0) },
+          { name: 'Saves', value: filteredIgPosts.reduce((sum, post) => sum + safeParseInt(post.Saves), 0) }
         ];
         
         const totalEngagement = engagementData.reduce((sum, item) => sum + item.value, 0);
+        
+        // Verify data has values
+        if (totalEngagement <= 0) {
+          clearChart('ig-demographics-chart');
+          const ctx = igDemographicsChart.getContext('2d');
+          ctx.font = '14px Arial';
+          ctx.fillStyle = '#f6ad55';
+          ctx.textAlign = 'center';
+          ctx.fillText('No engagement data available for selected posts', 
+                      igDemographicsChart.width / 2, 
+                      igDemographicsChart.height / 2);
+          return;
+        }
         
         const demographicsChartConfig = {
           type: 'pie',
@@ -1488,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initialize the dashboard
   const initDashboard = () => {
-    console.log('Initializing Marketing Analytics Dashboard');
+    debugLog('Initializing Marketing Analytics Dashboard');
     
     // Insert date filter container
     insertDateFilter();
