@@ -21,6 +21,51 @@ document.addEventListener('DOMContentLoaded', () => {
     latestDate: null
   };
   
+  // Initialize chart objects
+  const chartInstances = {};
+  
+  // Helper function to safely create a chart
+  const createChart = (canvasId, config) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+      console.warn(`Canvas with ID ${canvasId} not found`);
+      return null;
+    }
+    
+    // Clear any existing chart
+    if (chartInstances[canvasId]) {
+      console.log(`Destroying existing chart in ${canvasId}`);
+      chartInstances[canvasId].destroy();
+      chartInstances[canvasId] = null;
+    }
+    
+    try {
+      // Get the 2D context for the canvas
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.warn(`Could not get 2D context for canvas ${canvasId}`);
+        return null;
+      }
+      
+      // Create a new chart
+      chartInstances[canvasId] = new Chart(ctx, config);
+      return chartInstances[canvasId];
+    } catch (error) {
+      console.error(`Error creating chart on ${canvasId}:`, error);
+      return null;
+    }
+  };
+  
+  // Date filter state
+  let dateRange = {
+    startDate: null,
+    endDate: null
+  };
+  let availableDates = {
+    earliestDate: null,
+    latestDate: null
+  };
+  
   // DOM elements
   const lastUpdatedElement = document.getElementById('last-updated');
   
@@ -50,13 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       container.appendChild(dateFilterContainer);
     }
-  }
-  
-  // Wait for DOM to be ready before inserting
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', insertDateFilter);
-  } else {
-    insertDateFilter();
   }
 
   // Format numbers for display
@@ -1401,6 +1439,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const initDashboard = () => {
     console.log('Initializing Marketing Analytics Dashboard');
     
+    // Insert date filter container
+    insertDateFilter();
+    
     // Set up tab navigation
     setupTabNavigation();
     
@@ -1408,10 +1449,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCSVData();
   };
   
-  // Start the dashboard when the DOM is fully loaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDashboard);
-  } else {
-    initDashboard();
-  }
+  // Start the dashboard
+  initDashboard();
 });
