@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Marketing Analytics Dashboard</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <!-- PapaParse for CSV handling -->
@@ -15,64 +17,76 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f8f9fa;
         }
+
         .dashboard-section {
             margin-bottom: 2rem;
             background-color: #fff;
             border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
             padding: 1.5rem;
         }
+
         .metric-card {
             background-color: #fff;
             border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
             margin-bottom: 1rem;
             padding: 1rem;
             height: 100%;
         }
+
         .metric-card h5 {
             color: #495057;
             font-size: 0.9rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
+
         .metric-value {
             font-size: 1.8rem;
             font-weight: 700;
             color: #212529;
         }
+
         .metric-change {
             font-size: 0.8rem;
             font-weight: 500;
         }
+
         .positive-change {
             color: #28a745;
         }
+
         .negative-change {
             color: #dc3545;
         }
+
         .chart-container {
             position: relative;
             margin: auto;
             height: 300px;
             width: 100%;
         }
+
         .nav-tabs .nav-link {
             color: #495057;
             border: none;
             border-bottom: 3px solid transparent;
         }
+
         .nav-tabs .nav-link.active {
             color: #0d6efd;
             background-color: transparent;
             border-color: #0d6efd;
         }
+
         .dashboard-header {
             background-color: #fff;
             padding: 1rem 0;
             margin-bottom: 1rem;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
         }
+
         .loader {
             border: 5px solid #f3f3f3;
             border-radius: 50%;
@@ -82,12 +96,19 @@
             animation: spin 1s linear infinite;
             margin: 20px auto;
         }
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="dashboard-header">
         <div class="container">
@@ -101,19 +122,25 @@
             <div class="col-md-12">
                 <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">Overview</button>
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab"
+                            data-bs-target="#overview" type="button" role="tab" aria-controls="overview"
+                            aria-selected="true">Overview</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="web-tab" data-bs-toggle="tab" data-bs-target="#web" type="button" role="tab" aria-controls="web" aria-selected="false">Web Analytics</button>
+                        <button class="nav-link" id="web-tab" data-bs-toggle="tab" data-bs-target="#web" type="button"
+                            role="tab" aria-controls="web" aria-selected="false">Web Analytics</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social" type="button" role="tab" aria-controls="social" aria-selected="false">Social Media</button>
+                        <button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social"
+                            type="button" role="tab" aria-controls="social" aria-selected="false">Social Media</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email" type="button" role="tab" aria-controls="email" aria-selected="false">Email</button>
+                        <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email"
+                            type="button" role="tab" aria-controls="email" aria-selected="false">Email</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="youtube-tab" data-bs-toggle="tab" data-bs-target="#youtube" type="button" role="tab" aria-controls="youtube" aria-selected="false">YouTube</button>
+                        <button class="nav-link" id="youtube-tab" data-bs-toggle="tab" data-bs-target="#youtube"
+                            type="button" role="tab" aria-controls="youtube" aria-selected="false">YouTube</button>
                     </li>
                 </ul>
             </div>
@@ -231,10 +258,14 @@
                     <div class="col-md-12">
                         <ul class="nav nav-pills" id="socialTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="facebook-tab" data-bs-toggle="pill" data-bs-target="#facebook" type="button" role="tab" aria-controls="facebook" aria-selected="true">Facebook</button>
+                                <button class="nav-link active" id="facebook-tab" data-bs-toggle="pill"
+                                    data-bs-target="#facebook" type="button" role="tab" aria-controls="facebook"
+                                    aria-selected="true">Facebook</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="instagram-tab" data-bs-toggle="pill" data-bs-target="#instagram" type="button" role="tab" aria-controls="instagram" aria-selected="false">Instagram</button>
+                                <button class="nav-link" id="instagram-tab" data-bs-toggle="pill"
+                                    data-bs-target="#instagram" type="button" role="tab" aria-controls="instagram"
+                                    aria-selected="false">Instagram</button>
                             </li>
                         </ul>
                     </div>
@@ -451,7 +482,8 @@
 
     <footer class="bg-light py-3 mt-4">
         <div class="container">
-            <p class="text-center text-muted">Marketing Analytics Dashboard. Data refreshes when you upload new CSVs to your repository.</p>
+            <p class="text-center text-muted">Marketing Analytics Dashboard. Data refreshes when you upload new CSVs to
+                your repository.</p>
         </div>
     </footer>
 
@@ -459,4 +491,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="js/dashboard.js"></script>
 </body>
+
 </html>
