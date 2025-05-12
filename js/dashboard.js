@@ -12,14 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let dataErrors = {};
   
   // Date filter state
-  let dateRange = {
-    startDate: null,
-    endDate: null
-  };
-  let availableDates = {
-    earliestDate: null,
-    latestDate: null
-  };
+  // Removed duplicate declaration of availableDates
   
   // Initialize chart objects
   const chartInstances = {};
