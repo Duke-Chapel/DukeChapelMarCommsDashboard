@@ -23,10 +23,41 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // DOM elements
   const lastUpdatedElement = document.getElementById('last-updated');
+  
+  // Create date filter container safely
   const dateFilterContainer = document.createElement('div');
   dateFilterContainer.className = 'dashboard-section mb-4';
   dateFilterContainer.id = 'date-filter-container';
-  document.querySelector('.container').insertBefore(dateFilterContainer, document.querySelector('.row.mb-4'));
+  
+  // Safely insert the date filter container
+  function insertDateFilter() {
+    const container = document.querySelector('.container');
+    if (!container) return; // No container found
+    
+    // Try to insert before tabs
+    const tabsRow = document.querySelector('#dashboardTabs');
+    if (tabsRow) {
+      const tabParent = tabsRow.closest('.row');
+      if (tabParent && tabParent.parentNode === container) {
+        container.insertBefore(dateFilterContainer, tabParent);
+        return;
+      }
+    }
+    
+    // If we couldn't find tabs, try to insert as first child of container
+    if (container.firstChild) {
+      container.insertBefore(dateFilterContainer, container.firstChild);
+    } else {
+      container.appendChild(dateFilterContainer);
+    }
+  }
+  
+  // Wait for DOM to be ready before inserting
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertDateFilter);
+  } else {
+    insertDateFilter();
+  }
 
   // Format numbers for display
   const formatNumber = (num) => {
@@ -120,7 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderDateFilter = () => {
     if (isLoading) return;
     
-    dateFilterContainer.innerHTML = `
+    // Check if dateFilterContainer is in the DOM
+    if (!document.getElementById('date-filter-container')) {
+      insertDateFilter();
+    }
+    
+    const filterContainer = document.getElementById('date-filter-container');
+    if (!filterContainer) {
+      console.warn('Date filter container not found in the DOM');
+      return;
+    }
+    
+    filterContainer.innerHTML = `
       <h3 class="h5 mb-3">Date Range Filter</h3>
       <div class="date-filter-controls">
         <div class="row align-items-end mb-3">
@@ -161,22 +203,32 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     
     // Add event listeners
-    document.getElementById('start-date-input').addEventListener('change', (e) => {
-      dateRange.startDate = e.target.value ? new Date(e.target.value) : null;
-      updateDashboard();
-    });
+    const startDateInput = document.getElementById('start-date-input');
+    const endDateInput = document.getElementById('end-date-input');
+    const clearFilterBtn = document.getElementById('clear-date-filter');
     
-    document.getElementById('end-date-input').addEventListener('change', (e) => {
-      dateRange.endDate = e.target.value ? new Date(e.target.value) : null;
-      updateDashboard();
-    });
+    if (startDateInput) {
+      startDateInput.addEventListener('change', (e) => {
+        dateRange.startDate = e.target.value ? new Date(e.target.value) : null;
+        updateDashboard();
+      });
+    }
     
-    document.getElementById('clear-date-filter').addEventListener('click', () => {
-      dateRange.startDate = null;
-      dateRange.endDate = null;
-      renderDateFilter();
-      updateDashboard();
-    });
+    if (endDateInput) {
+      endDateInput.addEventListener('change', (e) => {
+        dateRange.endDate = e.target.value ? new Date(e.target.value) : null;
+        updateDashboard();
+      });
+    }
+    
+    if (clearFilterBtn) {
+      clearFilterBtn.addEventListener('click', () => {
+        dateRange.startDate = null;
+        dateRange.endDate = null;
+        renderDateFilter();
+        updateDashboard();
+      });
+    }
   };
   
   // Load CSV files
@@ -186,69 +238,118 @@ document.addEventListener('DOMContentLoaded', () => {
     dataErrors = {};
     let allDates = [];
     
+    console.log('Loading CSV data...');
+    
     // Function to load and parse a CSV file
     const loadCSVFile = (file) => {
       return new Promise((resolve, reject) => {
-        Papa.parse(file, {
-          download: true,
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            // Extract dates if available
-            if (results.data.length > 0 && (results.data[0].Date || results.data[0]['Publish time'])) {
-              const dates = results.data
-                .map(item => parseDate(item.Date || item['Publish time']))
-                .filter(date => date !== null);
+        console.log(`Attempting to load ${file}...`);
+        
+        try {
+          Papa.parse(file, {
+            download: true,
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              console.log(`Successfully loaded ${file}, found ${results.data.length} rows`);
               
-              if (dates.length > 0) {
-                allDates = [...allDates, ...dates];
+              // Extract dates if available
+              if (results.data.length > 0 && (results.data[0].Date || results.data[0]['Publish time'])) {
+                const dates = results.data
+                  .map(item => parseDate(item.Date || item['Publish time']))
+                  .filter(date => date !== null);
+                
+                if (dates.length > 0) {
+                  console.log(`Found ${dates.length} valid dates in ${file}`);
+                  allDates = [...allDates, ...dates];
+                }
               }
+              resolve(results.data);
+            },
+            error: (error) => {
+              console.error(`Error parsing ${file}:`, error);
+              dataErrors[file] = `Error parsing ${file}: ${error.message}`;
+              reject(error);
             }
-            resolve(results.data);
-          },
-          error: (error) => {
-            dataErrors[file] = `Error parsing ${file}: ${error.message}`;
-            reject(error);
-          }
-        });
+          });
+        } catch (error) {
+          console.error(`Exception loading ${file}:`, error);
+          dataErrors[file] = `Error loading ${file}: ${error.message}`;
+          reject(error);
+        }
       });
     };
     
+    
     try {
       // Load all required CSV files
-      const [email, fbVideos, igPosts, ytAge, ytGender, ytGeo, ytSub] = await Promise.allSettled([
-        loadCSVFile('Email_Campaign_Performance.csv'),
-        loadCSVFile('FB_Videos.csv'),
-        loadCSVFile('IG_Posts.csv'),
-        loadCSVFile('YouTube_Age.csv'),
-        loadCSVFile('YouTube_Gender.csv'),
-        loadCSVFile('YouTube_Geography.csv'),
-        loadCSVFile('YouTube_Subscription_Status.csv')
-      ]);
+      console.log('Starting to load all CSV files...');
       
-      // Set data from fulfilled promises
-      emailData = email.status === 'fulfilled' ? email.value : null;
-      fbVideosData = fbVideos.status === 'fulfilled' ? fbVideos.value : null;
-      igPostsData = igPosts.status === 'fulfilled' ? igPosts.value : null;
-      youtubeAgeData = ytAge.status === 'fulfilled' ? ytAge.value : null;
-      youtubeGenderData = ytGender.status === 'fulfilled' ? ytGender.value : null;
-      youtubeGeographyData = ytGeo.status === 'fulfilled' ? ytGeo.value : null;
-      youtubeSubscriptionData = ytSub.status === 'fulfilled' ? ytSub.value : null;
+      try {
+        console.log('Loading Email_Campaign_Performance.csv');
+        emailData = await loadCSVFile('Email_Campaign_Performance.csv');
+      } catch (error) {
+        console.error('Failed to load Email_Campaign_Performance.csv:', error);
+        dataErrors['Email_Campaign_Performance.csv'] = error.message;
+      }
       
-      // Add errors for rejected promises
-      if (email.status === 'rejected') dataErrors['Email_Campaign_Performance.csv'] = email.reason.message;
-      if (fbVideos.status === 'rejected') dataErrors['FB_Videos.csv'] = fbVideos.reason.message;
-      if (igPosts.status === 'rejected') dataErrors['IG_Posts.csv'] = igPosts.reason.message;
-      if (ytAge.status === 'rejected') dataErrors['YouTube_Age.csv'] = ytAge.reason.message;
-      if (ytGender.status === 'rejected') dataErrors['YouTube_Gender.csv'] = ytGender.reason.message;
-      if (ytGeo.status === 'rejected') dataErrors['YouTube_Geography.csv'] = ytGeo.reason.message;
-      if (ytSub.status === 'rejected') dataErrors['YouTube_Subscription_Status.csv'] = ytSub.reason.message;
+      try {
+        console.log('Loading FB_Videos.csv');
+        fbVideosData = await loadCSVFile('FB_Videos.csv');
+      } catch (error) {
+        console.error('Failed to load FB_Videos.csv:', error);
+        dataErrors['FB_Videos.csv'] = error.message;
+      }
+      
+      try {
+        console.log('Loading IG_Posts.csv');
+        igPostsData = await loadCSVFile('IG_Posts.csv');
+      } catch (error) {
+        console.error('Failed to load IG_Posts.csv:', error);
+        dataErrors['IG_Posts.csv'] = error.message;
+      }
+      
+      try {
+        console.log('Loading YouTube_Age.csv');
+        youtubeAgeData = await loadCSVFile('YouTube_Age.csv');
+      } catch (error) {
+        console.error('Failed to load YouTube_Age.csv:', error);
+        dataErrors['YouTube_Age.csv'] = error.message;
+      }
+      
+      try {
+        console.log('Loading YouTube_Gender.csv');
+        youtubeGenderData = await loadCSVFile('YouTube_Gender.csv');
+      } catch (error) {
+        console.error('Failed to load YouTube_Gender.csv:', error);
+        dataErrors['YouTube_Gender.csv'] = error.message;
+      }
+      
+      try {
+        console.log('Loading YouTube_Geography.csv');
+        youtubeGeographyData = await loadCSVFile('YouTube_Geography.csv');
+      } catch (error) {
+        console.error('Failed to load YouTube_Geography.csv:', error);
+        dataErrors['YouTube_Geography.csv'] = error.message;
+      }
+      
+      try {
+        console.log('Loading YouTube_Subscription_Status.csv');
+        youtubeSubscriptionData = await loadCSVFile('YouTube_Subscription_Status.csv');
+      } catch (error) {
+        console.error('Failed to load YouTube_Subscription_Status.csv:', error);
+        dataErrors['YouTube_Subscription_Status.csv'] = error.message;
+      }
+      
+      console.log('All CSV files loaded or attempted');
       
       // Set date range from all available dates
       if (allDates.length > 0) {
         const earliest = new Date(Math.min(...allDates));
         const latest = new Date(Math.max(...allDates));
+        
+        console.log(`Found date range from ${earliest.toISOString()} to ${latest.toISOString()}`);
         
         availableDates.earliestDate = earliest;
         availableDates.latestDate = latest;
@@ -259,6 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         dateRange.startDate = thirtyDaysAgo > earliest ? thirtyDaysAgo : earliest;
         dateRange.endDate = latest;
+      } else {
+        console.log('No dates found in the data');
       }
       
       isLoading = false;
@@ -279,56 +382,92 @@ document.addEventListener('DOMContentLoaded', () => {
       lastUpdatedElement.textContent = isLoading ? 'Loading...' : new Date().toLocaleString();
     }
     
-    const errorContainer = document.querySelector('.container > .row.mb-4').nextElementSibling;
+    // Add errors to the page if any
     if (Object.keys(dataErrors).length > 0) {
-      let errorHtml = '<div class="alert alert-danger mb-4">Some data sources have errors:</div>';
-      errorContainer.innerHTML = errorHtml;
+      // Try to find a good place to put error messages
+      let errorContainer = document.querySelector('#error-container');
+      
+      if (!errorContainer) {
+        // Create an error container if it doesn't exist
+        errorContainer = document.createElement('div');
+        errorContainer.id = 'error-container';
+        errorContainer.className = 'alert alert-danger mb-4';
+        errorContainer.innerHTML = '<h4 class="alert-heading">Data Loading Issues</h4><p>Some data sources have errors:</p><ul class="error-list mb-0"></ul>';
+        
+        // Try to insert it in a good place
+        const container = document.querySelector('.container');
+        if (container) {
+          const firstSection = container.querySelector('.dashboard-section, .row');
+          if (firstSection) {
+            container.insertBefore(errorContainer, firstSection);
+          } else {
+            container.appendChild(errorContainer);
+          }
+        } else {
+          // Last resort - just add to body
+          document.body.insertBefore(errorContainer, document.body.firstChild);
+        }
+      }
+      
+      // Add error messages
+      const errorList = errorContainer.querySelector('.error-list');
+      if (errorList) {
+        errorList.innerHTML = '';
+        for (const [file, error] of Object.entries(dataErrors)) {
+          const li = document.createElement('li');
+          li.textContent = `${file}: ${error}`;
+          errorList.appendChild(li);
+        }
+      }
     }
   };
   
   // Tab navigation
   const setupTabNavigation = () => {
-    const tabs = document.querySelectorAll('#dashboardTabs button');
-    const tabContents = document.querySelectorAll('#dashboardTabsContent .tab-pane');
+    // Find tab elements
+    const tabs = document.querySelectorAll('#dashboardTabs button, .nav-tabs .nav-link');
+    if (!tabs.length) {
+      console.warn('No tab navigation found in the document');
+      return;
+    }
     
     tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        // Remove active class from all tabs and contents
-        tabs.forEach(t => {
+      tab.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // Find all tabs in the same group
+        const parent = tab.closest('.nav, .nav-tabs');
+        if (!parent) return;
+        
+        const allTabs = parent.querySelectorAll('button, .nav-link');
+        
+        // Remove active class from all tabs
+        allTabs.forEach(t => {
           t.classList.remove('active');
           t.setAttribute('aria-selected', 'false');
         });
-        tabContents.forEach(content => content.classList.remove('show', 'active'));
         
-        // Add active class to clicked tab and corresponding content
+        // Add active class to clicked tab
         tab.classList.add('active');
         tab.setAttribute('aria-selected', 'true');
-        const contentId = tab.getAttribute('data-bs-target');
-        const content = document.querySelector(contentId);
-        if (content) {
-          content.classList.add('show', 'active');
+        
+        // Find and activate corresponding content
+        let contentId = tab.getAttribute('data-bs-target') || tab.getAttribute('href');
+        if (!contentId) return;
+        
+        // Remove '#' if present
+        if (contentId.startsWith('#')) {
+          contentId = contentId.substring(1);
         }
-      });
-    });
-    
-    // Social media sub-tabs
-    const socialTabs = document.querySelectorAll('#socialTabs button');
-    const socialContents = document.querySelectorAll('#socialTabContent .tab-pane');
-    
-    socialTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        // Remove active class from all tabs and contents
-        socialTabs.forEach(t => {
-          t.classList.remove('active');
-          t.setAttribute('aria-selected', 'false');
-        });
-        socialContents.forEach(content => content.classList.remove('show', 'active'));
         
-        // Add active class to clicked tab and corresponding content
-        tab.classList.add('active');
-        tab.setAttribute('aria-selected', 'true');
-        const contentId = tab.getAttribute('data-bs-target');
-        const content = document.querySelector(contentId);
+        // Find all content panes
+        const allContents = document.querySelectorAll('.tab-pane, .tab-content > div');
+        allContents.forEach(content => {
+          content.classList.remove('show', 'active');
+        });
+        
+        // Activate the correct one
+        const content = document.getElementById(contentId);
         if (content) {
           content.classList.add('show', 'active');
         }
@@ -1123,6 +1262,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initialize the dashboard
   const initDashboard = () => {
+    console.log('Initializing Marketing Analytics Dashboard');
+    
     // Set up tab navigation
     setupTabNavigation();
     
@@ -1130,6 +1271,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCSVData();
   };
   
-  // Start the dashboard
-  initDashboard();
+  // Start the dashboard when the DOM is fully loaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  } else {
+    initDashboard();
+  }
 });
