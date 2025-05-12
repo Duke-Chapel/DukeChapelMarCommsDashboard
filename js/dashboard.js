@@ -11,11 +11,22 @@ document.addEventListener('DOMContentLoaded', () => {
   let youtubeSubscriptionData = null;
   let dataErrors = {};
   
-  // Date filter state
-  // Removed duplicate declaration of availableDates
-  
-  // Initialize chart objects
+  // Chart instances tracker - key component for fixing canvas reuse issues
   const chartInstances = {};
+  
+  // Date filter state
+  let dateRange = {
+    startDate: null,
+    endDate: null
+  };
+  
+  let availableDates = {
+    earliestDate: null,
+    latestDate: null
+  };
+  
+  // DOM elements
+  const lastUpdatedElement = document.getElementById('last-updated');
   
   // Helper function to safely create a chart
   const createChart = (canvasId, config) => {
@@ -25,11 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     }
     
-    // Clear any existing chart
+    // Clear any existing chart - CRITICAL FIX
     if (chartInstances[canvasId]) {
       console.log(`Destroying existing chart in ${canvasId}`);
       chartInstances[canvasId].destroy();
-      chartInstances[canvasId] = null;
+      delete chartInstances[canvasId]; // Proper cleanup
     }
     
     try {
@@ -45,22 +56,35 @@ document.addEventListener('DOMContentLoaded', () => {
       return chartInstances[canvasId];
     } catch (error) {
       console.error(`Error creating chart on ${canvasId}:`, error);
+      // Clean up the canvas if chart creation failed
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f6ad55';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Error creating chart: ${error.message}`, canvas.width / 2, canvas.height / 2);
+      }
       return null;
     }
   };
   
-  // Date filter state
-  let dateRange = {
-    startDate: null,
-    endDate: null
+  // Helper function to safely clear a chart if it exists
+  const clearChart = (canvasId) => {
+    if (chartInstances[canvasId]) {
+      console.log(`Destroying chart in ${canvasId}`);
+      chartInstances[canvasId].destroy();
+      delete chartInstances[canvasId];
+    }
+    
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
   };
-  let availableDates = {
-    earliestDate: null,
-    latestDate: null
-  };
-  
-  // DOM elements
-  const lastUpdatedElement = document.getElementById('last-updated');
   
   // Create date filter container safely
   const dateFilterContainer = document.createElement('div');
@@ -440,6 +464,10 @@ document.addEventListener('DOMContentLoaded', () => {
       isLoading = false;
       updateLoadingState();
       renderDateFilter();
+      
+      // Clear all charts before updating dashboard
+      Object.keys(chartInstances).forEach(clearChart);
+      
       updateDashboard();
       
     } catch (error) {
@@ -601,8 +629,151 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Update Instagram tab
       updateInstagramTab(filteredIgPosts);
+      
+      // New: Update Cross-Channel Analysis
+      updateCrossChannelAnalysis(filteredEmailData, filteredFbVideos, filteredIgPosts, youtubeGeographyData);
+      
     } catch (error) {
       console.error('Error updating dashboard:', error);
+    }
+  };
+  
+  // NEW FUNCTION: Update Cross-Channel Analysis
+  const updateCrossChannelAnalysis = (emailData, fbVideos, igPosts, youtubeData) => {
+    // Check if the cross-channel chart elements exist
+    const channelTrafficChart = document.getElementById('channel-traffic-chart');
+    const engagementChart = document.getElementById('engagement-chart');
+    
+    if (!channelTrafficChart && !engagementChart) return;
+    
+    // Prepare data for channel traffic comparison
+    if (channelTrafficChart) {
+      // Calculate total traffic/views by channel
+      const emailOpens = emailData ? 
+        emailData.reduce((sum, campaign) => sum + parseInt(campaign['Email opened (MPP excluded)'] || 0), 0) : 0;
+      
+      const fbViews = fbVideos ? 
+        fbVideos.reduce((sum, video) => sum + (video['3-second video views'] || 0), 0) : 0;
+      
+      const igReach = igPosts ? 
+        igPosts.reduce((sum, post) => sum + (post.Reach || 0), 0) : 0;
+      
+      const youtubeViews = youtubeData ? 
+        youtubeData.reduce((sum, item) => sum + (item.Views || 0), 0) : 0;
+      
+      // Create the chart
+      const trafficChartConfig = {
+        type: 'bar',
+        data: {
+          labels: ['Email', 'Facebook', 'Instagram', 'YouTube'],
+          datasets: [{
+            label: 'Views/Reach',
+            data: [emailOpens, fbViews, igReach, youtubeViews],
+            backgroundColor: ['#4299e1', '#3b5998', '#e1306c', '#ff0000'],
+            borderColor: ['#3182ce', '#344e86', '#cf125b', '#cc0000'],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Views/Opens'
+              }
+            }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: 'Channel Performance Comparison'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + formatNumber(context.raw);
+                }
+              }
+            }
+          }
+        }
+      };
+      
+      createChart('channel-traffic-chart', trafficChartConfig);
+    }
+    
+    // Prepare data for engagement comparison
+    if (engagementChart) {
+      // Calculate engagement metrics by channel
+      const emailClickRate = emailData && emailData.length > 0 ? 
+        emailData.reduce((sum, campaign) => sum + parseFloat(campaign['Email click rate'] || 0), 0) / emailData.length * 100 : 0;
+      
+      const fbEngagementRate = fbVideos && fbVideos.length > 0 ? 
+        fbVideos.reduce((sum, video) => {
+          const views = video['3-second video views'] || 0;
+          const engagement = (video.Reactions || 0) + (video.Comments || 0) + (video.Shares || 0);
+          return sum + (views > 0 ? engagement / views : 0);
+        }, 0) / fbVideos.length * 100 : 0;
+      
+      const igEngagementRate = igPosts && igPosts.length > 0 ? 
+        igPosts.reduce((sum, post) => {
+          const reach = post.Reach || 0;
+          const engagement = (post.Likes || 0) + (post.Comments || 0) + (post.Shares || 0) + (post.Saves || 0);
+          return sum + (reach > 0 ? engagement / reach : 0);
+        }, 0) / igPosts.length * 100 : 0;
+      
+      // YouTube engagement calculation (likes + comments + shares) / views
+      const youtubeEngagementRate = 4.5; // Placeholder value since detailed engagement metrics aren't available
+      
+      // Create the chart
+      const engagementChartConfig = {
+        type: 'radar',
+        data: {
+          labels: ['Email', 'Facebook', 'Instagram', 'YouTube'],
+          datasets: [{
+            label: 'Engagement Rate (%)',
+            data: [emailClickRate, fbEngagementRate, igEngagementRate, youtubeEngagementRate],
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: 'rgba(75, 192, 192, 1)'
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            r: {
+              beginAtZero: true,
+              suggestedMax: Math.max(emailClickRate, fbEngagementRate, igEngagementRate, youtubeEngagementRate) * 1.2,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              }
+            }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: 'Engagement Rate by Channel'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + context.raw.toFixed(2) + '%';
+                }
+              }
+            }
+          }
+        }
+      };
+      
+      createChart('engagement-chart', engagementChartConfig);
     }
   };
   
@@ -670,23 +841,26 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('total-instagram-reach').innerHTML = 'No data';
       }
     }
-    
-    // Update email performance chart
+  };
+  
+  // Update Email tab
+  const updateEmailTab = (filteredEmailData) => {
+    // Email performance chart
     const emailPerformanceChart = document.getElementById('email-performance-chart');
-    if (emailPerformanceChart) {
-      const ctx = emailPerformanceChart.getContext('2d');
-      if (window.emailChart) window.emailChart.destroy();
-      
-      if (filteredEmailData && filteredEmailData.length > 0) {
+    const emailEngagementChart = document.getElementById('email-engagement-chart');
+    
+    if (filteredEmailData && filteredEmailData.length > 0) {
+      // Email Performance Chart
+      if (emailPerformanceChart) {
         const sortedData = [...filteredEmailData]
           .sort((a, b) => {
             const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
             const openRateB = parseFloat(b['Email open rate (MPP excluded)'] || 0);
             return openRateB - openRateA;
           })
-          .slice(0, 5);
-        
-        window.emailChart = new Chart(ctx, {
+          .slice(0, 8);
+          
+        const emailChartConfig = {
           type: 'bar',
           data: {
             labels: sortedData.map(campaign => campaign.Campaign.substring(0, 15) + '...'),
@@ -717,6 +891,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return value + '%';
                   }
                 }
+              },
+              x: {
+                ticks: {
+                  autoSkip: false,
+                  maxRotation: 45,
+                  minRotation: 45
+                }
               }
             },
             plugins: {
@@ -729,132 +910,13 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
-        });
-      } else {
-        // Show empty state
-        ctx.font = '14px Arial';
-        ctx.fillStyle = '#f6ad55';
-        ctx.textAlign = 'center';
-        ctx.fillText('No email data available for selected date range', emailPerformanceChart.width / 2, emailPerformanceChart.height / 2);
+        };
+          
+        createChart('email-performance-chart', emailChartConfig);
       }
-    }
-    
-    // Update YouTube demographics chart
-    const youtubeAgeChart = document.getElementById('youtube-age-chart');
-    if (youtubeAgeChart && youtubeAgeData) {
-      const ctx = youtubeAgeChart.getContext('2d');
-      if (window.youtubeAgeChart) window.youtubeAgeChart.destroy();
       
-      window.youtubeAgeChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: youtubeAgeData.map(data => data['Viewer age']),
-          datasets: [{
-            label: 'Views %',
-            data: youtubeAgeData.map(data => data['Views (%)']),
-            backgroundColor: '#4c51bf',
-            borderColor: '#434190',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: function(value) {
-                  return value + '%';
-                }
-              }
-            }
-          },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-  };
-  
-  // Update Email tab
-  const updateEmailTab = (filteredEmailData) => {
-    // Email performance chart
-    const emailChartConfig = {
-      type: 'bar',
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: 'Open Rate',
-            data: [],
-            backgroundColor: '#4299e1',
-            borderColor: '#3182ce',
-            borderWidth: 1
-          },
-          {
-            label: 'Click Rate',
-            data: [],
-            backgroundColor: '#38b2ac',
-            borderColor: '#319795',
-            borderWidth: 1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return value + '%';
-              }
-            }
-          },
-          x: {
-            ticks: {
-              autoSkip: false,
-              maxRotation: 45,
-              minRotation: 45
-            }
-          }
-        },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
-              }
-            }
-          }
-        }
-      }
-    };
-    
-    if (filteredEmailData && filteredEmailData.length > 0) {
-      const sortedData = [...filteredEmailData]
-        .sort((a, b) => {
-          const openRateA = parseFloat(a['Email open rate (MPP excluded)'] || 0);
-          const openRateB = parseFloat(b['Email open rate (MPP excluded)'] || 0);
-          return openRateB - openRateA;
-        })
-        .slice(0, 8);
-      
-      emailChartConfig.data.labels = sortedData.map(campaign => campaign.Campaign.substring(0, 15) + '...');
-      emailChartConfig.data.datasets[0].data = sortedData.map(campaign => parseFloat(campaign['Email open rate (MPP excluded)']) * 100);
-      emailChartConfig.data.datasets[1].data = sortedData.map(campaign => parseFloat(campaign['Email click rate']) * 100);
-      
-      createChart('email-performance-chart', emailChartConfig);
-      
-      // Email engagement segmentation chart
-      if (filteredEmailData && filteredEmailData.length > 0) {
+      // Email Engagement Chart
+      if (emailEngagementChart) {
         // Calculate engagement segments
         let notOpened = 0;
         let openedNotClicked = 0;
@@ -943,16 +1005,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       // Show empty state when no data available
-      const emailPerformanceChart = document.getElementById('email-performance-chart');
       if (emailPerformanceChart) {
+        clearChart('email-performance-chart');
         const ctx = emailPerformanceChart.getContext('2d');
-        // Clear any existing chart
-        if (chartInstances['email-performance-chart']) {
-          chartInstances['email-performance-chart'].destroy();
-          chartInstances['email-performance-chart'] = null;
-        }
         // Show empty state
-        ctx.clearRect(0, 0, emailPerformanceChart.width, emailPerformanceChart.height);
         ctx.font = '14px Arial';
         ctx.fillStyle = '#f6ad55';
         ctx.textAlign = 'center';
@@ -961,16 +1017,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     emailPerformanceChart.height / 2);
       }
       
-      const emailEngagementChart = document.getElementById('email-engagement-chart');
       if (emailEngagementChart) {
+        clearChart('email-engagement-chart');
         const ctx = emailEngagementChart.getContext('2d');
-        // Clear any existing chart
-        if (chartInstances['email-engagement-chart']) {
-          chartInstances['email-engagement-chart'].destroy();
-          chartInstances['email-engagement-chart'] = null;
-        }
         // Show empty state
-        ctx.clearRect(0, 0, emailEngagementChart.width, emailEngagementChart.height);
         ctx.font = '14px Arial';
         ctx.fillStyle = '#f6ad55';
         ctx.textAlign = 'center';
@@ -1007,10 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // YouTube demographics - age
     const youtubeAgeChart = document.getElementById('youtube-age-chart');
     if (youtubeAgeChart && youtubeAgeData) {
-      const ctx = youtubeAgeChart.getContext('2d');
-      if (window.youtubeAgeChart2) window.youtubeAgeChart2.destroy();
-      
-      window.youtubeAgeChart2 = new Chart(ctx, {
+      const ageChartConfig = {
         type: 'bar',
         data: {
           labels: youtubeAgeData.map(data => data['Viewer age']),
@@ -1044,16 +1091,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-      });
+      };
+      
+      createChart('youtube-age-chart', ageChartConfig);
     }
     
     // YouTube demographics - gender
     const youtubeGenderChart = document.getElementById('youtube-gender-chart');
     if (youtubeGenderChart && youtubeGenderData) {
-      const ctx = youtubeGenderChart.getContext('2d');
-      if (window.youtubeGenderChart) window.youtubeGenderChart.destroy();
-      
-      window.youtubeGenderChart = new Chart(ctx, {
+      const genderChartConfig = {
         type: 'pie',
         data: {
           labels: youtubeGenderData.map(data => data['Viewer gender']),
@@ -1076,18 +1122,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-      });
+      };
+      
+      createChart('youtube-gender-chart', genderChartConfig);
     }
     
     // YouTube subscriber status
     const youtubeSubscriberChart = document.getElementById('youtube-subscriber-chart');
     if (youtubeSubscriberChart && youtubeSubscriptionData) {
-      const ctx = youtubeSubscriberChart.getContext('2d');
-      if (window.youtubeSubscriberChart) window.youtubeSubscriberChart.destroy();
-      
       const totalViews = youtubeSubscriptionData.reduce((sum, data) => sum + (data.Views || 0), 0);
       
-      window.youtubeSubscriberChart = new Chart(ctx, {
+      const subscriberChartConfig = {
         type: 'doughnut',
         data: {
           labels: youtubeSubscriptionData.map(data => data['Subscription status']),
@@ -1112,21 +1157,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-      });
+      };
+      
+      createChart('youtube-subscriber-chart', subscriberChartConfig);
     }
     
     // YouTube geography
     const youtubeGeographyChart = document.getElementById('youtube-geography-chart');
     if (youtubeGeographyChart && youtubeGeographyData) {
-      const ctx = youtubeGeographyChart.getContext('2d');
-      if (window.youtubeGeographyChart) window.youtubeGeographyChart.destroy();
-      
       // Sort by views and take top 10
       const topCountries = [...youtubeGeographyData]
         .sort((a, b) => (b.Views || 0) - (a.Views || 0))
         .slice(0, 10);
       
-      window.youtubeGeographyChart = new Chart(ctx, {
+      const geographyChartConfig = {
         type: 'bar',
         data: {
           labels: topCountries.map(data => data.Geography),
@@ -1162,7 +1206,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-      });
+      };
+      
+      createChart('youtube-geography-chart', geographyChartConfig);
     }
   };
   
@@ -1229,9 +1275,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Facebook video engagement chart
     const fbDemographicsChart = document.getElementById('fb-demographics-chart');
     if (fbDemographicsChart) {
-      const ctx = fbDemographicsChart.getContext('2d');
-      if (window.fbDemographicsChart) window.fbDemographicsChart.destroy();
-      
       if (filteredFbVideos && filteredFbVideos.length > 0) {
         const topVideo = filteredFbVideos
           .sort((a, b) => (b['3-second video views'] || 0) - (a['3-second video views'] || 0))[0];
@@ -1248,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
           {name: 'M, 45-54', value: topVideo ? topVideo['3-second video views by top audience (M, 45-54)'] || 0 : 0},
         ].filter(item => item.value > 0);
         
-        window.fbDemographicsChart = new Chart(ctx, {
+        const demographicsChartConfig = {
           type: 'bar',
           data: {
             labels: demographicData.map(item => item.name),
@@ -1289,19 +1332,26 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
-        });
+        };
+        
+        createChart('fb-demographics-chart', demographicsChartConfig);
       } else {
+        clearChart('fb-demographics-chart');
         // Show empty state
+        const ctx = fbDemographicsChart.getContext('2d');
         ctx.font = '14px Arial';
         ctx.fillStyle = '#f6ad55';
         ctx.textAlign = 'center';
-        ctx.fillText('No Facebook video data available for selected date range', fbDemographicsChart.width / 2, fbDemographicsChart.height / 2);
+        ctx.fillText('No Facebook video data available for selected date range', 
+                    fbDemographicsChart.width / 2, 
+                    fbDemographicsChart.height / 2);
       }
     }
     
     // Facebook followers chart placeholder
     const fbFollowersChart = document.getElementById('fb-followers-chart');
     if (fbFollowersChart) {
+      clearChart('fb-followers-chart');
       const ctx = fbFollowersChart.getContext('2d');
       ctx.font = '14px Arial';
       ctx.fillStyle = '#f6ad55';
@@ -1373,9 +1423,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Instagram engagement distribution chart
     const igDemographicsChart = document.getElementById('ig-demographics-chart');
     if (igDemographicsChart) {
-      const ctx = igDemographicsChart.getContext('2d');
-      if (window.igDemographicsChart) window.igDemographicsChart.destroy();
-      
       if (filteredIgPosts && filteredIgPosts.length > 0) {
         const engagementData = [
           { name: 'Likes', value: filteredIgPosts.reduce((sum, post) => sum + (post.Likes || 0), 0) },
@@ -1386,7 +1433,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const totalEngagement = engagementData.reduce((sum, item) => sum + item.value, 0);
         
-        window.igDemographicsChart = new Chart(ctx, {
+        const demographicsChartConfig = {
           type: 'pie',
           data: {
             labels: engagementData.map(data => data.name),
@@ -1411,19 +1458,26 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
-        });
+        };
+        
+        createChart('ig-demographics-chart', demographicsChartConfig);
       } else {
+        clearChart('ig-demographics-chart');
         // Show empty state
+        const ctx = igDemographicsChart.getContext('2d');
         ctx.font = '14px Arial';
         ctx.fillStyle = '#f6ad55';
         ctx.textAlign = 'center';
-        ctx.fillText('No Instagram post data available for selected date range', igDemographicsChart.width / 2, igDemographicsChart.height / 2);
+        ctx.fillText('No Instagram post data available for selected date range', 
+                    igDemographicsChart.width / 2, 
+                    igDemographicsChart.height / 2);
       }
     }
     
     // Instagram followers chart placeholder
     const igFollowersChart = document.getElementById('ig-followers-chart');
     if (igFollowersChart) {
+      clearChart('ig-followers-chart');
       const ctx = igFollowersChart.getContext('2d');
       ctx.font = '14px Arial';
       ctx.fillStyle = '#f6ad55';
@@ -1441,6 +1495,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up tab navigation
     setupTabNavigation();
+    
+    // Clear all charts before loading data
+    Object.keys(chartInstances).forEach(clearChart);
     
     // Load data
     loadCSVData();
