@@ -1,5 +1,7 @@
-// Marketing Analytics Dashboard
-document.addEventListener('DOMContentLoaded', () => {
+// Complete, Fixed Implementation of the Dashboard Script
+
+// Main dashboard initialization - immediately invoked to avoid polluting global scope
+(function() {
   // State tracking
   let isLoading = true;
   let emailData = null;
@@ -11,8 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let youtubeSubscriptionData = null;
   let dataErrors = {};
   
-  // Chart instances tracker - key component for fixing canvas reuse issues
-  const chartInstances = {};
+  // *** CRITICAL FIX: Use global chart instances tracker to prevent canvas reuse issues ***
+  window.chartInstances = {};
   
   // Date filter state
   let dateRange = {
@@ -33,7 +35,151 @@ document.addEventListener('DOMContentLoaded', () => {
     console.debug(`[Dashboard] ${message}`, data || '');
   };
   
-  // Helper function to safely create a chart
+  // ========== UTILITY FUNCTIONS ==========
+  
+  // Safe integer parsing with default value
+  const safeParseInt = (value, defaultValue = 0) => {
+    if (value === undefined || value === null || value === '') {
+      return defaultValue;
+    }
+    
+    // If it's already a number, return it
+    if (typeof value === 'number' && !isNaN(value)) {
+      return value;
+    }
+    
+    // If it's a string with commas (like "1,234"), remove them
+    if (typeof value === 'string') {
+      value = value.replace(/,/g, '');
+    }
+    
+    // If it's a string with a percentage, remove the % sign and convert
+    if (typeof value === 'string' && value.includes('%')) {
+      const numValue = parseFloat(value.replace('%', ''));
+      return isNaN(numValue) ? defaultValue : Math.round(numValue);
+    }
+    
+    // Otherwise try to parse it as an integer
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  };
+  
+  // Safe float parsing with default value
+  const safeParseFloat = (value, defaultValue = 0) => {
+    if (value === undefined || value === null || value === '') {
+      return defaultValue;
+    }
+    
+    // If it's already a number, return it
+    if (typeof value === 'number' && !isNaN(value)) {
+      return value;
+    }
+    
+    // If it's a string with commas (like "1,234.56"), remove them
+    if (typeof value === 'string') {
+      value = value.replace(/,/g, '');
+    }
+    
+    // If it's a string with a percentage, remove the % sign and convert
+    if (typeof value === 'string' && value.includes('%')) {
+      const numValue = parseFloat(value.replace('%', ''));
+      return isNaN(numValue) ? defaultValue : numValue;
+    }
+    
+    // Otherwise try to parse it as a float
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  };
+  
+  // Format numbers for display
+  const formatNumber = (num) => {
+    if (num === undefined || num === null || isNaN(num)) return '--';
+    
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
+  
+  // *** CRITICAL FIX: Helper function to find field by pattern ***
+  // CSV headers can sometimes be inconsistent, so this helps locate the right field
+  const findFieldByPattern = (item, patterns) => {
+    if (!item) return null;
+    
+    for (const pattern of patterns) {
+      // Exact match
+      if (item[pattern] !== undefined) {
+        return pattern;
+      }
+      
+      // Fuzzy match
+      const keys = Object.keys(item);
+      for (const key of keys) {
+        if (key.toLowerCase().includes(pattern.toLowerCase())) {
+          return key;
+        }
+      }
+    }
+    
+    return null;
+  };
+  
+  // Helper to get data safely with fallback field names
+  const getDataField = (item, fieldPatterns, defaultValue = 0) => {
+    if (!item) return defaultValue;
+    
+    // Try exact matches first
+    for (const field of fieldPatterns) {
+      if (item[field] !== undefined) {
+        return typeof item[field] === 'string' && item[field].includes('%') 
+          ? safeParseFloat(item[field].replace('%', ''))
+          : safeParseFloat(item[field]);
+      }
+    }
+    
+    // Try fuzzy matches
+    const keys = Object.keys(item);
+    for (const pattern of fieldPatterns) {
+      for (const key of keys) {
+        if (key.toLowerCase().includes(pattern.toLowerCase())) {
+          return typeof item[key] === 'string' && item[key].includes('%')
+            ? safeParseFloat(item[key].replace('%', ''))
+            : safeParseFloat(item[key]);
+        }
+      }
+    }
+    
+    return defaultValue;
+  };
+  
+  // *** CRITICAL FIX: Enhanced check for chart data validity ***
+  const checkChartHasData = (config) => {
+    if (!config || !config.data || !config.data.datasets) {
+      return false;
+    }
+    
+    // Check if any dataset has data
+    return config.data.datasets.some(dataset => {
+      if (!dataset.data) return false;
+      
+      // For numeric data arrays
+      if (Array.isArray(dataset.data)) {
+        // Check if array has any non-zero, non-null, non-undefined values
+        return dataset.data.some(val => val !== null && val !== undefined && val !== 0);
+      }
+      
+      // For object data
+      if (typeof dataset.data === 'object') {
+        return Object.values(dataset.data).some(val => val !== null && val !== undefined && val !== 0);
+      }
+      
+      return false;
+    });
+  };
+  
+  // *** CRITICAL FIX: Helper function to safely create a chart ***
   const createChart = (canvasId, config) => {
     debugLog(`Creating chart for ${canvasId}`);
     const canvas = document.getElementById(canvasId);
@@ -42,11 +188,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     }
     
-    // Clear any existing chart - CRITICAL FIX
-    if (chartInstances[canvasId]) {
+    // CRITICAL FIX: First destroy any existing chart for this canvas
+    // This prevents "Canvas is already in use" errors
+    if (window.chartInstances && window.chartInstances[canvasId]) {
       debugLog(`Destroying existing chart in ${canvasId}`);
-      chartInstances[canvasId].destroy();
-      delete chartInstances[canvasId]; // Proper cleanup
+      window.chartInstances[canvasId].destroy();
+      delete window.chartInstances[canvasId];
+    }
+    
+    // Extra precaution: Look for any global Chart.js instances that might be 
+    // using this canvas
+    if (window.Chart && window.Chart.instances) {
+      Object.values(window.Chart.instances).forEach(instance => {
+        if (instance.canvas && instance.canvas.id === canvasId) {
+          debugLog(`Found global Chart.js instance for ${canvasId}, destroying`);
+          instance.destroy();
+        }
+      });
     }
     
     try {
@@ -57,23 +215,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
       }
       
+      // DEBUG: Log the actual data that will be used for the chart
+      debugLog(`Chart data for ${canvasId}:`, config.data);
+      
       // Verify the data for the chart
       const hasData = checkChartHasData(config);
       if (!hasData) {
-        debugLog(`No data available for chart ${canvasId}`, config);
+        debugLog(`No valid data available for chart ${canvasId}`);
+        
         // Show empty state
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = '14px Arial';
         ctx.fillStyle = '#f6ad55';
         ctx.textAlign = 'center';
-        ctx.fillText('No data available for the selected period', canvas.width / 2, canvas.height / 2);
+        ctx.fillText('No data available for the selected period', 
+                    canvas.width / 2, canvas.height / 2);
         return null;
       }
       
       // Create a new chart
-      chartInstances[canvasId] = new Chart(ctx, config);
+      window.chartInstances[canvasId] = new Chart(ctx, config);
       debugLog(`Successfully created chart for ${canvasId}`);
-      return chartInstances[canvasId];
+      return window.chartInstances[canvasId];
     } catch (error) {
       console.error(`Error creating chart on ${canvasId}:`, error);
       // Clean up the canvas if chart creation failed
@@ -89,33 +252,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Helper function to check if a chart config has valid data
-  const checkChartHasData = (config) => {
-    if (!config || !config.data || !config.data.datasets) {
-      return false;
+  // *** CRITICAL FIX: Enhanced clearChart function that works with global chart instances ***
+  const clearChart = (canvasId) => {
+    if (window.chartInstances && window.chartInstances[canvasId]) {
+      debugLog(`Destroying chart in ${canvasId}`);
+      window.chartInstances[canvasId].destroy();
+      delete window.chartInstances[canvasId];
     }
     
-    // Check if any dataset has data
-    return config.data.datasets.some(dataset => {
-      if (!dataset.data) return false;
-      
-      // For numeric data arrays
-      if (Array.isArray(dataset.data)) {
-        // Check if array has any non-zero values
-        return dataset.data.some(val => val !== null && val !== undefined && val !== 0);
-      }
-      
-      // For object data
-      return Object.keys(dataset.data).length > 0;
-    });
-  };
-  
-  // Helper function to safely clear a chart if it exists
-  const clearChart = (canvasId) => {
-    if (chartInstances[canvasId]) {
-      debugLog(`Destroying chart in ${canvasId}`);
-      chartInstances[canvasId].destroy();
-      delete chartInstances[canvasId];
+    // Also check global Chart.js instances
+    if (window.Chart && window.Chart.instances) {
+      Object.values(window.Chart.instances).forEach(instance => {
+        if (instance.canvas && instance.canvas.id === canvasId) {
+          debugLog(`Found global Chart.js instance for ${canvasId}, destroying`);
+          instance.destroy();
+        }
+      });
     }
     
     const canvas = document.getElementById(canvasId);
@@ -127,62 +279,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Create date filter container safely
-  const dateFilterContainer = document.createElement('div');
-  dateFilterContainer.className = 'dashboard-section mb-4';
-  dateFilterContainer.id = 'date-filter-container';
-  
-  // Safely insert the date filter container
-  function insertDateFilter() {
-    const container = document.querySelector('.container');
-    if (!container) return; // No container found
-    
-    // Try to insert before tabs
-    const tabsRow = document.querySelector('#dashboardTabs');
-    if (tabsRow) {
-      const tabParent = tabsRow.closest('.row');
-      if (tabParent && tabParent.parentNode === container) {
-        container.insertBefore(dateFilterContainer, tabParent);
-        return;
+  // *** CRITICAL FIX: Get proper path for CSV files based on deployment environment ***
+  const getFilePath = (filename) => {
+    // For GitHub Pages, need to include the repository name in the path
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    if (isGitHubPages) {
+      // Extract repo name from the path
+      const pathParts = window.location.pathname.split('/');
+      const repoName = pathParts[1]; // First part after the domain
+      
+      // If we're in a repo (not a user pages site)
+      if (repoName && repoName !== '') {
+        debugLog(`Using GitHub Pages path: /${repoName}/${filename}`);
+        return `/${repoName}/${filename}`;
       }
     }
     
-    // If we couldn't find tabs, try to insert as first child of container
-    if (container.firstChild) {
-      container.insertBefore(dateFilterContainer, container.firstChild);
-    } else {
-      container.appendChild(dateFilterContainer);
-    }
-  }
-
-  // Format numbers for display
-  const formatNumber = (num) => {
-    if (num === undefined || num === null || isNaN(num)) return '--';
-    
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
+    // Otherwise use relative path for local development
+    return filename;
   };
   
-  // Safe number parsing (returns 0 instead of NaN)
-  const safeParseInt = (value, defaultValue = 0) => {
-    if (value === undefined || value === null || value === '') {
-      return defaultValue;
-    }
-    const parsed = parseInt(value);
-    return isNaN(parsed) ? defaultValue : parsed;
-  };
-  
-  const safeParseFloat = (value, defaultValue = 0) => {
-    if (value === undefined || value === null || value === '') {
-      return defaultValue;
-    }
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? defaultValue : parsed;
-  };
+  // ========== DATE HANDLING FUNCTIONS ==========
   
   // Parse dates from different formats
   const parseDate = (dateString) => {
@@ -273,6 +390,34 @@ document.addEventListener('DOMContentLoaded', () => {
     return filtered;
   };
   
+  // Create date filter container safely
+  const dateFilterContainer = document.createElement('div');
+  dateFilterContainer.className = 'dashboard-section mb-4';
+  dateFilterContainer.id = 'date-filter-container';
+  
+  // Safely insert the date filter container
+  function insertDateFilter() {
+    const container = document.querySelector('.container');
+    if (!container) return; // No container found
+    
+    // Try to insert before tabs
+    const tabsRow = document.querySelector('#dashboardTabs');
+    if (tabsRow) {
+      const tabParent = tabsRow.closest('.row');
+      if (tabParent && tabParent.parentNode === container) {
+        container.insertBefore(dateFilterContainer, tabParent);
+        return;
+      }
+    }
+    
+    // If we couldn't find tabs, try to insert as first child of container
+    if (container.firstChild) {
+      container.insertBefore(dateFilterContainer, container.firstChild);
+    } else {
+      container.appendChild(dateFilterContainer);
+    }
+  }
+  
   // Create date filter UI
   const renderDateFilter = () => {
     if (isLoading) return;
@@ -349,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (clearFilterBtn) {
       clearFilterBtn.addEventListener('click', () => {
+        // *** FIX: Set to full date range to show all data ***
         dateRange.startDate = availableDates.earliestDate;
         dateRange.endDate = availableDates.latestDate;
         renderDateFilter();
@@ -357,26 +503,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Get proper path for CSV files based on deployment environment
-  const getFilePath = (filename) => {
-    // For GitHub Pages, need to include the repository name in the path
-    const isGitHubPages = window.location.hostname.includes('github.io');
-    if (isGitHubPages) {
-      // Extract repo name from the path
-      const pathParts = window.location.pathname.split('/');
-      const repoName = pathParts[1]; // First part after the domain
+  // ========== DATA LOADING FUNCTIONS ==========
+  
+  // *** CRITICAL FIX: Improved CSV loading with better debugging and error handling ***
+  const loadCSVFile = (filename) => {
+    return new Promise((resolve, reject) => {
+      const filepath = getFilePath(filename);
+      debugLog(`Attempting to load ${filename} from ${filepath}...`);
       
-      // If we're in a repo (not a user pages site)
-      if (repoName && repoName !== '') {
-        return `/${repoName}/${filename}`;
+      try {
+        Papa.parse(filepath, {
+          download: true,
+          header: true,
+          dynamicTyping: false, // IMPORTANT: Set to false to prevent automatic type conversion
+          skipEmptyLines: true,
+          complete: (results) => {
+            debugLog(`Successfully loaded ${filename}, found ${results.data.length} rows`);
+            
+            // DEBUG: Log the first row to see column names
+            if (results.data.length > 0) {
+              debugLog(`First row of ${filename}:`, results.data[0]);
+              debugLog(`Column headers:`, Object.keys(results.data[0]));
+            }
+            
+            resolve(results.data);
+          },
+          error: (error) => {
+            console.error(`Error parsing ${filename}:`, error);
+            dataErrors[filename] = `Error parsing: ${error.message}`;
+            reject(error);
+          }
+        });
+      } catch (error) {
+        console.error(`Exception loading ${filename}:`, error);
+        dataErrors[filename] = `Error loading: ${error.message}`;
+        reject(error);
       }
-    }
-    
-    // Otherwise use relative path for local development
-    return filename;
+    });
   };
   
-  // Load CSV files
+  // Load all CSV files
   const loadCSVData = async () => {
     isLoading = true;
     updateLoadingState();
@@ -384,48 +550,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let allDates = [];
     
     debugLog('Loading CSV data...');
-    
-    // Function to load and parse a CSV file
-    const loadCSVFile = (filename) => {
-      return new Promise((resolve, reject) => {
-        const filepath = getFilePath(filename);
-        debugLog(`Attempting to load ${filename} from ${filepath}...`);
-        
-        try {
-          Papa.parse(filepath, {
-            download: true,
-            header: true,
-            dynamicTyping: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              debugLog(`Successfully loaded ${filename}, found ${results.data.length} rows`);
-              
-              // Extract dates if available
-              if (results.data.length > 0 && (results.data[0].Date || results.data[0]['Publish time'])) {
-                const dates = results.data
-                  .map(item => parseDate(item.Date || item['Publish time']))
-                  .filter(date => date !== null);
-                
-                if (dates.length > 0) {
-                  debugLog(`Found ${dates.length} valid dates in ${filename}`);
-                  allDates = [...allDates, ...dates];
-                }
-              }
-              resolve(results.data);
-            },
-            error: (error) => {
-              console.error(`Error parsing ${filename}:`, error);
-              dataErrors[filename] = `Error parsing: ${error.message}`;
-              reject(error);
-            }
-          });
-        } catch (error) {
-          console.error(`Exception loading ${filename}:`, error);
-          dataErrors[filename] = `Error loading: ${error.message}`;
-          reject(error);
-        }
-      });
-    };
     
     try {
       // Load all required CSV files
@@ -532,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
         availableDates.earliestDate = earliest;
         availableDates.latestDate = latest;
         
-        // Set to the full range by default to show all data
+        // *** FIX: Set to full date range to show all data by default ***
         dateRange.startDate = earliest;
         dateRange.endDate = latest;
       } else {
@@ -544,7 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderDateFilter();
       
       // Clear all charts before updating dashboard
-      Object.keys(chartInstances).forEach(clearChart);
+      for (const canvasId in window.chartInstances) {
+        clearChart(canvasId);
+      }
       
       updateDashboard();
       
@@ -611,6 +737,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
+  // ========== TAB NAVIGATION ==========
+  
   // Tab navigation
   const setupTabNavigation = () => {
     // Find tab elements
@@ -663,6 +791,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   };
+  
+  // ========== DASHBOARD UPDATE FUNCTIONS ==========
   
   // Update the dashboard with current data and filters
   const updateDashboard = () => {
@@ -720,28 +850,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Update Cross-Channel Analysis
+  // *** CRITICAL FIX: Update Cross-Channel Analysis with robust field detection ***
   const updateCrossChannelAnalysis = (emailData, fbVideos, igPosts, youtubeData) => {
+    debugLog('Updating cross-channel analysis');
+    
     // Check if the cross-channel chart elements exist
     const channelTrafficChart = document.getElementById('channel-traffic-chart');
     const engagementChart = document.getElementById('engagement-chart');
     
-    if (!channelTrafficChart && !engagementChart) return;
+    if (!channelTrafficChart && !engagementChart) {
+      debugLog('No cross-channel chart elements found');
+      return;
+    }
     
     // Prepare data for channel traffic comparison
     if (channelTrafficChart) {
-      // Calculate total traffic/views by channel
-      const emailOpens = emailData ? 
-        emailData.reduce((sum, campaign) => sum + safeParseInt(campaign['Email opened (MPP excluded)']), 0) : 0;
+      // Calculate total traffic/views by channel with detailed logging
+      // FIX: More robust field checking and parsing
+      let emailOpens = 0;
+      if (emailData && emailData.length > 0) {
+        emailData.forEach(campaign => {
+          // Try different potential field names
+          const openedField = getDataField(campaign, [
+            'Email opened (MPP excluded)', 
+            'Email opened',
+            'Opened'
+          ]);
+          
+          emailOpens += openedField;
+        });
+      }
       
-      const fbViews = fbVideos ? 
-        fbVideos.reduce((sum, video) => sum + safeParseInt(video['3-second video views']), 0) : 0;
+      let fbViews = 0;
+      if (fbVideos && fbVideos.length > 0) {
+        fbVideos.forEach(video => {
+          // Try different potential field names
+          const viewsField = getDataField(video, [
+            '3-second video views',
+            'video views',
+            'Views'
+          ]);
+          
+          fbViews += viewsField;
+        });
+      }
       
-      const igReach = igPosts ? 
-        igPosts.reduce((sum, post) => sum + safeParseInt(post.Reach), 0) : 0;
+      let igReach = 0;
+      if (igPosts && igPosts.length > 0) {
+        igPosts.forEach(post => {
+          // Try different potential field names
+          const reachField = getDataField(post, [
+            'Reach',
+            'reach',
+            'Total reach'
+          ]);
+          
+          igReach += reachField;
+        });
+      }
       
-      const youtubeViews = youtubeData ? 
-        youtubeData.reduce((sum, item) => sum + safeParseInt(item.Views), 0) : 0;
+      let youtubeViews = 0;
+      if (youtubeData && youtubeData.length > 0) {
+        youtubeData.forEach(item => {
+          // Try different potential field names
+          const viewsField = getDataField(item, [
+            'Views',
+            'views'
+          ]);
+          
+          youtubeViews += viewsField;
+        });
+      }
       
       debugLog('Channel traffic comparison data:', { emailOpens, fbViews, igReach, youtubeViews });
       
@@ -801,23 +980,43 @@ document.addEventListener('DOMContentLoaded', () => {
       createChart('channel-traffic-chart', trafficChartConfig);
     }
     
-    // Prepare data for engagement comparison
+    // *** CRITICAL FIX: Prepare data for engagement comparison with similar approach ***
     if (engagementChart) {
       // Calculate engagement metrics by channel
       const emailClickRate = emailData && emailData.length > 0 ? 
-        emailData.reduce((sum, campaign) => sum + safeParseFloat(campaign['Email click rate']), 0) / emailData.length * 100 : 0;
+        emailData.reduce((sum, campaign) => {
+          const rate = getDataField(campaign, [
+            'Email click rate',
+            'Click rate',
+            'click rate'
+          ]);
+          return sum + rate;
+        }, 0) / emailData.length * 100 : 0;
       
       const fbEngagementRate = fbVideos && fbVideos.length > 0 ? 
         fbVideos.reduce((sum, video) => {
-          const views = safeParseInt(video['3-second video views']);
-          const engagement = safeParseInt(video.Reactions) + safeParseInt(video.Comments) + safeParseInt(video.Shares);
+          const views = getDataField(video, ['3-second video views', 'video views', 'Views']);
+          
+          // Combine different engagement metrics with fallbacks
+          const reactions = getDataField(video, ['Reactions', 'reactions']);
+          const comments = getDataField(video, ['Comments', 'comments']);
+          const shares = getDataField(video, ['Shares', 'shares']);
+          
+          const engagement = reactions + comments + shares;
           return sum + (views > 0 ? engagement / views : 0);
         }, 0) / fbVideos.length * 100 : 0;
       
       const igEngagementRate = igPosts && igPosts.length > 0 ? 
         igPosts.reduce((sum, post) => {
-          const reach = safeParseInt(post.Reach);
-          const engagement = safeParseInt(post.Likes) + safeParseInt(post.Comments) + safeParseInt(post.Shares) + safeParseInt(post.Saves);
+          const reach = getDataField(post, ['Reach', 'reach']);
+          
+          // Combine different engagement metrics with fallbacks
+          const likes = getDataField(post, ['Likes', 'likes']);
+          const comments = getDataField(post, ['Comments', 'comments']);
+          const shares = getDataField(post, ['Shares', 'shares']);
+          const saves = getDataField(post, ['Saves', 'saves']);
+          
+          const engagement = likes + comments + shares + saves;
           return sum + (reach > 0 ? engagement / reach : 0);
         }, 0) / igPosts.length * 100 : 0;
       
@@ -910,7 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
           let errorElement = parentCard.querySelector('.error-message');
           if (!errorElement) {
             errorElement = document.createElement('div');
-            errorElement.className = 'error-message';
+            errorElement.className = 'error-message text-danger small mt-2';
             parentCard.appendChild(errorElement);
           }
           errorElement.textContent = `Error: ${dataErrors[errorDataset]}`;
@@ -955,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Update Email tab
+  // *** CRITICAL FIX: Update Email tab with robust field handling ***
   const updateEmailTab = (filteredEmailData) => {
     // Email performance chart
     const emailPerformanceChart = document.getElementById('email-performance-chart');
@@ -968,8 +1167,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (emailPerformanceChart) {
         const sortedData = [...filteredEmailData]
           .sort((a, b) => {
-            const openRateA = safeParseFloat(a['Email open rate (MPP excluded)']);
-            const openRateB = safeParseFloat(b['Email open rate (MPP excluded)']);
+            const openRateA = getDataField(a, ['Email open rate (MPP excluded)', 'Email open rate', 'Open rate']);
+            const openRateB = getDataField(b, ['Email open rate (MPP excluded)', 'Email open rate', 'Open rate']);
             return openRateB - openRateA;
           })
           .slice(0, 8);
@@ -985,14 +1184,18 @@ document.addEventListener('DOMContentLoaded', () => {
             datasets: [
               {
                 label: 'Open Rate',
-                data: sortedData.map(campaign => safeParseFloat(campaign['Email open rate (MPP excluded)']) * 100),
+                data: sortedData.map(campaign => 
+                  getDataField(campaign, ['Email open rate (MPP excluded)', 'Email open rate', 'Open rate']) * 100
+                ),
                 backgroundColor: '#4299e1',
                 borderColor: '#3182ce',
                 borderWidth: 1
               },
               {
                 label: 'Click Rate',
-                data: sortedData.map(campaign => safeParseFloat(campaign['Email click rate']) * 100),
+                data: sortedData.map(campaign => 
+                  getDataField(campaign, ['Email click rate', 'Click rate']) * 100
+                ),
                 backgroundColor: '#38b2ac',
                 borderColor: '#319795',
                 borderWidth: 1
@@ -1041,9 +1244,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let clicked = 0;
         
         filteredEmailData.forEach(campaign => {
-          const sent = safeParseInt(campaign['Emails sent']);
-          const opened = safeParseInt(campaign['Email opened (MPP excluded)']);
-          const clickedCount = safeParseInt(campaign['Email clicked']);
+          const sent = getDataField(campaign, ['Emails sent', 'emails sent', 'Total sent']);
+          const opened = getDataField(campaign, ['Email opened (MPP excluded)', 'Email opened', 'opened']);
+          const clickedCount = getDataField(campaign, ['Email clicked', 'clicked']);
           
           notOpened += (sent - opened);
           openedNotClicked += (opened - clickedCount);
@@ -1102,8 +1305,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (topEmailCampaignsTable) {
         const sortedData = [...filteredEmailData]
           .sort((a, b) => {
-            const openRateA = safeParseFloat(a['Email open rate (MPP excluded)']);
-            const openRateB = safeParseFloat(b['Email open rate (MPP excluded)']);
+            const openRateA = getDataField(a, ['Email open rate (MPP excluded)', 'Email open rate', 'Open rate']);
+            const openRateB = getDataField(b, ['Email open rate (MPP excluded)', 'Email open rate', 'Open rate']);
             return openRateB - openRateA;
           })
           .slice(0, 10);
@@ -1125,10 +1328,10 @@ document.addEventListener('DOMContentLoaded', () => {
           tableHtml += `
             <tr>
               <td>${campaign.Campaign || 'Unnamed Campaign'}</td>
-              <td>${(safeParseFloat(campaign['Email open rate (MPP excluded)']) * 100).toFixed(2)}%</td>
-              <td>${(safeParseFloat(campaign['Email click rate']) * 100).toFixed(2)}%</td>
-              <td>${formatNumber(campaign['Email deliveries'])}</td>
-              <td>${(safeParseFloat(campaign['Email unsubscribe rate']) * 100).toFixed(2)}%</td>
+              <td>${(getDataField(campaign, ['Email open rate (MPP excluded)', 'Email open rate', 'Open rate']) * 100).toFixed(2)}%</td>
+              <td>${(getDataField(campaign, ['Email click rate', 'Click rate']) * 100).toFixed(2)}%</td>
+              <td>${formatNumber(campaign['Email deliveries'] || campaign['deliveries'])}</td>
+              <td>${(getDataField(campaign, ['Email unsubscribe rate', 'Unsubscribe rate']) * 100).toFixed(2)}%</td>
             </tr>
           `;
         });
@@ -1185,18 +1388,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Update YouTube tab
+  // *** CRITICAL FIX: Update YouTube tab with fixed field mapping ***
   const updateYouTubeTab = () => {
     debugLog('Updating YouTube tab');
     
-    // YouTube demographics - age
-    const youtubeAgeChart = document.getElementById('youtube-age-chart');
-    if (youtubeAgeChart && youtubeAgeData) {
-      debugLog('Creating YouTube age chart with', youtubeAgeData.length, 'entries');
+    // Helper function to extract YouTube metrics with fallbacks
+    const getYoutubePercentage = (item) => {
+      // Try different possible field names
+      if (item['Views (%)'] !== undefined) return safeParseFloat(item['Views (%)']);
+      if (item['Views%'] !== undefined) return safeParseFloat(item['Views%']);
+      if (item['Views'] !== undefined && typeof item['Views'] === 'string' && item['Views'].includes('%')) {
+        return safeParseFloat(item['Views'].replace('%', ''));
+      }
       
-      // Verify data has values
-      const hasValidData = youtubeAgeData.some(item => !isNaN(safeParseFloat(item['Views (%)'])));
-      if (!hasValidData) {
+      // For gender/age data, sometimes the field is just "Views" and they're all percentages adding to 100%
+      const total = youtubeAgeData?.reduce((sum, d) => sum + safeParseInt(d['Views']), 0) || 0;
+      if (total > 0 && item['Views'] !== undefined) {
+        return (safeParseInt(item['Views']) / total) * 100;
+      }
+      
+      return 0;
+    };
+    
+    // FIX: YouTube demographics - age
+    const youtubeAgeChart = document.getElementById('youtube-age-chart');
+    if (youtubeAgeChart && youtubeAgeData && youtubeAgeData.length > 0) {
+      debugLog('Creating YouTube age chart with', youtubeAgeData.length, 'entries');
+      debugLog('Raw YouTube age data:', youtubeAgeData);
+      
+      // Create proper chart data with debugging
+      const ageLabels = youtubeAgeData.map(data => data['Viewer age'] || '(Unknown)');
+      
+      // Try different approach for percentage values
+      const ageValues = youtubeAgeData.map(data => {
+        const value = getYoutubePercentage(data);
+        debugLog(`Age value for ${data['Viewer age']}: ${value}`);
+        return value;
+      });
+      
+      debugLog('Age chart data:', {labels: ageLabels, values: ageValues});
+      
+      // Verify data has values - use raw array check
+      if (ageValues.length === 0 || ageValues.every(v => v === 0)) {
         clearChart('youtube-age-chart');
         const ctx = youtubeAgeChart.getContext('2d');
         ctx.font = '14px Arial';
@@ -1211,10 +1444,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const ageChartConfig = {
         type: 'bar',
         data: {
-          labels: youtubeAgeData.map(data => data['Viewer age']),
+          labels: ageLabels,
           datasets: [{
             label: 'Views %',
-            data: youtubeAgeData.map(data => safeParseFloat(data['Views (%)'])),
+            data: ageValues,
             backgroundColor: '#4c51bf',
             borderColor: '#434190',
             borderWidth: 1
@@ -1245,16 +1478,35 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       
       createChart('youtube-age-chart', ageChartConfig);
+    } else if (youtubeAgeChart) {
+      clearChart('youtube-age-chart');
+      const ctx = youtubeAgeChart.getContext('2d');
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f6ad55';
+      ctx.textAlign = 'center';
+      ctx.fillText('No YouTube age data available', 
+                  youtubeAgeChart.width / 2, 
+                  youtubeAgeChart.height / 2);
     }
     
-    // YouTube demographics - gender
+    // FIX: YouTube demographics - gender with same approach
     const youtubeGenderChart = document.getElementById('youtube-gender-chart');
-    if (youtubeGenderChart && youtubeGenderData) {
+    if (youtubeGenderChart && youtubeGenderData && youtubeGenderData.length > 0) {
       debugLog('Creating YouTube gender chart with', youtubeGenderData.length, 'entries');
+      debugLog('Raw YouTube gender data:', youtubeGenderData);
       
-      // Verify data has values
-      const hasValidData = youtubeGenderData.some(item => !isNaN(safeParseFloat(item['Views (%)'])));
-      if (!hasValidData) {
+      // Create proper chart data
+      const genderLabels = youtubeGenderData.map(data => data['Viewer gender'] || '(Unknown)');
+      const genderValues = youtubeGenderData.map(data => {
+        const value = getYoutubePercentage(data);
+        debugLog(`Gender value for ${data['Viewer gender']}: ${value}`);
+        return value;
+      });
+      
+      debugLog('Gender chart data:', {labels: genderLabels, values: genderValues});
+      
+      // Verify we have valid data
+      if (genderValues.length === 0 || genderValues.every(v => v === 0)) {
         clearChart('youtube-gender-chart');
         const ctx = youtubeGenderChart.getContext('2d');
         ctx.font = '14px Arial';
@@ -1269,9 +1521,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const genderChartConfig = {
         type: 'pie',
         data: {
-          labels: youtubeGenderData.map(data => data['Viewer gender']),
+          labels: genderLabels,
           datasets: [{
-            data: youtubeGenderData.map(data => safeParseFloat(data['Views (%)'])),
+            data: genderValues,
             backgroundColor: ['#4c51bf', '#ed64a6', '#ecc94b'],
             borderColor: ['#434190', '#d53f8c', '#d69e2e'],
             borderWidth: 1
@@ -1292,12 +1544,22 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       
       createChart('youtube-gender-chart', genderChartConfig);
+    } else if (youtubeGenderChart) {
+      clearChart('youtube-gender-chart');
+      const ctx = youtubeGenderChart.getContext('2d');
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f6ad55';
+      ctx.textAlign = 'center';
+      ctx.fillText('No YouTube gender data available', 
+                   youtubeGenderChart.width / 2, 
+                   youtubeGenderChart.height / 2);
     }
     
     // YouTube subscriber status
     const youtubeSubscriberChart = document.getElementById('youtube-subscriber-chart');
-    if (youtubeSubscriberChart && youtubeSubscriptionData) {
+    if (youtubeSubscriberChart && youtubeSubscriptionData && youtubeSubscriptionData.length > 0) {
       debugLog('Creating YouTube subscriber chart with', youtubeSubscriptionData.length, 'entries');
+      debugLog('Raw subscription data:', youtubeSubscriptionData);
       
       const totalViews = youtubeSubscriptionData.reduce((sum, data) => sum + safeParseInt(data.Views), 0);
       
@@ -1317,7 +1579,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const subscriberChartConfig = {
         type: 'doughnut',
         data: {
-          labels: youtubeSubscriptionData.map(data => data['Subscription status']),
+          labels: youtubeSubscriptionData.map(data => data['Subscription status'] || 'Unknown'),
           datasets: [{
             data: youtubeSubscriptionData.map(data => safeParseInt(data.Views)),
             backgroundColor: ['#48bb78', '#4299e1'],
@@ -1342,17 +1604,28 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       
       createChart('youtube-subscriber-chart', subscriberChartConfig);
+    } else if (youtubeSubscriberChart) {
+      clearChart('youtube-subscriber-chart');
+      const ctx = youtubeSubscriberChart.getContext('2d');
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f6ad55';
+      ctx.textAlign = 'center';
+      ctx.fillText('No YouTube subscriber data available', 
+                 youtubeSubscriberChart.width / 2, 
+                 youtubeSubscriberChart.height / 2);
     }
     
     // YouTube geography
     const youtubeGeographyChart = document.getElementById('youtube-geography-chart');
-    if (youtubeGeographyChart && youtubeGeographyData) {
+    if (youtubeGeographyChart && youtubeGeographyData && youtubeGeographyData.length > 0) {
       debugLog('Creating YouTube geography chart with', youtubeGeographyData.length, 'entries');
       
       // Sort by views and take top 10
       const topCountries = [...youtubeGeographyData]
         .sort((a, b) => safeParseInt(b.Views) - safeParseInt(a.Views))
         .slice(0, 10);
+      
+      debugLog('Top YouTube countries:', topCountries);
       
       // Verify data has values
       if (topCountries.length === 0 || topCountries.every(country => safeParseInt(country.Views) === 0)) {
@@ -1370,7 +1643,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const geographyChartConfig = {
         type: 'bar',
         data: {
-          labels: topCountries.map(data => data.Geography),
+          labels: topCountries.map(data => data.Geography || 'Unknown'),
           datasets: [{
             label: 'Views',
             data: topCountries.map(data => safeParseInt(data.Views)),
@@ -1406,10 +1679,19 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       
       createChart('youtube-geography-chart', geographyChartConfig);
+    } else if (youtubeGeographyChart) {
+      clearChart('youtube-geography-chart');
+      const ctx = youtubeGeographyChart.getContext('2d');
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f6ad55';
+      ctx.textAlign = 'center';
+      ctx.fillText('No YouTube geography data available', 
+                  youtubeGeographyChart.width / 2, 
+                  youtubeGeographyChart.height / 2);
     }
   };
   
-  // Update Facebook tab
+  // *** CRITICAL FIX: Update Facebook tab with robust field detection ***
   const updateFacebookTab = (filteredFbVideos) => {
     debugLog('Updating Facebook tab');
     
@@ -1418,10 +1700,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fbVideosTable) {
       if (filteredFbVideos && filteredFbVideos.length > 0) {
         debugLog(`Creating Facebook videos table with ${filteredFbVideos.length} videos`);
+        debugLog('FB Videos sample:', filteredFbVideos[0]);
         
+        // Sort videos by views, with extra logging
         const topVideos = [...filteredFbVideos]
-          .sort((a, b) => safeParseInt(b['3-second video views']) - safeParseInt(a['3-second video views']))
+          .sort((a, b) => {
+            const aViews = safeParseInt(a['3-second video views']);
+            const bViews = safeParseInt(b['3-second video views']);
+            debugLog(`Comparing views: ${aViews} vs ${bViews}`);
+            return bViews - aViews;
+          })
           .slice(0, 5);
+        
+        debugLog('Top FB videos:', topVideos);
         
         let tableHtml = `
           <thead>
@@ -1473,28 +1764,79 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
-    // Facebook video engagement chart
+    // Facebook video demographics chart - key bugfix for field mapping
     const fbDemographicsChart = document.getElementById('fb-demographics-chart');
     if (fbDemographicsChart) {
       if (filteredFbVideos && filteredFbVideos.length > 0) {
         debugLog('Creating Facebook demographics chart');
         
+        // Get top video by views
         const topVideo = filteredFbVideos
           .sort((a, b) => safeParseInt(b['3-second video views']) - safeParseInt(a['3-second video views']))[0];
         
-        // Extract demographic data
+        debugLog('Top FB video for demographics:', topVideo);
+        
+        // FIX: Extract demographic data with proper field detection
+        // The actual column names might vary, so check for variations
+        const extractDemographicValue = (video, ageGender) => {
+          // Try different possible field patterns
+          const patterns = [
+            `3-second video views by top audience (${ageGender})`,
+            `3-second video views by top audience ${ageGender}`,
+            `video views by audience (${ageGender})`,
+            `video views by audience ${ageGender}`
+          ];
+          
+          for (const pattern of patterns) {
+            if (video[pattern] !== undefined) {
+              return safeParseFloat(video[pattern]);
+            }
+          }
+          return 0;
+        };
+        
         const demographicData = [
-          {name: 'F, 18-24', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 18-24)']) : 0},
-          {name: 'F, 25-34', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 25-34)']) : 0},
-          {name: 'F, 35-44', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 35-44)']) : 0},
-          {name: 'F, 45-54', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (F, 45-54)']) : 0},
-          {name: 'M, 18-24', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 18-24)']) : 0},
-          {name: 'M, 25-34', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 25-34)']) : 0},
-          {name: 'M, 35-44', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 35-44)']) : 0},
-          {name: 'M, 45-54', value: topVideo ? safeParseFloat(topVideo['3-second video views by top audience (M, 45-54)']) : 0},
+          {name: 'F, 18-24', value: extractDemographicValue(topVideo, 'F, 18-24')},
+          {name: 'F, 25-34', value: extractDemographicValue(topVideo, 'F, 25-34')},
+          {name: 'F, 35-44', value: extractDemographicValue(topVideo, 'F, 35-44')},
+          {name: 'F, 45-54', value: extractDemographicValue(topVideo, 'F, 45-54')},
+          {name: 'M, 18-24', value: extractDemographicValue(topVideo, 'M, 18-24')},
+          {name: 'M, 25-34', value: extractDemographicValue(topVideo, 'M, 25-34')},
+          {name: 'M, 35-44', value: extractDemographicValue(topVideo, 'M, 35-44')},
+          {name: 'M, 45-54', value: extractDemographicValue(topVideo, 'M, 45-54')},
         ].filter(item => item.value > 0);
         
+        debugLog('FB demographic data:', demographicData);
+        
         // Verify data has values
+        if (demographicData.length === 0) {
+          // Try alternate approach - dump all demographics fields
+          debugLog('No demographic data found with standard patterns, trying alternate approach');
+          const alternativeDemographics = [];
+          
+          // Find any field that might contain demographic data
+          Object.keys(topVideo).forEach(key => {
+            if (key.includes('audience') || (key.includes('video views') && (key.includes('F,') || key.includes('M,')))) {
+              const value = safeParseFloat(topVideo[key]);
+              if (value > 0) {
+                // Extract the demographic category from the field name
+                let name = key.match(/\((.*?)\)/) || key.match(/(F,.*?|M,.*?)$/);
+                name = name ? name[1] : key;
+                alternativeDemographics.push({
+                  name: name,
+                  value: value
+                });
+              }
+            }
+          });
+          
+          if (alternativeDemographics.length > 0) {
+            debugLog('Found alternative demographics:', alternativeDemographics);
+            demographicData.push(...alternativeDemographics);
+          }
+        }
+        
+        // Still no data? Show message
         if (demographicData.length === 0) {
           clearChart('fb-demographics-chart');
           const ctx = fbDemographicsChart.getContext('2d');
@@ -1726,6 +2068,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const initDashboard = () => {
     debugLog('Initializing Marketing Analytics Dashboard');
     
+    // Create global chart instances container if it doesn't exist
+    window.chartInstances = window.chartInstances || {};
+    
     // Insert date filter container
     insertDateFilter();
     
@@ -1733,12 +2078,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabNavigation();
     
     // Clear all charts before loading data
-    Object.keys(chartInstances).forEach(clearChart);
+    for (const canvasId in window.chartInstances) {
+      clearChart(canvasId);
+    }
     
     // Load data
     loadCSVData();
   };
   
-  // Start the dashboard
+  // Start the dashboard when DOM is fully loaded
   initDashboard();
-});
+})();
