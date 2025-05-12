@@ -240,23 +240,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('Loading CSV data...');
     
-    // Function to load and parse a CSV file using window.fs.readFile
-    const loadCSVFile = async (filename) => {
-      try {
+    // Function to load and parse a CSV file
+    const loadCSVFile = (filename) => {
+      return new Promise((resolve, reject) => {
         console.log(`Attempting to load ${filename}...`);
         
-        // Use window.fs.readFile to get the file content
-        const fileContent = await window.fs.readFile(filename, { encoding: 'utf8' });
-        console.log(`Successfully loaded ${filename}`);
-        
-        // Parse the CSV content using Papa Parse
-        return new Promise((resolve, reject) => {
-          Papa.parse(fileContent, {
+        try {
+          // Use the filename directly for relative path loading
+          Papa.parse(filename, {
+            download: true,
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
             complete: (results) => {
-              console.log(`Successfully parsed ${filename}, found ${results.data.length} rows`);
+              console.log(`Successfully loaded ${filename}, found ${results.data.length} rows`);
               
               // Extract dates if available
               if (results.data.length > 0 && (results.data[0].Date || results.data[0]['Publish time'])) {
@@ -273,16 +270,16 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             error: (error) => {
               console.error(`Error parsing ${filename}:`, error);
-              dataErrors[filename] = `Error parsing ${filename}: ${error.message}`;
+              dataErrors[filename] = `Error parsing: ${error.message}`;
               reject(error);
             }
           });
-        });
-      } catch (error) {
-        console.error(`Error reading ${filename}:`, error);
-        dataErrors[filename] = `Error reading ${filename}: ${error.message}`;
-        throw error;
-      }
+        } catch (error) {
+          console.error(`Exception loading ${filename}:`, error);
+          dataErrors[filename] = `Error loading: ${error.message}`;
+          reject(error);
+        }
+      });
     };
     
     
@@ -397,14 +394,16 @@ document.addEventListener('DOMContentLoaded', () => {
         errorContainer.id = 'error-container';
         errorContainer.className = 'alert alert-danger mb-4 dashboard-section';
         errorContainer.innerHTML = '<h4 class="alert-heading">Data Loading Issues</h4>' +
-          '<p>The dashboard was unable to access the following data sources:</p>' +
+          '<p>The dashboard was unable to load the following data files:</p>' +
           '<ul class="error-list mb-0"></ul>' +
           '<p class="mt-3">Please ensure that:</p>' +
           '<ol>' +
-          '<li>The CSV files are in the same directory as this HTML file</li>' +
-          '<li>The filenames match exactly (case-sensitive)</li>' +
-          '<li>You have permission to read these files</li>' +
-          '</ol>';
+          '<li>The CSV files are in the correct location relative to this HTML file</li>' +
+          '<li>The CSV files have the correct names (case-sensitive)</li>' +
+          '<li>Your web server allows access to CSV files</li>' +
+          '<li>CORS is not blocking access to the files</li>' +
+          '</ol>' +
+          '<p>If accessing locally, you may need to run a local web server for proper file access.</p>';
         
         // Try to insert it in a good place
         const container = document.querySelector('.container');
