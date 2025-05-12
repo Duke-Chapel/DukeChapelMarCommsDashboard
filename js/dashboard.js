@@ -240,19 +240,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('Loading CSV data...');
     
-    // Function to load and parse a CSV file
-    const loadCSVFile = (file) => {
-      return new Promise((resolve, reject) => {
-        console.log(`Attempting to load ${file}...`);
+    // Function to load and parse a CSV file using window.fs.readFile
+    const loadCSVFile = async (filename) => {
+      try {
+        console.log(`Attempting to load ${filename}...`);
         
-        try {
-          Papa.parse(file, {
-            download: true,
+        // Use window.fs.readFile to get the file content
+        const fileContent = await window.fs.readFile(filename, { encoding: 'utf8' });
+        console.log(`Successfully loaded ${filename}`);
+        
+        // Parse the CSV content using Papa Parse
+        return new Promise((resolve, reject) => {
+          Papa.parse(fileContent, {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
             complete: (results) => {
-              console.log(`Successfully loaded ${file}, found ${results.data.length} rows`);
+              console.log(`Successfully parsed ${filename}, found ${results.data.length} rows`);
               
               // Extract dates if available
               if (results.data.length > 0 && (results.data[0].Date || results.data[0]['Publish time'])) {
@@ -261,24 +265,24 @@ document.addEventListener('DOMContentLoaded', () => {
                   .filter(date => date !== null);
                 
                 if (dates.length > 0) {
-                  console.log(`Found ${dates.length} valid dates in ${file}`);
+                  console.log(`Found ${dates.length} valid dates in ${filename}`);
                   allDates = [...allDates, ...dates];
                 }
               }
               resolve(results.data);
             },
             error: (error) => {
-              console.error(`Error parsing ${file}:`, error);
-              dataErrors[file] = `Error parsing ${file}: ${error.message}`;
+              console.error(`Error parsing ${filename}:`, error);
+              dataErrors[filename] = `Error parsing ${filename}: ${error.message}`;
               reject(error);
             }
           });
-        } catch (error) {
-          console.error(`Exception loading ${file}:`, error);
-          dataErrors[file] = `Error loading ${file}: ${error.message}`;
-          reject(error);
-        }
-      });
+        });
+      } catch (error) {
+        console.error(`Error reading ${filename}:`, error);
+        dataErrors[filename] = `Error reading ${filename}: ${error.message}`;
+        throw error;
+      }
     };
     
     
@@ -291,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         emailData = await loadCSVFile('Email_Campaign_Performance.csv');
       } catch (error) {
         console.error('Failed to load Email_Campaign_Performance.csv:', error);
-        dataErrors['Email_Campaign_Performance.csv'] = error.message;
+        dataErrors['Email_Campaign_Performance.csv'] = error.message || "File not found or inaccessible";
       }
       
       try {
@@ -299,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fbVideosData = await loadCSVFile('FB_Videos.csv');
       } catch (error) {
         console.error('Failed to load FB_Videos.csv:', error);
-        dataErrors['FB_Videos.csv'] = error.message;
+        dataErrors['FB_Videos.csv'] = error.message || "File not found or inaccessible";
       }
       
       try {
@@ -307,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         igPostsData = await loadCSVFile('IG_Posts.csv');
       } catch (error) {
         console.error('Failed to load IG_Posts.csv:', error);
-        dataErrors['IG_Posts.csv'] = error.message;
+        dataErrors['IG_Posts.csv'] = error.message || "File not found or inaccessible";
       }
       
       try {
@@ -315,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         youtubeAgeData = await loadCSVFile('YouTube_Age.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Age.csv:', error);
-        dataErrors['YouTube_Age.csv'] = error.message;
+        dataErrors['YouTube_Age.csv'] = error.message || "File not found or inaccessible";
       }
       
       try {
@@ -323,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
         youtubeGenderData = await loadCSVFile('YouTube_Gender.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Gender.csv:', error);
-        dataErrors['YouTube_Gender.csv'] = error.message;
+        dataErrors['YouTube_Gender.csv'] = error.message || "File not found or inaccessible";
       }
       
       try {
@@ -331,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         youtubeGeographyData = await loadCSVFile('YouTube_Geography.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Geography.csv:', error);
-        dataErrors['YouTube_Geography.csv'] = error.message;
+        dataErrors['YouTube_Geography.csv'] = error.message || "File not found or inaccessible";
       }
       
       try {
@@ -339,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         youtubeSubscriptionData = await loadCSVFile('YouTube_Subscription_Status.csv');
       } catch (error) {
         console.error('Failed to load YouTube_Subscription_Status.csv:', error);
-        dataErrors['YouTube_Subscription_Status.csv'] = error.message;
+        dataErrors['YouTube_Subscription_Status.csv'] = error.message || "File not found or inaccessible";
       }
       
       console.log('All CSV files loaded or attempted');
@@ -391,8 +395,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create an error container if it doesn't exist
         errorContainer = document.createElement('div');
         errorContainer.id = 'error-container';
-        errorContainer.className = 'alert alert-danger mb-4';
-        errorContainer.innerHTML = '<h4 class="alert-heading">Data Loading Issues</h4><p>Some data sources have errors:</p><ul class="error-list mb-0"></ul>';
+        errorContainer.className = 'alert alert-danger mb-4 dashboard-section';
+        errorContainer.innerHTML = '<h4 class="alert-heading">Data Loading Issues</h4>' +
+          '<p>The dashboard was unable to access the following data sources:</p>' +
+          '<ul class="error-list mb-0"></ul>' +
+          '<p class="mt-3">Please ensure that:</p>' +
+          '<ol>' +
+          '<li>The CSV files are in the same directory as this HTML file</li>' +
+          '<li>The filenames match exactly (case-sensitive)</li>' +
+          '<li>You have permission to read these files</li>' +
+          '</ol>';
         
         // Try to insert it in a good place
         const container = document.querySelector('.container');
