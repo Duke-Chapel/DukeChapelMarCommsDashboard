@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Analytics Dashboard</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- PapaParse for CSV handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .dashboard-section {
+            margin-bottom: 2rem;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+        }
+        .metric-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+            padding: 1rem;
+            height: 100%;
+        }
+        .metric-card h5 {
+            color: #495057;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #212529;
+        }
+        .metric-change {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .positive-change {
+            color: #28a745;
+        }
+        .negative-change {
+            color: #dc3545;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 300px;
+            width: 100%;
+        }
+        .nav-tabs .nav-link {
+            color: #495057;
+            border: none;
+            border-bottom: 3px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            background-color: transparent;
+            border-color: #0d6efd;
+        }
+        .dashboard-header {
+            background-color: #fff;
+            padding: 1rem 0;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 5px solid #0d6efd;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="container">
+            <h1 class="h3">Marketing Analytics Dashboard</h1>
+            <p class="text-muted">Last updated: <span id="last-updated">Loading...</span></p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">Overview</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="web-tab" data-bs-toggle="tab" data-bs-target="#web" type="button" role="tab" aria-controls="web" aria-selected="false">Web Analytics</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="social-tab" data-bs-toggle="tab" data-bs-target="#social" type="button" role="tab" aria-controls="social" aria-selected="false">Social Media</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email" type="button" role="tab" aria-controls="email" aria-selected="false">Email</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="youtube-tab" data-bs-toggle="tab" data-bs-target="#youtube" type="button" role="tab" aria-controls="youtube" aria-selected="false">YouTube</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tab-content" id="dashboardTabsContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                <div class="row">
+                    <div class="col-md-12 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Cross-Channel Performance</h3>
+                            <div class="row">
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="metric-card">
+                                        <h5>Website Visitors</h5>
+                                        <div class="metric-value" id="total-website-visitors">--</div>
+                                        <div class="metric-change positive-change">+0.0% vs previous period</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="metric-card">
+                                        <h5>Social Media Followers</h5>
+                                        <div class="metric-value" id="total-followers">--</div>
+                                        <div class="metric-change positive-change">+0.0% vs previous period</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="metric-card">
+                                        <h5>Email Subscribers</h5>
+                                        <div class="metric-value" id="total-subscribers">--</div>
+                                        <div class="metric-change positive-change">+0.0% vs previous period</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="metric-card">
+                                        <h5>YouTube Views</h5>
+                                        <div class="metric-value" id="total-youtube-views">--</div>
+                                        <div class="metric-change positive-change">+0.0% vs previous period</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Channel Traffic Comparison</h3>
+                            <div class="chart-container">
+                                <canvas id="channel-traffic-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Engagement by Platform</h3>
+                            <div class="chart-container">
+                                <canvas id="engagement-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Analytics Tab -->
+            <div class="tab-pane fade" id="web" role="tabpanel" aria-labelledby="web-tab">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Demographics Breakdown</h3>
+                            <div class="chart-container">
+                                <canvas id="web-demographics-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Traffic Sources</h3>
+                            <div class="chart-container">
+                                <canvas id="traffic-sources-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Top Landing Pages</h3>
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="top-pages-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Page</th>
+                                            <th>Sessions</th>
+                                            <th>Engagement Time</th>
+                                            <th>Bounce Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" class="text-center">Loading data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media Tab -->
+            <div class="tab-pane fade" id="social" role="tabpanel" aria-labelledby="social-tab">
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <ul class="nav nav-pills" id="socialTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="facebook-tab" data-bs-toggle="pill" data-bs-target="#facebook" type="button" role="tab" aria-controls="facebook" aria-selected="true">Facebook</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="instagram-tab" data-bs-toggle="pill" data-bs-target="#instagram" type="button" role="tab" aria-controls="instagram" aria-selected="false">Instagram</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="socialTabContent">
+                    <!-- Facebook Tab -->
+                    <div class="tab-pane fade show active" id="facebook" role="tabpanel" aria-labelledby="facebook-tab">
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Facebook Audience Demographics</h3>
+                                    <div class="chart-container">
+                                        <canvas id="fb-demographics-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Facebook Follower Growth</h3>
+                                    <div class="chart-container">
+                                        <canvas id="fb-followers-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Top Facebook Posts</h3>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped" id="top-fb-posts-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Post</th>
+                                                    <th>Reach</th>
+                                                    <th>Engagement</th>
+                                                    <th>Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="4" class="text-center">Loading data...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Facebook Video Performance</h3>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped" id="fb-videos-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Video Title</th>
+                                                    <th>Views</th>
+                                                    <th>Engagement</th>
+                                                    <th>Avg. View Time</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="4" class="text-center">Loading data...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instagram Tab -->
+                    <div class="tab-pane fade" id="instagram" role="tabpanel" aria-labelledby="instagram-tab">
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Instagram Audience Demographics</h3>
+                                    <div class="chart-container">
+                                        <canvas id="ig-demographics-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Instagram Follower Growth</h3>
+                                    <div class="chart-container">
+                                        <canvas id="ig-followers-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-4">
+                                <div class="dashboard-section">
+                                    <h3 class="h5 mb-3">Top Instagram Posts</h3>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped" id="top-ig-posts-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Post</th>
+                                                    <th>Reach</th>
+                                                    <th>Likes</th>
+                                                    <th>Comments</th>
+                                                    <th>Saves</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="5" class="text-center">Loading data...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Tab -->
+            <div class="tab-pane fade" id="email" role="tabpanel" aria-labelledby="email-tab">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Email Campaign Performance</h3>
+                            <div class="chart-container">
+                                <canvas id="email-performance-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Email Engagement Segmentation</h3>
+                            <div class="chart-container">
+                                <canvas id="email-engagement-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Top Email Campaigns</h3>
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="top-email-campaigns-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Campaign</th>
+                                            <th>Open Rate</th>
+                                            <th>Click Rate</th>
+                                            <th>Deliveries</th>
+                                            <th>Unsubscribe Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="5" class="text-center">Loading data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YouTube Tab -->
+            <div class="tab-pane fade" id="youtube" role="tabpanel" aria-labelledby="youtube-tab">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">YouTube Demographics</h3>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="chart-container">
+                                        <canvas id="youtube-age-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="chart-container">
+                                        <canvas id="youtube-gender-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Subscriber Status</h3>
+                            <div class="chart-container">
+                                <canvas id="youtube-subscriber-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-4">
+                        <div class="dashboard-section">
+                            <h3 class="h5 mb-3">Top Countries by Views</h3>
+                            <div class="chart-container">
+                                <canvas id="youtube-geography-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-4">
+        <div class="container">
+            <p class="text-center text-muted">Marketing Analytics Dashboard. Data refreshes when you upload new CSVs to your repository.</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
