@@ -12,18 +12,18 @@ function createEnhancedDateFilter(updateCallback) {
       enabled: false
     }
   };
-  
+
   // Available dates from the data
   let availableDates = {
     earliestDate: null,
     latestDate: null
   };
-  
+
   // Store the update callback
-  const updateDashboard = updateCallback || function() {
+  const updateDashboard = updateCallback || function () {
     console.warn('No update callback provided to date filter');
   };
-  
+
   // Function to format dates for display
   const formatDateForDisplay = (date) => {
     if (!date) return '';
@@ -34,35 +34,50 @@ function createEnhancedDateFilter(updateCallback) {
       return '';
     }
   };
-  
-  // Format date for input fields
+
+  // FIXED: Format date for input fields correctly
   const formatDateForInput = (date) => {
     if (!date) return '';
+
     try {
-      return date.toISOString().split('T')[0];
+      // Make sure it's a Date object
+      const dateObj = date instanceof Date ? date : new Date(date);
+
+      // Validate the date
+      if (isNaN(dateObj.getTime())) {
+        console.warn('Invalid date in formatDateForInput:', date);
+        return '';
+      }
+
+      // Format as YYYY-MM-DD
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+
+      return `${year}-${month}-${day}`;
     } catch (e) {
       console.error('Error formatting date for input:', e);
       return '';
     }
   };
-  
+
   // Create date filter container safely
   const createFilterContainer = () => {
     console.log('Creating date filter container');
     let dateFilterContainer = document.getElementById('date-filter-container');
-    
+
     if (!dateFilterContainer) {
       dateFilterContainer = document.createElement('div');
       dateFilterContainer.className = 'dashboard-section mb-4';
       dateFilterContainer.id = 'date-filter-container';
-      
+
       // Insert in the appropriate place in the DOM
       const container = document.querySelector('.container');
       if (!container) {
         console.error('Container element not found for date filter');
         return dateFilterContainer;
       }
-      
+
       // Try to insert before tabs
       const tabsRow = document.querySelector('#dashboardTabs');
       if (tabsRow) {
@@ -86,124 +101,136 @@ function createEnhancedDateFilter(updateCallback) {
         }
       }
     }
-    
+
     return dateFilterContainer;
   };
-  
-  // FIXED: Set initial dates with better validation and logging
+
+  // FIXED: Date filter initialization with better error handling
   const setDefaultDates = () => {
     console.log('Setting default dates...');
     console.log('Available date range:', availableDates);
-    
-    if (availableDates.earliestDate && availableDates.latestDate) {
-      // Convert to proper Date objects if they're not already
-      const earliestDate = availableDates.earliestDate instanceof Date ? 
-                         availableDates.earliestDate : new Date(availableDates.earliestDate);
-      
-      const latestDate = availableDates.latestDate instanceof Date ? 
-                       availableDates.latestDate : new Date(availableDates.latestDate);
-      
-      console.log(`Setting default dates with range: ${earliestDate.toISOString()} to ${latestDate.toISOString()}`);
-      
-      // Get current date for default end date if latest available date is too old
-      const now = new Date();
-      
-      // Use the most recent date between now and the latest available date
-      const endDate = latestDate > now ? now : new Date(latestDate);
-      
-      // Set current period to last 30 days or available range if smaller
-      let thirtyDaysAgo = new Date(endDate);
-      thirtyDaysAgo.setDate(endDate.getDate() - 30);
-      
-      // Ensure it's not before earliest date
-      if (thirtyDaysAgo < earliestDate) {
-        thirtyDaysAgo = new Date(earliestDate);
-        console.log('Adjusted start date to earliest available:', thirtyDaysAgo.toISOString());
-      }
-      
-      dateRanges.current.startDate = thirtyDaysAgo;
-      dateRanges.current.endDate = endDate;
-      
-      // Set comparison period to previous 30 days
-      let sixtyDaysAgo = new Date(endDate);
-      sixtyDaysAgo.setDate(endDate.getDate() - 60);
-      
-      if (sixtyDaysAgo < earliestDate) {
-        sixtyDaysAgo = new Date(earliestDate);
-        console.log('Adjusted comparison start date to earliest available:', sixtyDaysAgo.toISOString());
-      }
-      
-      dateRanges.comparison.startDate = sixtyDaysAgo;
-      dateRanges.comparison.endDate = new Date(thirtyDaysAgo);
-      dateRanges.comparison.endDate.setDate(dateRanges.comparison.endDate.getDate() - 1);
-      
-      // Disable comparison if there's not enough data for a valid comparison
-      if (dateRanges.comparison.startDate >= dateRanges.comparison.endDate) {
-        console.log('Disabling comparison due to insufficient date range');
-        dateRanges.comparison.enabled = false;
+
+    try {
+      // If we have valid dates from data
+      if (availableDates.earliestDate && availableDates.latestDate) {
+        // Ensure these are Date objects
+        const earliestDate = availableDates.earliestDate instanceof Date ?
+          availableDates.earliestDate : new Date(availableDates.earliestDate);
+
+        const latestDate = availableDates.latestDate instanceof Date ?
+          availableDates.latestDate : new Date(availableDates.latestDate);
+
+        // Validate dates are reasonable
+        if (isNaN(earliestDate.getTime()) || isNaN(latestDate.getTime())) {
+          throw new Error('Invalid date range from data');
+        }
+
+        console.log(`Setting default dates with range: ${earliestDate.toISOString()} to ${latestDate.toISOString()}`);
+
+        // Get current date
+        const now = new Date();
+
+        // Use the most recent date between now and the latest available date
+        const endDate = latestDate > now ? now : new Date(latestDate);
+
+        // Set current period to last 30 days or available range if smaller
+        let thirtyDaysAgo = new Date(endDate);
+        thirtyDaysAgo.setDate(endDate.getDate() - 30);
+
+        // Ensure it's not before earliest date
+        if (thirtyDaysAgo < earliestDate) {
+          thirtyDaysAgo = new Date(earliestDate);
+          console.log('Adjusted start date to earliest available:', thirtyDaysAgo.toISOString());
+        }
+
+        dateRanges.current.startDate = thirtyDaysAgo;
+        dateRanges.current.endDate = endDate;
+
+        // Set comparison period to previous 30 days
+        let sixtyDaysAgo = new Date(endDate);
+        sixtyDaysAgo.setDate(endDate.getDate() - 60);
+
+        if (sixtyDaysAgo < earliestDate) {
+          sixtyDaysAgo = new Date(earliestDate);
+          console.log('Adjusted comparison start date to earliest available:', sixtyDaysAgo.toISOString());
+        }
+
+        dateRanges.comparison.startDate = sixtyDaysAgo;
+        dateRanges.comparison.endDate = new Date(thirtyDaysAgo);
+        dateRanges.comparison.endDate.setDate(dateRanges.comparison.endDate.getDate() - 1);
+
+        // Disable comparison if there's not enough data for a valid comparison
+        if (dateRanges.comparison.startDate >= dateRanges.comparison.endDate) {
+          console.log('Disabling comparison due to insufficient date range');
+          dateRanges.comparison.enabled = false;
+        } else {
+          dateRanges.comparison.enabled = true;
+        }
+
+        console.log('Date ranges set to:',
+          `Current: ${dateRanges.current.startDate.toISOString()} to ${dateRanges.current.endDate.toISOString()}`,
+          `Comparison: ${dateRanges.comparison.startDate.toISOString()} to ${dateRanges.comparison.endDate.toISOString()}`);
       } else {
-        dateRanges.comparison.enabled = true;
+        throw new Error('Missing earliestDate or latestDate');
       }
-      
-      console.log('Date ranges set to:', 
-                  `Current: ${dateRanges.current.startDate.toISOString()} to ${dateRanges.current.endDate.toISOString()}`,
-                  `Comparison: ${dateRanges.comparison.startDate.toISOString()} to ${dateRanges.comparison.endDate.toISOString()}`);
-    } else {
-      console.warn('Cannot set default dates - available date range is invalid');
-      // Use fallback dates
+    } catch (error) {
+      console.warn('Error setting default dates:', error.message);
+      console.warn('Using fallback dates');
+
+      // Use fallback dates (1 year ago to today)
       const now = new Date();
       dateRanges.current.endDate = now;
-      
+
       let thirtyDaysAgo = new Date(now);
       thirtyDaysAgo.setDate(now.getDate() - 30);
       dateRanges.current.startDate = thirtyDaysAgo;
-      
+
       // Set comparison to previous 30 days
       let sixtyDaysAgo = new Date(now);
       sixtyDaysAgo.setDate(now.getDate() - 60);
       dateRanges.comparison.startDate = sixtyDaysAgo;
-      
+
       let thirtyOneDaysAgo = new Date(now);
       thirtyOneDaysAgo.setDate(now.getDate() - 31);
       dateRanges.comparison.endDate = thirtyOneDaysAgo;
-      
+
       dateRanges.comparison.enabled = false;
-      
-      console.log('Using fallback date ranges:', 
-                  `Current: ${dateRanges.current.startDate.toISOString()} to ${dateRanges.current.endDate.toISOString()}`,
-                  `Comparison: ${dateRanges.comparison.startDate.toISOString()} to ${dateRanges.comparison.endDate.toISOString()}`);
+
+      console.log('Using fallback date ranges:',
+        `Current: ${dateRanges.current.startDate.toISOString()} to ${dateRanges.current.endDate.toISOString()}`,
+        `Comparison: ${dateRanges.comparison.startDate.toISOString()} to ${dateRanges.comparison.endDate.toISOString()}`);
     }
   };
-  
+
   // Allow for manual date range override (useful for testing)
   const setManualDateRange = (startDate, endDate, comparisonEnabled = false, comparisonStartDate = null, comparisonEndDate = null) => {
     dateRanges.current.startDate = startDate ? new Date(startDate) : null;
     dateRanges.current.endDate = endDate ? new Date(endDate) : null;
     dateRanges.comparison.enabled = comparisonEnabled;
-    
+
     if (comparisonEnabled) {
       dateRanges.comparison.startDate = comparisonStartDate ? new Date(comparisonStartDate) : null;
       dateRanges.comparison.endDate = comparisonEndDate ? new Date(comparisonEndDate) : null;
     }
   };
-  
+
   // FIXED: Create date filter UI with better error handling
   const renderDateFilter = () => {
     console.log('Rendering date filter...');
-    
+
     // Create or get the container
     const filterContainer = createFilterContainer();
     if (!filterContainer) {
       console.error('Failed to create or find date filter container');
       return;
     }
-    
+
     // Ensure dates are valid before rendering
     if (!dateRanges.current.startDate || !dateRanges.current.endDate) {
       console.warn('Current date range not set, using defaults');
       setDefaultDates();
     }
-    
+
     // Format dates for display, with fallbacks
     const currentStartFormatted = formatDateForInput(dateRanges.current.startDate) || '';
     const currentEndFormatted = formatDateForInput(dateRanges.current.endDate) || '';
@@ -211,7 +238,7 @@ function createEnhancedDateFilter(updateCallback) {
     const compEndFormatted = formatDateForInput(dateRanges.comparison.endDate) || '';
     const earliestFormatted = formatDateForInput(availableDates.earliestDate) || '';
     const latestFormatted = formatDateForInput(availableDates.latestDate) || '';
-    
+
     console.log('Formatted date values for inputs:', {
       currentStart: currentStartFormatted,
       currentEnd: currentEndFormatted,
@@ -220,7 +247,68 @@ function createEnhancedDateFilter(updateCallback) {
       earliest: earliestFormatted,
       latest: latestFormatted
     });
-    
+    // FIXED: Date validation before applying filter
+    const validateDateRanges = () => {
+      // Validate current period
+      if (!dateRanges.current.startDate || !dateRanges.current.endDate) {
+        console.error('Current period dates are not set');
+        return false;
+      }
+
+      try {
+        // Ensure dates are Date objects
+        const currentStart = dateRanges.current.startDate instanceof Date ?
+          dateRanges.current.startDate : new Date(dateRanges.current.startDate);
+
+        const currentEnd = dateRanges.current.endDate instanceof Date ?
+          dateRanges.current.endDate : new Date(dateRanges.current.endDate);
+
+        // Validate dates
+        if (isNaN(currentStart.getTime()) || isNaN(currentEnd.getTime())) {
+          console.error('Invalid current period dates');
+          return false;
+        }
+
+        // Start date must be before end date
+        if (currentStart > currentEnd) {
+          console.error('Current period start date must be before end date');
+          return false;
+        }
+
+        // If comparison is enabled, validate comparison period
+        if (dateRanges.comparison.enabled) {
+          if (!dateRanges.comparison.startDate || !dateRanges.comparison.endDate) {
+            console.error('Comparison period dates are not set');
+            return false;
+          }
+
+          // Ensure dates are Date objects
+          const comparisonStart = dateRanges.comparison.startDate instanceof Date ?
+            dateRanges.comparison.startDate : new Date(dateRanges.comparison.startDate);
+
+          const comparisonEnd = dateRanges.comparison.endDate instanceof Date ?
+            dateRanges.comparison.endDate : new Date(dateRanges.comparison.endDate);
+
+          // Validate dates
+          if (isNaN(comparisonStart.getTime()) || isNaN(comparisonEnd.getTime())) {
+            console.error('Invalid comparison period dates');
+            return false;
+          }
+
+          // Start date must be before end date
+          if (comparisonStart > comparisonEnd) {
+            console.error('Comparison period start date must be before end date');
+            return false;
+          }
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error validating date ranges:', error);
+        return false;
+      }
+    };
+
     // Build the HTML
     filterContainer.innerHTML = `
       <h3 class="h5 mb-3">Date Range Filter</h3>
@@ -302,9 +390,9 @@ function createEnhancedDateFilter(updateCallback) {
         ${dateRanges.current.startDate && dateRanges.current.endDate ? `
           <div class="alert alert-info">
             <strong>Active Filter:</strong> Showing data for ${formatDateForDisplay(dateRanges.current.startDate)} - ${formatDateForDisplay(dateRanges.current.endDate)}
-            ${dateRanges.comparison.enabled ? 
-              `<br><strong>Comparing to:</strong> ${formatDateForDisplay(dateRanges.comparison.startDate)} - ${formatDateForDisplay(dateRanges.comparison.endDate)}` 
-              : ''}
+            ${dateRanges.comparison.enabled ?
+          `<br><strong>Comparing to:</strong> ${formatDateForDisplay(dateRanges.comparison.startDate)} - ${formatDateForDisplay(dateRanges.comparison.endDate)}`
+          : ''}
           </div>
         ` : `
           <div class="alert alert-warning">
@@ -313,7 +401,7 @@ function createEnhancedDateFilter(updateCallback) {
         `}
       </div>
     `;
-    
+
     // Add event listeners
     try {
       const currentStartDate = document.getElementById('current-start-date');
@@ -326,7 +414,7 @@ function createEnhancedDateFilter(updateCallback) {
       const clearFilterBtn = document.getElementById('clear-date-filter');
       const previousPeriodBtn = document.getElementById('previous-period');
       const samePeriodLastYearBtn = document.getElementById('same-period-last-year');
-      
+
       if (currentStartDate) {
         currentStartDate.addEventListener('change', (e) => {
           try {
@@ -340,7 +428,7 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Current start date input not found');
       }
-      
+
       if (currentEndDate) {
         currentEndDate.addEventListener('change', (e) => {
           try {
@@ -354,7 +442,7 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Current end date input not found');
       }
-      
+
       if (comparisonStartDate) {
         comparisonStartDate.addEventListener('change', (e) => {
           try {
@@ -368,7 +456,7 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Comparison start date input not found');
       }
-      
+
       if (comparisonEndDate) {
         comparisonEndDate.addEventListener('change', (e) => {
           try {
@@ -382,13 +470,13 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Comparison end date input not found');
       }
-      
+
       if (enableComparisonCheckbox) {
         enableComparisonCheckbox.addEventListener('change', (e) => {
           try {
             dateRanges.comparison.enabled = e.target.checked;
             console.log(`Comparison ${e.target.checked ? 'enabled' : 'disabled'}`);
-            
+
             if (comparisonControls) {
               comparisonControls.style.display = e.target.checked ? 'flex' : 'none';
             }
@@ -399,38 +487,38 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Enable comparison checkbox not found');
       }
-      
+
       if (applyFilterBtn) {
         applyFilterBtn.addEventListener('click', () => {
           try {
             console.log('Apply filter button clicked');
-            
+
             // Validate dates before updating
             if (!dateRanges.current.startDate || !dateRanges.current.endDate) {
               alert('Please select both start and end dates for the current period');
               return;
             }
-            
+
             if (dateRanges.current.startDate > dateRanges.current.endDate) {
               alert('Current period start date must be before end date');
               return;
             }
-            
+
             if (dateRanges.comparison.enabled) {
               if (!dateRanges.comparison.startDate || !dateRanges.comparison.endDate) {
                 alert('Please select both start and end dates for the comparison period');
                 return;
               }
-              
+
               if (dateRanges.comparison.startDate > dateRanges.comparison.endDate) {
                 alert('Comparison period start date must be before end date');
                 return;
               }
             }
-            
+
             // Re-render to update the display
             renderDateFilter();
-            
+
             // Call the update callback
             console.log('Calling update dashboard with:', dateRanges);
             updateDashboard(dateRanges);
@@ -442,7 +530,7 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Apply filter button not found');
       }
-      
+
       if (clearFilterBtn) {
         clearFilterBtn.addEventListener('click', () => {
           try {
@@ -458,36 +546,36 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Reset to default button not found');
       }
-      
+
       if (previousPeriodBtn) {
         previousPeriodBtn.addEventListener('click', () => {
           try {
             console.log('Previous period button clicked');
-            
+
             if (!dateRanges.current.startDate || !dateRanges.current.endDate) {
               alert('Please set the current period dates first');
               return;
             }
-            
+
             // Calculate previous period with the same duration
             const currentDuration = dateRanges.current.endDate - dateRanges.current.startDate;
             const newEndDate = new Date(dateRanges.current.startDate);
             newEndDate.setDate(newEndDate.getDate() - 1);
-            
+
             const newStartDate = new Date(newEndDate);
             newStartDate.setTime(newEndDate.getTime() - currentDuration);
-            
+
             console.log(`Calculated previous period: ${newStartDate.toISOString()} to ${newEndDate.toISOString()}`);
-            
+
             // Ensure not before earliest date
             if (availableDates.earliestDate && newStartDate < availableDates.earliestDate) {
               alert("Previous period would be before the earliest available data.");
               return;
             }
-            
+
             dateRanges.comparison.startDate = newStartDate;
             dateRanges.comparison.endDate = newEndDate;
-            
+
             // Update inputs
             if (comparisonStartDate) comparisonStartDate.value = formatDateForInput(dateRanges.comparison.startDate);
             if (comparisonEndDate) comparisonEndDate.value = formatDateForInput(dateRanges.comparison.endDate);
@@ -499,35 +587,35 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Previous period button not found');
       }
-      
+
       if (samePeriodLastYearBtn) {
         samePeriodLastYearBtn.addEventListener('click', () => {
           try {
             console.log('Same period last year button clicked');
-            
+
             if (!dateRanges.current.startDate || !dateRanges.current.endDate) {
               alert('Please set the current period dates first');
               return;
             }
-            
+
             // Calculate same period last year
             const newStartDate = new Date(dateRanges.current.startDate);
             newStartDate.setFullYear(newStartDate.getFullYear() - 1);
-            
+
             const newEndDate = new Date(dateRanges.current.endDate);
             newEndDate.setFullYear(newEndDate.getFullYear() - 1);
-            
+
             console.log(`Calculated same period last year: ${newStartDate.toISOString()} to ${newEndDate.toISOString()}`);
-            
+
             // Ensure not before earliest date
             if (availableDates.earliestDate && newStartDate < availableDates.earliestDate) {
               alert("Same period last year would be before the earliest available data.");
               return;
             }
-            
+
             dateRanges.comparison.startDate = newStartDate;
             dateRanges.comparison.endDate = newEndDate;
-            
+
             // Update inputs
             if (comparisonStartDate) comparisonStartDate.value = formatDateForInput(dateRanges.comparison.startDate);
             if (comparisonEndDate) comparisonEndDate.value = formatDateForInput(dateRanges.comparison.endDate);
@@ -539,34 +627,34 @@ function createEnhancedDateFilter(updateCallback) {
       } else {
         console.warn('Same period last year button not found');
       }
-      
+
       console.log('Successfully set up date filter event listeners');
     } catch (error) {
       console.error('Error setting up date filter event listeners:', error);
     }
   };
-  
+
   // Initialize and return the controller
   return {
     setAvailableDates: (earliest, latest) => {
       console.log(`Setting available dates: ${earliest} to ${latest}`);
-      
+
       // Convert to Date objects if needed
       availableDates.earliestDate = earliest instanceof Date ? earliest : new Date(earliest);
       availableDates.latestDate = latest instanceof Date ? latest : new Date(latest);
-      
+
       // Initialize default date ranges
       setDefaultDates();
     },
-    
+
     getDateRanges: () => dateRanges,
-    
+
     render: () => {
       renderDateFilter();
     },
-    
+
     getCurrentDateFilter: () => dateRanges,
-    
+
     setManualDateRange
   };
 }

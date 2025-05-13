@@ -23,7 +23,7 @@ function createDataService() {
     latestDate: null
   };
 
-  // Safe parsing helpers
+  // FIXED: Safe parsing helpers
   const safeParseInt = (value, defaultValue = 0) => {
     if (value === undefined || value === null || value === '') return defaultValue;
 
@@ -164,7 +164,7 @@ function createDataService() {
     return null;
   };
 
-  // Helper to get data safely with fallback field names
+  // FIXED: Robust data field extraction with fallbacks
   const getDataField = (item, fieldPatterns, defaultValue = 0) => {
     if (!item) return defaultValue;
 
@@ -177,7 +177,7 @@ function createDataService() {
       }
     }
 
-    // Try fuzzy matches
+    // Try fuzzy matches (case-insensitive)
     const keys = Object.keys(item);
     for (const pattern of fieldPatterns) {
       for (const key of keys) {
@@ -192,44 +192,44 @@ function createDataService() {
     return defaultValue;
   };
 
-  // FIXED: Improved path resolution for GitHub Pages
+  // FIXED: Targeted fix for the CSV path resolution in GitHub Pages
   const getFilePath = (filename) => {
     // For GitHub Pages
     if (window.location.hostname.includes('github.io')) {
       // Get the full path and properly extract base directory
       const fullPath = window.location.pathname;
       console.log(`Full path: ${fullPath}`);
-      
-      // Handle root case and subdirectory case differently
+
+      // Handle root case
       if (fullPath === '/' || fullPath === '') {
         console.log(`Using root path for ${filename}`);
         return filename;
       }
-      
+
       // Remove trailing slash if present
       const cleanPath = fullPath.endsWith('/') ? fullPath.slice(0, -1) : fullPath;
-      
+
       // Extract repository name and any subdirectories
       const pathParts = cleanPath.split('/').filter(part => part !== '');
       const repoName = pathParts[0]; // First part is repo name
-      
+
       if (pathParts.length === 1) {
-        // We're at root of the repo
+        // At root of repo
         console.log(`Using GitHub Pages repo root path: /${repoName}/${filename}`);
         return `/${repoName}/${filename}`;
       } else {
-        // We're in a subdirectory
+        // In a subdirectory
         console.log(`Using GitHub Pages subdirectory path: ${cleanPath}/${filename}`);
         return `${cleanPath}/${filename}`;
       }
     }
-    
+
     // For local development
     console.log(`Using local path for ${filename}`);
     return filename;
   };
 
-  // FIXED: Enhanced CSV file loading with better error handling
+  // FIXED: Enhanced CSV file loading with multi-encoding support
   const loadCSVFile = (filename) => {
     return new Promise((resolve, reject) => {
       const filepath = getFilePath(filename);
@@ -238,10 +238,10 @@ function createDataService() {
       // Get file extension to determine appropriate parsing strategy
       const fileExt = filename.split('.').pop().toLowerCase();
 
-      // First attempt - try UTF-8 encoding
+      // Try different encodings until one works
       const tryLoadWithEncoding = (encoding, callback) => {
         console.log(`Trying to load ${filename} with ${encoding} encoding...`);
-        
+
         Papa.parse(filepath, {
           download: true,
           header: true,
@@ -264,7 +264,7 @@ function createDataService() {
         });
       };
 
-      // Try different encodings until one works
+      // Try different encodings in sequence
       try {
         // First try UTF-8
         tryLoadWithEncoding('UTF-8', (error, data) => {
@@ -283,8 +283,6 @@ function createDataService() {
                   } else {
                     // All attempts failed
                     console.error(`Failed to load ${filename} with any encoding`);
-                    dataErrors[filename] = `Failed to load file with any encoding`;
-                    
                     // Create empty placeholder data to prevent cascading errors
                     console.log(`Creating empty placeholder data for ${filename}`);
                     resolve([]);
@@ -296,8 +294,6 @@ function createDataService() {
         });
       } catch (error) {
         console.error(`Exception loading ${filename}:`, error);
-        dataErrors[filename] = `Error loading: ${error.message}`;
-        
         // Create empty placeholder data to prevent cascading errors
         console.log(`Creating empty placeholder data after exception for ${filename}`);
         resolve([]);
@@ -350,14 +346,14 @@ function createDataService() {
       }
 
       console.log(`Scanning ${key} dataset (${dataset.length} records) for dates`);
-      
+
       // Take a sample of records to scan for date fields (performance optimization)
       const sampleSize = Math.min(dataset.length, 100);
       const sampleRecords = dataset.slice(0, sampleSize);
 
       sampleRecords.forEach(record => {
         if (!record || typeof record !== 'object') return;
-        
+
         Object.entries(record).forEach(([key, value]) => {
           // Look for any field that might contain a date
           if (typeof value === 'string' &&
@@ -386,7 +382,7 @@ function createDataService() {
 
       dataset.data.forEach(item => {
         if (!item || typeof item !== 'object') return;
-        
+
         dataset.fields.forEach(field => {
           if (item[field]) {
             const date = parseDate(item[field]);
@@ -445,7 +441,7 @@ function createDataService() {
       try {
         console.log(`Loading ${filename} into ${dataKey}...`);
         const data = await loadCSVFile(filename);
-        
+
         if (Array.isArray(data) && data.length > 0) {
           allData[dataKey] = data;
           console.log(`Successfully loaded ${filename} into ${dataKey}, found ${data.length} rows`);
@@ -477,10 +473,10 @@ function createDataService() {
       safeLoad('YouTube_Geography.csv', 'youtubeGeography'),
       safeLoad('YouTube_Subscription_Status.csv', 'youtubeSubscription')
     ]);
-    
+
     // Add a slight delay before loading the next batch
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Load the second batch of files
     await Promise.allSettled([
       safeLoad('GA_Traffic_Acquisition.csv', 'gaTraffic'),
@@ -490,7 +486,7 @@ function createDataService() {
 
     console.log("Finished loading all data files");
     console.log("Data loading errors:", dataErrors);
-    
+
     // Determine available date range from the data
     console.log("Extracting available date range...");
     extractAvailableDateRange();
