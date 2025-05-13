@@ -3,11 +3,13 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log('Initializing Marketing Analytics Dashboard');
   
   // Create service instances
-  const dateFilter = createEnhancedDateFilter();
   const dataService = createDataService();
   const chartService = createChartService();
   const tableService = createTableService();
   const kpiCards = createKpiCards();
+  
+  // We need to declare updateDashboard at the top level so it can be passed to the date filter
+  let updateDashboard;
   
   // Setup tabs navigation
   const setupTabNavigation = () => {
@@ -55,6 +57,21 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   };
+  
+  // Define the updateDashboard function
+  updateDashboard = (dateRanges) => {
+    console.log('Updating dashboard with date ranges:', dateRanges);
+    
+    // Update each section of the dashboard
+    updateOverviewTab(dateRanges);
+    updateEmailTab(dateRanges);
+    updateSocialTabs(dateRanges);
+    updateYouTubeTab(dateRanges);
+    updateWebAnalyticsTab(dateRanges);
+  };
+  
+  // Create date filter with the updateDashboard function
+  const dateFilter = createEnhancedDateFilter(updateDashboard);
   
   // Load all data and initialize the dashboard
   const initDashboard = async () => {
@@ -115,18 +132,6 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('Dashboard initialization error:', error);
       document.getElementById('last-updated').textContent = 'Error loading data';
     }
-  };
-  
-  // Update the dashboard based on the date filter
-  const updateDashboard = (dateRanges) => {
-    console.log('Updating dashboard with date ranges:', dateRanges);
-    
-    // Update each section of the dashboard
-    updateOverviewTab(dateRanges);
-    updateEmailTab(dateRanges);
-    updateSocialTabs(dateRanges);
-    updateYouTubeTab(dateRanges);
-    updateWebAnalyticsTab(dateRanges);
   };
   
   // Update the Overview tab

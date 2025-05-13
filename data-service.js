@@ -68,6 +68,9 @@ function createDataService() {
   const parseDate = (dateString) => {
     if (!dateString) return null;
     
+    // Clean up the date string
+    const cleanDateString = String(dateString).trim();
+    
     // Try different date formats
     const formats = [
       // ISO format
@@ -95,14 +98,67 @@ function createDataService() {
           return new Date(parts[0], parts[1] - 1, parts[2]);
         }
         return null;
+      },
+      // MM-DD-YYYY
+      (str) => {
+        const parts = str.split('-');
+        if (parts.length === 3) {
+          return new Date(parts[2], parts[0] - 1, parts[1]);
+        }
+        return null;
+      },
+      // Month DD, YYYY (e.g., January 1, 2022)
+      (str) => {
+        const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+        const monthPattern = monthNames.join('|');
+        const regex = new RegExp(`(${monthPattern})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})`, 'i');
+        const match = str.match(regex);
+        if (match) {
+          const month = monthNames.indexOf(match[1].toLowerCase());
+          const day = parseInt(match[2], 10);
+          const year = parseInt(match[3], 10);
+          return new Date(year, month, day);
+        }
+        return null;
+      },
+      // Timestamp (milliseconds since epoch)
+      (str) => {
+        const timestamp = parseInt(str, 10);
+        if (!isNaN(timestamp) && timestamp > 946684800000) { // Jan 1, 2000
+          return new Date(timestamp);
+        }
+        return null;
+      },
+      // M/D/YYYY format (single digit month/day)
+      (str) => {
+        const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+        const match = str.match(regex);
+        if (match) {
+          return new Date(match[3], match[1] - 1, match[2]);
+        }
+        return null;
       }
     ];
     
     for (const format of formats) {
-      const date = format(dateString);
-      if (date && !isNaN(date.getTime())) {
+      try {
+        const date = format(cleanDateString);
+        if (date && !isNaN(date.getTime())) {
+          return date;
+        }
+      } catch (e) {
+        // Continue to next format on error
+      }
+    }
+    
+    // If all else fails, try the built-in Date parser as a last resort
+    try {
+      const date = new Date(cleanDateString);
+      if (!isNaN(date.getTime())) {
         return date;
       }
+    } catch (e) {
+      console.warn(`Could not parse date: ${cleanDateString}`);
     }
     
     return null;
@@ -215,13 +271,44 @@ function createDataService() {
     
     // Define datasets and their date fields
     const datasetsToCheck = [
-      { data: allData.email, fields: ['Date'] },
-      { data: allData.fbVideos, fields: ['Date', 'Publish time'] },
-      { data: allData.fbPosts, fields: ['Date', 'Publish time'] },
-      { data: allData.igPosts, fields: ['Date', 'Publish time'] }
+      { data: allData.email, fields: ['Date', 'Publish time', 'publish_time', 'date'] },
+      { data: allData.fbVideos, fields: ['Date', 'Publish time', 'publish_time', 'date'] },
+      { data: allData.fbPosts, fields: ['Date', 'Publish time', 'publish_time', 'date'] },
+      { data: allData.igPosts, fields: ['Date', 'Publish time', 'publish_time', 'date'] },
+      { data: allData.gaTraffic, fields: ['Date', 'date', 'Date Range'] },
+      { data: allData.gaDemographics, fields: ['Date', 'date', 'Date Range'] }
     ];
     
-    // Extract dates from each dataset
+    // Scan all objects in all datasets for any field that might contain a date
+    Object.values(allData).forEach(dataset => {
+      if (!dataset || !dataset.length) return;
+      
+      // Take a sample of records to scan for date fields (performance optimization)
+      const sampleSize = Math.min(dataset.length, 100);
+      const sampleRecords = dataset.slice(0, sampleSize);
+      
+      sampleRecords.forEach(record => {
+        Object.entries(record).forEach(([key, value]) => {
+          // Look for any field that might contain a date
+          if (typeof value === 'string' && 
+             (key.toLowerCase().includes('date') || 
+              key.toLowerCase().includes('time') || 
+              key.toLowerCase().includes('publish'))) {
+            
+            const date = parseDate(value);
+            if (date && !isNaN(date.getTime())) {
+              // Validate date is reasonable (between 2000 and current year + 1)
+              const currentYear = new Date().getFullYear();
+              if (date.getFullYear() >= 2000 && date.getFullYear() <= currentYear + 1) {
+                allDates.push(date);
+              }
+            }
+          }
+        });
+      });
+    });
+    
+    // Also check main datasets with known date fields
     datasetsToCheck.forEach(dataset => {
       if (!dataset.data || !dataset.data.length) return;
       
@@ -229,7 +316,9 @@ function createDataService() {
         dataset.fields.forEach(field => {
           if (item[field]) {
             const date = parseDate(item[field]);
-            if (date) allDates.push(date);
+            if (date && !isNaN(date.getTime())) {
+              allDates.push(date);
+            }
           }
         });
       });
@@ -237,17 +326,31 @@ function createDataService() {
     
     // Set available date range
     if (allDates.length > 0) {
-      availableDates.earliestDate = new Date(Math.min(...allDates));
-      availableDates.latestDate = new Date(Math.max(...allDates));
+      // Filter out any invalid dates and sort
+      const validDates = allDates.filter(date => 
+        date instanceof Date && !isNaN(date.getTime())
+      ).sort((a, b) => a - b);
       
-      console.log(`Available date range: ${availableDates.earliestDate.toISOString()} to ${availableDates.latestDate.toISOString()}`);
-    } else {
-      console.warn('No dates found in the datasets');
-      // Set fallback dates (last year)
+      if (validDates.length > 0) {
+        availableDates.earliestDate = new Date(validDates[0]);
+        availableDates.latestDate = new Date(validDates[validDates.length - 1]);
+        
+        console.log(`Available date range: ${availableDates.earliestDate.toISOString()} to ${availableDates.latestDate.toISOString()}`);
+      }
+    }
+    
+    // If no valid dates found or date range is unreasonably narrow, use fallback
+    if (allDates.length === 0 || 
+        !availableDates.earliestDate || 
+        !availableDates.latestDate ||
+        (availableDates.latestDate - availableDates.earliestDate) < 86400000) { // Less than a day difference
+      
+      console.warn('No valid dates found in the datasets or date range too narrow. Using fallback dates.');
+      // Set fallback dates (last 2 years)
       const now = new Date();
       availableDates.latestDate = now;
       availableDates.earliestDate = new Date(now);
-      availableDates.earliestDate.setFullYear(now.getFullYear() - 1);
+      availableDates.earliestDate.setFullYear(now.getFullYear() - 2);
     }
     
     return availableDates;

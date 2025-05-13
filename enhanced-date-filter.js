@@ -1,5 +1,5 @@
 // Enhanced date filter component with period comparison functionality
-function createEnhancedDateFilter() {
+function createEnhancedDateFilter(dashboardUpdateCallback) {
   // State tracking for the date filter
   let dateRanges = {
     current: {
@@ -17,6 +17,11 @@ function createEnhancedDateFilter() {
   let availableDates = {
     earliestDate: null,
     latestDate: null
+  };
+  
+  // Callback function for updating the dashboard
+  const updateDashboard = dashboardUpdateCallback || function() {
+    console.warn('No dashboard update callback provided');
   };
   
   // Function to format dates for display
@@ -47,10 +52,16 @@ function createEnhancedDateFilter() {
   // Set initial dates (last 30 days by default)
   const setDefaultDates = () => {
     if (availableDates.earliestDate && availableDates.latestDate) {
+      // Get current date for default end date if latest available date is too old
+      const now = new Date();
+      const latestAvailableDate = new Date(availableDates.latestDate);
+      
+      // Use the most recent date between now and the latest available date
+      const endDate = latestAvailableDate > now ? now : latestAvailableDate;
+      
       // Set current period to last 30 days or available range if smaller
-      const now = availableDates.latestDate;
-      let thirtyDaysAgo = new Date(now);
-      thirtyDaysAgo.setDate(now.getDate() - 30);
+      let thirtyDaysAgo = new Date(endDate);
+      thirtyDaysAgo.setDate(endDate.getDate() - 30);
       
       // Ensure it's not before earliest date
       if (thirtyDaysAgo < availableDates.earliestDate) {
@@ -58,11 +69,11 @@ function createEnhancedDateFilter() {
       }
       
       dateRanges.current.startDate = thirtyDaysAgo;
-      dateRanges.current.endDate = now;
+      dateRanges.current.endDate = endDate;
       
       // Set comparison period to previous 30 days
-      let sixtyDaysAgo = new Date(now);
-      sixtyDaysAgo.setDate(now.getDate() - 60);
+      let sixtyDaysAgo = new Date(endDate);
+      sixtyDaysAgo.setDate(endDate.getDate() - 60);
       
       if (sixtyDaysAgo < availableDates.earliestDate) {
         sixtyDaysAgo = new Date(availableDates.earliestDate);
@@ -76,6 +87,18 @@ function createEnhancedDateFilter() {
       if (dateRanges.comparison.startDate >= dateRanges.comparison.endDate) {
         dateRanges.comparison.enabled = false;
       }
+    }
+  };
+  
+  // Allow for manual date range override (useful for testing)
+  const setManualDateRange = (startDate, endDate, comparisonEnabled = false, comparisonStartDate = null, comparisonEndDate = null) => {
+    dateRanges.current.startDate = startDate ? new Date(startDate) : null;
+    dateRanges.current.endDate = endDate ? new Date(endDate) : null;
+    dateRanges.comparison.enabled = comparisonEnabled;
+    
+    if (comparisonEnabled) {
+      dateRanges.comparison.startDate = comparisonStartDate ? new Date(comparisonStartDate) : null;
+      dateRanges.comparison.endDate = comparisonEndDate ? new Date(comparisonEndDate) : null;
     }
   };
   
@@ -262,6 +285,7 @@ function createEnhancedDateFilter() {
         }
         
         renderDateFilter();
+        // Use the callback function to update the dashboard
         updateDashboard(dateRanges);
       });
     }
@@ -338,6 +362,8 @@ function createEnhancedDateFilter() {
       renderDateFilter();
     },
     
-    getCurrentDateFilter: () => dateRanges
+    getCurrentDateFilter: () => dateRanges,
+    
+    setManualDateRange
   };
 }

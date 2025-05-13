@@ -489,6 +489,72 @@ function createChartService() {
     return createChart(canvasId, config);
   };
   
+  // Create a standard bar chart
+  const createBarChart = (canvasId, title, labels, data, comparisonData, colors, yAxisLabel = '') => {
+    if (!labels || !data || labels.length !== data.length) {
+      console.warn(`Invalid data for bar chart ${canvasId}`);
+      clearChart(canvasId);
+      return;
+    }
+    
+    const datasets = [
+      {
+        label: 'Current Period',
+        data: data,
+        backgroundColor: colors?.current || '#4299e1',
+        borderColor: colors?.currentBorder || '#3182ce',
+        borderWidth: 1
+      }
+    ];
+    
+    // Add comparison data if provided
+    if (comparisonData && comparisonData.length === data.length) {
+      datasets.push({
+        label: 'Comparison Period',
+        data: comparisonData,
+        backgroundColor: colors?.comparison || '#9f7aea',
+        borderColor: colors?.comparisonBorder || '#805ad5',
+        borderWidth: 1
+      });
+    }
+    
+    const config = {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: !!title,
+            text: title
+          },
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: !!yAxisLabel,
+              text: yAxisLabel
+            }
+          }
+        }
+      }
+    };
+    
+    return createChart(canvasId, config);
+  };
+
   // Return the public interface
   return {
     createChart,
@@ -499,6 +565,7 @@ function createChartService() {
     createDoughnutChart,
     createRadarChart,
     createHorizontalBarChart,
-    createStackedBarChart
+    createStackedBarChart,
+    createBarChart
   };
 }
