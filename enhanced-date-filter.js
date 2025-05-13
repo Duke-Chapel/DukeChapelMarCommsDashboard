@@ -1,5 +1,5 @@
 // Enhanced date filter component with period comparison functionality
-function createEnhancedDateFilter(dashboardUpdateCallback) {
+function createEnhancedDateFilter() {
   // State tracking for the date filter
   let dateRanges = {
     current: {
@@ -17,11 +17,6 @@ function createEnhancedDateFilter(dashboardUpdateCallback) {
   let availableDates = {
     earliestDate: null,
     latestDate: null
-  };
-  
-  // Callback function for updating the dashboard
-  const updateDashboard = dashboardUpdateCallback || function() {
-    console.warn('No dashboard update callback provided');
   };
   
   // Function to format dates for display
@@ -285,7 +280,6 @@ function createEnhancedDateFilter(dashboardUpdateCallback) {
         }
         
         renderDateFilter();
-        // Use the callback function to update the dashboard
         updateDashboard(dateRanges);
       });
     }

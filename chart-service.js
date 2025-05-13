@@ -554,6 +554,7 @@ function createChartService() {
     
     return createChart(canvasId, config);
   };
+  
 
   // Return the public interface
   return {

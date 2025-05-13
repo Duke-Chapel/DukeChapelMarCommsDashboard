@@ -14,63 +14,63 @@ function createDataService() {
     gaDemographics: null,
     gaPages: null
   };
-  
+
   let dataErrors = {};
-  
+
   // Available dates range
   let availableDates = {
     earliestDate: null,
     latestDate: null
   };
-  
+
   // Safe parsing helpers
   const safeParseInt = (value, defaultValue = 0) => {
     if (value === undefined || value === null || value === '') return defaultValue;
-    
+
     // If it's already a number, return it
     if (typeof value === 'number' && !isNaN(value)) return value;
-    
+
     // If it's a string with commas (like "1,234"), remove them
     if (typeof value === 'string') value = value.replace(/,/g, '');
-    
+
     // If it's a string with a percentage, remove the % sign and convert
     if (typeof value === 'string' && value.includes('%')) {
       const numValue = parseFloat(value.replace('%', ''));
       return isNaN(numValue) ? defaultValue : Math.round(numValue);
     }
-    
+
     // Otherwise try to parse it as an integer
     const parsed = parseInt(value);
     return isNaN(parsed) ? defaultValue : parsed;
   };
-  
+
   const safeParseFloat = (value, defaultValue = 0) => {
     if (value === undefined || value === null || value === '') return defaultValue;
-    
+
     // If it's already a number, return it
     if (typeof value === 'number' && !isNaN(value)) return value;
-    
+
     // If it's a string with commas (like "1,234.56"), remove them
     if (typeof value === 'string') value = value.replace(/,/g, '');
-    
+
     // If it's a string with a percentage, remove the % sign and convert
     if (typeof value === 'string' && value.includes('%')) {
       const numValue = parseFloat(value.replace('%', ''));
       return isNaN(numValue) ? defaultValue : numValue;
     }
-    
+
     // Otherwise try to parse it as a float
     const parsed = parseFloat(value);
     return isNaN(parsed) ? defaultValue : parsed;
   };
-  
+
   // Parse dates from different formats
   const parseDate = (dateString) => {
     if (!dateString) return null;
-    
+
     // Clean up the date string
     const cleanDateString = String(dateString).trim();
-    
+
     // Try different date formats
     const formats = [
       // ISO format
@@ -139,7 +139,7 @@ function createDataService() {
         return null;
       }
     ];
-    
+
     for (const format of formats) {
       try {
         const date = format(cleanDateString);
@@ -150,7 +150,7 @@ function createDataService() {
         // Continue to next format on error
       }
     }
-    
+
     // If all else fails, try the built-in Date parser as a last resort
     try {
       const date = new Date(cleanDateString);
@@ -160,23 +160,25 @@ function createDataService() {
     } catch (e) {
       console.warn(`Could not parse date: ${cleanDateString}`);
     }
-    
+
     return null;
   };
+
+  // (Removed duplicate extractAvailableDateRange function to fix redeclaration error)
   
   // Helper to get data safely with fallback field names
   const getDataField = (item, fieldPatterns, defaultValue = 0) => {
     if (!item) return defaultValue;
-    
+
     // Try exact matches first
     for (const field of fieldPatterns) {
       if (item[field] !== undefined) {
-        return typeof item[field] === 'string' && item[field].includes('%') 
+        return typeof item[field] === 'string' && item[field].includes('%')
           ? safeParseFloat(item[field].replace('%', ''))
           : safeParseFloat(item[field]);
       }
     }
-    
+
     // Try fuzzy matches
     const keys = Object.keys(item);
     for (const pattern of fieldPatterns) {
@@ -188,10 +190,10 @@ function createDataService() {
         }
       }
     }
-    
+
     return defaultValue;
   };
-  
+
   // Get proper path for CSV files based on deployment environment
   const getFilePath = (filename) => {
     // For GitHub Pages, need to include the repository name in the path
@@ -200,24 +202,24 @@ function createDataService() {
       // Extract repo name from the path
       const pathParts = window.location.pathname.split('/');
       const repoName = pathParts[1]; // First part after the domain
-      
+
       // If we're in a repo (not a user pages site)
       if (repoName && repoName !== '') {
         console.log(`Using GitHub Pages path: /${repoName}/${filename}`);
         return `/${repoName}/${filename}`;
       }
     }
-    
+
     // Otherwise use relative path for local development
     return filename;
   };
-  
+
   // Load a CSV file
   const loadCSVFile = (filename) => {
     return new Promise((resolve, reject) => {
       const filepath = getFilePath(filename);
       console.log(`Loading ${filename} from ${filepath}...`);
-      
+
       try {
         Papa.parse(filepath, {
           download: true,
@@ -241,34 +243,34 @@ function createDataService() {
       }
     });
   };
-  
+
   // Filter data based on date range
   const filterDataByDateRange = (data, dateRange, dateField = 'Date') => {
     if (!data || !dateRange.startDate || !dateRange.endDate) return [];
-    
+
     return data.filter(item => {
       let itemDate = null;
-      
+
       // Try different possible date fields
       const dateFields = [dateField, 'Publish time', 'publish_time', 'date'];
-      
+
       for (const field of dateFields) {
         if (item[field]) {
           itemDate = parseDate(item[field]);
           if (itemDate) break;
         }
       }
-      
+
       if (!itemDate) return false;
-      
+
       return itemDate >= dateRange.startDate && itemDate <= dateRange.endDate;
     });
   };
-  
+
   // Extract all dates from datasets to determine available date range
   const extractAvailableDateRange = () => {
     const allDates = [];
-    
+
     // Define datasets and their date fields
     const datasetsToCheck = [
       { data: allData.email, fields: ['Date', 'Publish time', 'publish_time', 'date'] },
@@ -278,23 +280,23 @@ function createDataService() {
       { data: allData.gaTraffic, fields: ['Date', 'date', 'Date Range'] },
       { data: allData.gaDemographics, fields: ['Date', 'date', 'Date Range'] }
     ];
-    
+
     // Scan all objects in all datasets for any field that might contain a date
     Object.values(allData).forEach(dataset => {
       if (!dataset || !dataset.length) return;
-      
+
       // Take a sample of records to scan for date fields (performance optimization)
       const sampleSize = Math.min(dataset.length, 100);
       const sampleRecords = dataset.slice(0, sampleSize);
-      
+
       sampleRecords.forEach(record => {
         Object.entries(record).forEach(([key, value]) => {
           // Look for any field that might contain a date
-          if (typeof value === 'string' && 
-             (key.toLowerCase().includes('date') || 
-              key.toLowerCase().includes('time') || 
+          if (typeof value === 'string' &&
+            (key.toLowerCase().includes('date') ||
+              key.toLowerCase().includes('time') ||
               key.toLowerCase().includes('publish'))) {
-            
+
             const date = parseDate(value);
             if (date && !isNaN(date.getTime())) {
               // Validate date is reasonable (between 2000 and current year + 1)
@@ -307,11 +309,11 @@ function createDataService() {
         });
       });
     });
-    
+
     // Also check main datasets with known date fields
     datasetsToCheck.forEach(dataset => {
       if (!dataset.data || !dataset.data.length) return;
-      
+
       dataset.data.forEach(item => {
         dataset.fields.forEach(field => {
           if (item[field]) {
@@ -323,28 +325,28 @@ function createDataService() {
         });
       });
     });
-    
+
     // Set available date range
     if (allDates.length > 0) {
       // Filter out any invalid dates and sort
-      const validDates = allDates.filter(date => 
+      const validDates = allDates.filter(date =>
         date instanceof Date && !isNaN(date.getTime())
       ).sort((a, b) => a - b);
-      
+
       if (validDates.length > 0) {
         availableDates.earliestDate = new Date(validDates[0]);
         availableDates.latestDate = new Date(validDates[validDates.length - 1]);
-        
+
         console.log(`Available date range: ${availableDates.earliestDate.toISOString()} to ${availableDates.latestDate.toISOString()}`);
       }
     }
-    
+
     // If no valid dates found or date range is unreasonably narrow, use fallback
-    if (allDates.length === 0 || 
-        !availableDates.earliestDate || 
-        !availableDates.latestDate ||
-        (availableDates.latestDate - availableDates.earliestDate) < 86400000) { // Less than a day difference
-      
+    if (allDates.length === 0 ||
+      !availableDates.earliestDate ||
+      !availableDates.latestDate ||
+      (availableDates.latestDate - availableDates.earliestDate) < 86400000) { // Less than a day difference
+
       console.warn('No valid dates found in the datasets or date range too narrow. Using fallback dates.');
       // Set fallback dates (last 2 years)
       const now = new Date();
@@ -352,14 +354,14 @@ function createDataService() {
       availableDates.earliestDate = new Date(now);
       availableDates.earliestDate.setFullYear(now.getFullYear() - 2);
     }
-    
+
     return availableDates;
   };
-  
+
   // Load all data
   const loadAllData = async () => {
     dataErrors = {};
-    
+
     // Helper function to safely load a file and store in the data object
     const safeLoad = async (filename, dataKey) => {
       try {
@@ -371,7 +373,7 @@ function createDataService() {
         return false;
       }
     };
-    
+
     // Load all files
     await Promise.allSettled([
       safeLoad('Email_Campaign_Performance.csv', 'email'),
@@ -386,17 +388,17 @@ function createDataService() {
       safeLoad('GA_Demographics.csv', 'gaDemographics'),
       safeLoad('GA_Pages_And_Screens.csv', 'gaPages')
     ]);
-    
+
     // Determine available date range from the data
     extractAvailableDateRange();
-    
+
     return {
       data: allData,
       errors: dataErrors,
       availableDates
     };
   };
-  
+
   // Analyze email data
   const analyzeEmailData = (dateRanges) => {
     if (!allData.email || !allData.email.length) {
@@ -415,13 +417,13 @@ function createDataService() {
         }
       };
     }
-    
+
     // Filter data by date ranges
     const currentData = filterDataByDateRange(allData.email, dateRanges.current);
-    const comparisonData = dateRanges.comparison.enabled 
-      ? filterDataByDateRange(allData.email, dateRanges.comparison) 
+    const comparisonData = dateRanges.comparison.enabled
+      ? filterDataByDateRange(allData.email, dateRanges.comparison)
       : null;
-    
+
     // Calculate metrics for current period
     const currentMetrics = currentData.reduce((metrics, campaign) => {
       metrics.sent += safeParseInt(campaign['Emails sent']);
@@ -431,7 +433,7 @@ function createDataService() {
       metrics.unsubscribes += safeParseInt(campaign['Email unsubscribes']);
       return metrics;
     }, { sent: 0, opens: 0, clicks: 0, bounces: 0, unsubscribes: 0 });
-    
+
     // Calculate metrics for comparison period
     const comparisonMetrics = comparisonData ? comparisonData.reduce((metrics, campaign) => {
       metrics.sent += safeParseInt(campaign['Emails sent']);
@@ -441,21 +443,21 @@ function createDataService() {
       metrics.unsubscribes += safeParseInt(campaign['Email unsubscribes']);
       return metrics;
     }, { sent: 0, opens: 0, clicks: 0, bounces: 0, unsubscribes: 0 }) : null;
-    
+
     // Calculate engagement segments for current period
     const engagement = {
       notOpened: currentMetrics.sent - currentMetrics.opens,
       openedNotClicked: currentMetrics.opens - currentMetrics.clicks,
       clicked: currentMetrics.clicks
     };
-    
+
     // Calculate engagement segments for comparison period
     const comparisonEngagement = comparisonData ? {
       notOpened: comparisonMetrics.sent - comparisonMetrics.opens,
       openedNotClicked: comparisonMetrics.opens - comparisonMetrics.clicks,
       clicked: comparisonMetrics.clicks
     } : null;
-    
+
     // Sort campaigns by open rate
     const topCampaigns = [...currentData]
       .map(campaign => {
@@ -473,7 +475,7 @@ function createDataService() {
       })
       .sort((a, b) => b.openRate - a.openRate)
       .slice(0, 5);
-    
+
     return {
       topCampaigns,
       metrics: {
@@ -492,7 +494,7 @@ function createDataService() {
       engagementComparison: comparisonEngagement
     };
   };
-  
+
   // Analyze YouTube data
   const analyzeYoutubeData = (dateRanges) => {
     if (!allData.youtubeAge || !allData.youtubeGender || !allData.youtubeSubscription) {
@@ -503,36 +505,36 @@ function createDataService() {
         topCountries: []
       };
     }
-    
+
     // Process age data
     const ageData = allData.youtubeAge.map(item => ({
       age: item['Viewer age'],
       views: safeParseFloat(item['Views (%)'])
     }));
-    
+
     // Process gender data
     const genderData = allData.youtubeGender.map(item => ({
       gender: item['Viewer gender'],
       views: safeParseFloat(item['Views (%)'])
     }));
-    
+
     // Process subscription data
     const subscriptionData = allData.youtubeSubscription.map(item => ({
       status: item['Subscription status'],
       views: safeParseInt(item['Views']),
       watchTime: safeParseFloat(item['Watch time (hours)'])
     }));
-    
+
     // Calculate total views
     const totalViews = subscriptionData.reduce((sum, item) => sum + item.views, 0);
-    
+
     // Add percentages
     subscriptionData.forEach(item => {
       item.percentage = (item.views / totalViews) * 100;
     });
-    
+
     // Process geography data
-    const topCountries = allData.youtubeGeography 
+    const topCountries = allData.youtubeGeography
       ? [...allData.youtubeGeography]
         .sort((a, b) => safeParseInt(b['Views']) - safeParseInt(a['Views']))
         .slice(0, 10)
@@ -543,7 +545,7 @@ function createDataService() {
           avgViewDuration: item['Average view duration']
         }))
       : [];
-    
+
     return {
       ageData,
       genderData,
@@ -551,7 +553,7 @@ function createDataService() {
       topCountries
     };
   };
-  
+
   // Analyze Facebook data
   const analyzeFacebookData = (dateRanges) => {
     if (!allData.fbVideos || !allData.fbVideos.length) {
@@ -564,31 +566,31 @@ function createDataService() {
         }
       };
     }
-    
+
     // Filter data by date ranges
     const currentData = filterDataByDateRange(allData.fbVideos, dateRanges.current);
-    const comparisonData = dateRanges.comparison.enabled 
-      ? filterDataByDateRange(allData.fbVideos, dateRanges.comparison) 
+    const comparisonData = dateRanges.comparison.enabled
+      ? filterDataByDateRange(allData.fbVideos, dateRanges.comparison)
       : null;
-    
+
     // Calculate metrics for current period
     const currentMetrics = currentData.reduce((metrics, video) => {
       metrics.views += safeParseInt(video['3-second video views']);
-      metrics.engagement += safeParseInt(video['Reactions']) + 
-                           safeParseInt(video['Comments']) + 
-                           safeParseInt(video['Shares']);
+      metrics.engagement += safeParseInt(video['Reactions']) +
+        safeParseInt(video['Comments']) +
+        safeParseInt(video['Shares']);
       return metrics;
     }, { views: 0, engagement: 0 });
-    
+
     // Calculate metrics for comparison period
     const comparisonMetrics = comparisonData ? comparisonData.reduce((metrics, video) => {
       metrics.views += safeParseInt(video['3-second video views']);
-      metrics.engagement += safeParseInt(video['Reactions']) + 
-                           safeParseInt(video['Comments']) + 
-                           safeParseInt(video['Shares']);
+      metrics.engagement += safeParseInt(video['Reactions']) +
+        safeParseInt(video['Comments']) +
+        safeParseInt(video['Shares']);
       return metrics;
     }, { views: 0, engagement: 0 }) : null;
-    
+
     // Sort videos by views
     const topVideos = [...currentData]
       .sort((a, b) => safeParseInt(b['3-second video views']) - safeParseInt(a['3-second video views']))
@@ -601,14 +603,14 @@ function createDataService() {
         shares: safeParseInt(video['Shares']),
         avgViewTime: safeParseFloat(video['Average Seconds viewed'])
       }));
-    
+
     // Extract demographic data from the top video (if available)
-    const topVideo = currentData.length > 0 
+    const topVideo = currentData.length > 0
       ? currentData.sort((a, b) => safeParseInt(b['3-second video views']) - safeParseInt(a['3-second video views']))[0]
       : null;
-    
+
     let demographics = [];
-    
+
     if (topVideo) {
       // Extract demographic data with proper field detection
       const extractDemographicValue = (video, ageGender) => {
@@ -619,7 +621,7 @@ function createDataService() {
           `video views by audience (${ageGender})`,
           `video views by audience ${ageGender}`
         ];
-        
+
         for (const pattern of patterns) {
           if (video[pattern] !== undefined) {
             return safeParseFloat(video[pattern]);
@@ -627,19 +629,19 @@ function createDataService() {
         }
         return 0;
       };
-      
+
       // Extract demographic values for various age/gender segments
       demographics = [
-        {name: 'F, 18-24', value: extractDemographicValue(topVideo, 'F, 18-24')},
-        {name: 'F, 25-34', value: extractDemographicValue(topVideo, 'F, 25-34')},
-        {name: 'F, 35-44', value: extractDemographicValue(topVideo, 'F, 35-44')},
-        {name: 'F, 45-54', value: extractDemographicValue(topVideo, 'F, 45-54')},
-        {name: 'M, 18-24', value: extractDemographicValue(topVideo, 'M, 18-24')},
-        {name: 'M, 25-34', value: extractDemographicValue(topVideo, 'M, 25-34')},
-        {name: 'M, 35-44', value: extractDemographicValue(topVideo, 'M, 35-44')},
-        {name: 'M, 45-54', value: extractDemographicValue(topVideo, 'M, 45-54')},
+        { name: 'F, 18-24', value: extractDemographicValue(topVideo, 'F, 18-24') },
+        { name: 'F, 25-34', value: extractDemographicValue(topVideo, 'F, 25-34') },
+        { name: 'F, 35-44', value: extractDemographicValue(topVideo, 'F, 35-44') },
+        { name: 'F, 45-54', value: extractDemographicValue(topVideo, 'F, 45-54') },
+        { name: 'M, 18-24', value: extractDemographicValue(topVideo, 'M, 18-24') },
+        { name: 'M, 25-34', value: extractDemographicValue(topVideo, 'M, 25-34') },
+        { name: 'M, 35-44', value: extractDemographicValue(topVideo, 'M, 35-44') },
+        { name: 'M, 45-54', value: extractDemographicValue(topVideo, 'M, 45-54') },
       ].filter(item => item.value > 0);
-      
+
       // If no demographic data was found with standard patterns, try an alternate approach
       if (demographics.length === 0) {
         // Find any field that might contain demographic data
@@ -659,7 +661,7 @@ function createDataService() {
         });
       }
     }
-    
+
     return {
       topVideos,
       demographics,
@@ -671,7 +673,7 @@ function createDataService() {
       }
     };
   };
-  
+
   // Analyze Instagram data
   const analyzeInstagramData = (dateRanges) => {
     if (!allData.igPosts || !allData.igPosts.length) {
@@ -684,33 +686,33 @@ function createDataService() {
         }
       };
     }
-    
+
     // Filter data by date ranges
     const currentData = filterDataByDateRange(allData.igPosts, dateRanges.current);
-    const comparisonData = dateRanges.comparison.enabled 
-      ? filterDataByDateRange(allData.igPosts, dateRanges.comparison) 
+    const comparisonData = dateRanges.comparison.enabled
+      ? filterDataByDateRange(allData.igPosts, dateRanges.comparison)
       : null;
-    
+
     // Calculate metrics for current period
     const currentMetrics = currentData.reduce((metrics, post) => {
       metrics.reach += safeParseInt(post['Reach']);
-      metrics.engagement += safeParseInt(post['Likes']) + 
-                           safeParseInt(post['Comments']) + 
-                           safeParseInt(post['Shares']) + 
-                           safeParseInt(post['Saves']);
+      metrics.engagement += safeParseInt(post['Likes']) +
+        safeParseInt(post['Comments']) +
+        safeParseInt(post['Shares']) +
+        safeParseInt(post['Saves']);
       return metrics;
     }, { reach: 0, engagement: 0 });
-    
+
     // Calculate metrics for comparison period
     const comparisonMetrics = comparisonData ? comparisonData.reduce((metrics, post) => {
       metrics.reach += safeParseInt(post['Reach']);
-      metrics.engagement += safeParseInt(post['Likes']) + 
-                           safeParseInt(post['Comments']) + 
-                           safeParseInt(post['Shares']) + 
-                           safeParseInt(post['Saves']);
+      metrics.engagement += safeParseInt(post['Likes']) +
+        safeParseInt(post['Comments']) +
+        safeParseInt(post['Shares']) +
+        safeParseInt(post['Saves']);
       return metrics;
     }, { reach: 0, engagement: 0 }) : null;
-    
+
     // Sort posts by reach
     const topPosts = [...currentData]
       .sort((a, b) => safeParseInt(b['Reach']) - safeParseInt(a['Reach']))
@@ -723,7 +725,7 @@ function createDataService() {
         shares: safeParseInt(post['Shares']),
         saves: safeParseInt(post['Saves'])
       }));
-    
+
     // Calculate engagement distribution
     const engagement = [
       { name: 'Likes', value: currentData.reduce((sum, post) => sum + safeParseInt(post['Likes']), 0) },
@@ -731,7 +733,7 @@ function createDataService() {
       { name: 'Shares', value: currentData.reduce((sum, post) => sum + safeParseInt(post['Shares']), 0) },
       { name: 'Saves', value: currentData.reduce((sum, post) => sum + safeParseInt(post['Saves']), 0) }
     ];
-    
+
     return {
       topPosts,
       engagement,
@@ -743,7 +745,7 @@ function createDataService() {
       }
     };
   };
-  
+
   // Return the public interface
   return {
     loadAllData,
