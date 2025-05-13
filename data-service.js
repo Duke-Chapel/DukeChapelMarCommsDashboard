@@ -1,4 +1,4 @@
-// Data loading and processing for the dashboard
+// Data loading and processing for the dashboard - UPDATED VERSION
 function createDataService() {
   // State storage
   let allData = {
@@ -164,8 +164,6 @@ function createDataService() {
     return null;
   };
 
-  // (Removed duplicate extractAvailableDateRange function to fix redeclaration error)
-  
   // Helper to get data safely with fallback field names
   const getDataField = (item, fieldPatterns, defaultValue = 0) => {
     if (!item) return defaultValue;
@@ -194,52 +192,115 @@ function createDataService() {
     return defaultValue;
   };
 
-  // Get proper path for CSV files based on deployment environment
+  // FIXED: Improved path resolution for GitHub Pages
   const getFilePath = (filename) => {
-    // For GitHub Pages, need to include the repository name in the path
-    const isGitHubPages = window.location.hostname.includes('github.io');
-    if (isGitHubPages) {
-      // Extract repo name from the path
-      const pathParts = window.location.pathname.split('/');
-      const repoName = pathParts[1]; // First part after the domain
-
-      // If we're in a repo (not a user pages site)
-      if (repoName && repoName !== '') {
-        console.log(`Using GitHub Pages path: /${repoName}/${filename}`);
+    // For GitHub Pages
+    if (window.location.hostname.includes('github.io')) {
+      // Get the full path and properly extract base directory
+      const fullPath = window.location.pathname;
+      console.log(`Full path: ${fullPath}`);
+      
+      // Handle root case and subdirectory case differently
+      if (fullPath === '/' || fullPath === '') {
+        console.log(`Using root path for ${filename}`);
+        return filename;
+      }
+      
+      // Remove trailing slash if present
+      const cleanPath = fullPath.endsWith('/') ? fullPath.slice(0, -1) : fullPath;
+      
+      // Extract repository name and any subdirectories
+      const pathParts = cleanPath.split('/').filter(part => part !== '');
+      const repoName = pathParts[0]; // First part is repo name
+      
+      if (pathParts.length === 1) {
+        // We're at root of the repo
+        console.log(`Using GitHub Pages repo root path: /${repoName}/${filename}`);
         return `/${repoName}/${filename}`;
+      } else {
+        // We're in a subdirectory
+        console.log(`Using GitHub Pages subdirectory path: ${cleanPath}/${filename}`);
+        return `${cleanPath}/${filename}`;
       }
     }
-
-    // Otherwise use relative path for local development
+    
+    // For local development
+    console.log(`Using local path for ${filename}`);
     return filename;
   };
 
-  // Load a CSV file
+  // FIXED: Enhanced CSV file loading with better error handling
   const loadCSVFile = (filename) => {
     return new Promise((resolve, reject) => {
       const filepath = getFilePath(filename);
       console.log(`Loading ${filename} from ${filepath}...`);
 
-      try {
+      // Get file extension to determine appropriate parsing strategy
+      const fileExt = filename.split('.').pop().toLowerCase();
+
+      // First attempt - try UTF-8 encoding
+      const tryLoadWithEncoding = (encoding, callback) => {
+        console.log(`Trying to load ${filename} with ${encoding} encoding...`);
+        
         Papa.parse(filepath, {
           download: true,
           header: true,
           dynamicTyping: false, // Keep as strings to handle format variations
           skipEmptyLines: true,
+          encoding: encoding,
           complete: (results) => {
-            console.log(`Successfully loaded ${filename}, found ${results.data.length} rows`);
-            resolve(results.data);
+            if (results.data && results.data.length > 0 && Object.keys(results.data[0]).length > 1) {
+              console.log(`Successfully loaded ${filename} with ${encoding} encoding, found ${results.data.length} rows`);
+              callback(null, results.data);
+            } else {
+              console.warn(`Loaded ${filename} with ${encoding} encoding but found invalid data structure`);
+              callback(new Error(`Invalid data structure with ${encoding} encoding`), null);
+            }
           },
           error: (error) => {
-            console.error(`Error parsing ${filename}:`, error);
-            dataErrors[filename] = `Error parsing: ${error.message}`;
-            reject(error);
+            console.error(`Error parsing ${filename} with ${encoding} encoding:`, error);
+            callback(error, null);
+          }
+        });
+      };
+
+      // Try different encodings until one works
+      try {
+        // First try UTF-8
+        tryLoadWithEncoding('UTF-8', (error, data) => {
+          if (!error && data) {
+            resolve(data);
+          } else {
+            // Then try Windows-1252 (CP1252)
+            tryLoadWithEncoding('CP1252', (error2, data2) => {
+              if (!error2 && data2) {
+                resolve(data2);
+              } else {
+                // Try ISO-8859-1 as a last resort
+                tryLoadWithEncoding('ISO-8859-1', (error3, data3) => {
+                  if (!error3 && data3) {
+                    resolve(data3);
+                  } else {
+                    // All attempts failed
+                    console.error(`Failed to load ${filename} with any encoding`);
+                    dataErrors[filename] = `Failed to load file with any encoding`;
+                    
+                    // Create empty placeholder data to prevent cascading errors
+                    console.log(`Creating empty placeholder data for ${filename}`);
+                    resolve([]);
+                  }
+                });
+              }
+            });
           }
         });
       } catch (error) {
         console.error(`Exception loading ${filename}:`, error);
         dataErrors[filename] = `Error loading: ${error.message}`;
-        reject(error);
+        
+        // Create empty placeholder data to prevent cascading errors
+        console.log(`Creating empty placeholder data after exception for ${filename}`);
+        resolve([]);
       }
     });
   };
@@ -267,7 +328,7 @@ function createDataService() {
     });
   };
 
-  // Extract all dates from datasets to determine available date range
+  // FIXED: Extract all dates from datasets to determine available date range
   const extractAvailableDateRange = () => {
     const allDates = [];
 
@@ -282,14 +343,21 @@ function createDataService() {
     ];
 
     // Scan all objects in all datasets for any field that might contain a date
-    Object.values(allData).forEach(dataset => {
-      if (!dataset || !dataset.length) return;
+    Object.entries(allData).forEach(([key, dataset]) => {
+      if (!dataset || !Array.isArray(dataset) || dataset.length === 0) {
+        console.log(`Dataset ${key} is empty or invalid`);
+        return;
+      }
 
+      console.log(`Scanning ${key} dataset (${dataset.length} records) for dates`);
+      
       // Take a sample of records to scan for date fields (performance optimization)
       const sampleSize = Math.min(dataset.length, 100);
       const sampleRecords = dataset.slice(0, sampleSize);
 
       sampleRecords.forEach(record => {
+        if (!record || typeof record !== 'object') return;
+        
         Object.entries(record).forEach(([key, value]) => {
           // Look for any field that might contain a date
           if (typeof value === 'string' &&
@@ -312,9 +380,13 @@ function createDataService() {
 
     // Also check main datasets with known date fields
     datasetsToCheck.forEach(dataset => {
-      if (!dataset.data || !dataset.data.length) return;
+      if (!dataset.data || !Array.isArray(dataset.data) || dataset.data.length === 0) {
+        return;
+      }
 
       dataset.data.forEach(item => {
+        if (!item || typeof item !== 'object') return;
+        
         dataset.fields.forEach(field => {
           if (item[field]) {
             const date = parseDate(item[field]);
@@ -338,7 +410,11 @@ function createDataService() {
         availableDates.latestDate = new Date(validDates[validDates.length - 1]);
 
         console.log(`Available date range: ${availableDates.earliestDate.toISOString()} to ${availableDates.latestDate.toISOString()}`);
+      } else {
+        console.warn("No valid dates found after filtering");
       }
+    } else {
+      console.warn("No dates found in any datasets");
     }
 
     // If no valid dates found or date range is unreasonably narrow, use fallback
@@ -352,24 +428,40 @@ function createDataService() {
       const now = new Date();
       availableDates.latestDate = now;
       availableDates.earliestDate = new Date(now);
-      availableDates.earliestDate.setFullYear(now.getFullYear() - 2);
+      availableDates.earliestDate.setFullYear(now.getFullYear() - 1);
+      console.log(`Using fallback date range: ${availableDates.earliestDate.toISOString()} to ${availableDates.latestDate.toISOString()}`);
     }
 
     return availableDates;
   };
 
-  // Load all data
+  // FIXED: Load all data with improved error handling and fallbacks
   const loadAllData = async () => {
+    console.log("Starting to load all data files...");
     dataErrors = {};
 
     // Helper function to safely load a file and store in the data object
     const safeLoad = async (filename, dataKey) => {
       try {
-        allData[dataKey] = await loadCSVFile(filename);
-        return true;
+        console.log(`Loading ${filename} into ${dataKey}...`);
+        const data = await loadCSVFile(filename);
+        
+        if (Array.isArray(data) && data.length > 0) {
+          allData[dataKey] = data;
+          console.log(`Successfully loaded ${filename} into ${dataKey}, found ${data.length} rows`);
+          return true;
+        } else {
+          console.warn(`${filename} loaded but contains no data`);
+          dataErrors[filename] = "File loaded but contained no valid data";
+          // Still set the data key to empty array to prevent null reference errors
+          allData[dataKey] = [];
+          return false;
+        }
       } catch (error) {
-        console.error(`Failed to load ${filename}:`, error);
+        console.error(`Failed to load ${filename} into ${dataKey}:`, error);
         dataErrors[filename] = error.message || "File not found or inaccessible";
+        // Set to empty array to prevent null reference errors
+        allData[dataKey] = [];
         return false;
       }
     };
@@ -383,13 +475,24 @@ function createDataService() {
       safeLoad('YouTube_Age.csv', 'youtubeAge'),
       safeLoad('YouTube_Gender.csv', 'youtubeGender'),
       safeLoad('YouTube_Geography.csv', 'youtubeGeography'),
-      safeLoad('YouTube_Subscription_Status.csv', 'youtubeSubscription'),
+      safeLoad('YouTube_Subscription_Status.csv', 'youtubeSubscription')
+    ]);
+    
+    // Add a slight delay before loading the next batch
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Load the second batch of files
+    await Promise.allSettled([
       safeLoad('GA_Traffic_Acquisition.csv', 'gaTraffic'),
       safeLoad('GA_Demographics.csv', 'gaDemographics'),
       safeLoad('GA_Pages_And_Screens.csv', 'gaPages')
     ]);
 
+    console.log("Finished loading all data files");
+    console.log("Data loading errors:", dataErrors);
+    
     // Determine available date range from the data
+    console.log("Extracting available date range...");
     extractAvailableDateRange();
 
     return {

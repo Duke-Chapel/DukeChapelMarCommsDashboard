@@ -16,7 +16,7 @@ body {
 /* Dashboard header */
 .dashboard-header {
   background-color: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   padding: 1.5rem 0;
   margin-bottom: 1.5rem;
   border-bottom: 3px solid #0d6efd;
@@ -36,7 +36,7 @@ body {
 .dashboard-section {
   background-color: #fff;
   border-radius: 10px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
   padding: 1.5rem;
   margin-bottom: 2rem;
   border-top: 4px solid #0d6efd;
@@ -44,7 +44,7 @@ body {
 }
 
 .dashboard-section:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .dashboard-section h3 {
@@ -59,7 +59,7 @@ body {
 .metric-card {
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   margin-bottom: 1rem;
   padding: 1.25rem;
   height: 100%;
@@ -69,7 +69,7 @@ body {
 
 .metric-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .metric-card h5 {
@@ -176,7 +176,7 @@ body {
   border: 1px solid #dee2e6;
 }
 
-.current-period-label, 
+.current-period-label,
 .comparison-period-label {
   font-weight: 600;
   color: #495057;
@@ -229,8 +229,13 @@ body {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Empty state */
@@ -252,11 +257,11 @@ body {
   .metric-value {
     font-size: 1.6rem;
   }
-  
+
   .chart-container {
     height: 250px;
   }
-  
+
   .chart-container-lg {
     height: 350px;
   }
@@ -266,19 +271,19 @@ body {
   .dashboard-section {
     padding: 1.25rem;
   }
-  
+
   .chart-container {
     height: 225px;
   }
-  
+
   .chart-container-lg {
     height: 300px;
   }
-  
+
   .metric-card {
     padding: 1rem;
   }
-  
+
   .metric-value {
     font-size: 1.4rem;
   }
@@ -288,15 +293,15 @@ body {
   .dashboard-header {
     padding: 1rem 0;
   }
-  
+
   .dashboard-section {
     padding: 1rem;
   }
-  
+
   .chart-container {
     height: 200px;
   }
-  
+
   .date-filter-controls {
     padding: 1rem;
   }
@@ -367,18 +372,135 @@ body {
     border: 1px solid #dee2e6;
     box-shadow: none;
   }
-  
+
   .metric-card {
     border: 1px solid #dee2e6;
     box-shadow: none;
   }
-  
-  .nav-tabs, .nav-pills, .date-filter-container {
+
+  .nav-tabs,
+  .nav-pills,
+  .date-filter-container {
     display: none;
   }
-  
+
   .chart-container {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  /* Loading indicator */
+  .loader {
+    border: 5px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 5px solid #0d6efd;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  @keyframes spin {
+    0% {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    100% {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+  }
+
+  /* Error message styling */
+  #dashboard-error {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    width: 80%;
+    max-width: 500px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Fix for Bootstrap tabs */
+  .tab-content>.tab-pane {
+    display: none;
+  }
+
+  .tab-content>.active {
+    display: block;
+  }
+
+  /* Empty state styling */
+  .no-data-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  /* Improve canvas sizing */
+  .chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Fix for small screens */
+  @media (max-width: 768px) {
+    .date-filter-controls .btn-group {
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    .date-filter-controls .btn-group button {
+      flex: 1;
+    }
+
+    .metric-card {
+      height: auto;
+      margin-bottom: 15px;
+    }
+  }
+
+  /* Fix KPI cards on small screens */
+  @media (max-width: 576px) {
+    .metric-card .metric-value {
+      font-size: 1.5rem;
+    }
+
+    .chart-container {
+      height: 250px;
+    }
+  }
+
+  /* Ensure tab content is visible */
+  .tab-pane {
+    opacity: 1 !important;
+  }
+
+  /* Fix table overflow on mobile */
+  .table-responsive {
+    overflow-x: auto;
+  }
+
+  /* Fix for dashboard sections not showing */
+  .dashboard-section {
+    display: block !important;
+    opacity: 1 !important;
+  }
+
 }
