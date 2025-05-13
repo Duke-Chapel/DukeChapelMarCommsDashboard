@@ -94,8 +94,22 @@
                     <div class="col-md-6 mb-4">
                         <div class="dashboard-section web-section">
                             <h3 class="h5 mb-3">Demographics Breakdown</h3>
-                            <div class="chart-container">
-                                <canvas id="web-demographics-chart"></canvas>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="chart-container">
+                                        <canvas id="web-countries-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="chart-container">
+                                        <canvas id="web-languages-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="chart-container">
+                                        <canvas id="web-regions-chart"></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -103,8 +117,48 @@
                     <div class="col-md-6 mb-4">
                         <div class="dashboard-section web-section">
                             <h3 class="h5 mb-3">Traffic Sources</h3>
-                            <div class="chart-container">
-                                <canvas id="traffic-sources-chart"></canvas>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="chart-container">
+                                        <canvas id="traffic-channels-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="chart-container">
+                                        <canvas id="traffic-sources-detail-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-4">
+                        <div class="dashboard-section web-section">
+                            <h3 class="h5 mb-3">Campaign Performance</h3>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="chart-container">
+                                        <canvas id="campaigns-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped" id="campaigns-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Campaign</th>
+                                                    <th>Sessions</th>
+                                                    <th>Engagement Rate</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="3" class="text-center">Loading campaign data...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -156,6 +210,17 @@
                 <div class="tab-content" id="socialTabContent">
                     <!-- Facebook Tab -->
                     <div class="tab-pane fade show active" id="facebook" role="tabpanel" aria-labelledby="facebook-tab">
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="dashboard-section facebook-section">
+                                    <h3 class="h5 mb-3">Facebook Page Performance</h3>
+                                    <div class="row" id="fb-page-metrics-row">
+                                        <!-- KPI cards will be inserted here by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="row">
                             <div class="col-md-6 mb-4">
                                 <div class="dashboard-section facebook-section">
@@ -178,6 +243,35 @@
                             <div class="col-md-12 mb-4">
                                 <div class="dashboard-section facebook-section">
                                     <h3 class="h5 mb-3">Top Facebook Videos</h3>
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <h4 class="h6 mb-3">Top Posts by Category</h4>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-card">
+                                                <h5>Most Reach</h5>
+                                                <div id="fb-most-reach" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-card">
+                                                <h5>Most Likes</h5>
+                                                <div id="fb-most-liked" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-card">
+                                                <h5>Most Comments</h5>
+                                                <div id="fb-most-commented" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-card">
+                                                <h5>Most Shares</h5>
+                                                <div id="fb-most-shared" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="fb-videos-table">
                                             <thead>
@@ -204,6 +298,17 @@
 
                     <!-- Instagram Tab -->
                     <div class="tab-pane fade" id="instagram" role="tabpanel" aria-labelledby="instagram-tab">
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="dashboard-section instagram-section">
+                                    <h3 class="h5 mb-3">Instagram Page Performance</h3>
+                                    <div class="row" id="ig-page-metrics-row">
+                                        <!-- KPI cards will be inserted here by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="row">
                             <div class="col-md-6 mb-4">
                                 <div class="dashboard-section instagram-section">
@@ -226,6 +331,41 @@
                             <div class="col-md-12 mb-4">
                                 <div class="dashboard-section instagram-section">
                                     <h3 class="h5 mb-3">Top Instagram Posts</h3>
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <h4 class="h6 mb-3">Top Posts by Category</h4>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-card">
+                                                <h5>Most Reach</h5>
+                                                <div id="ig-most-reach" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-card">
+                                                <h5>Most Likes</h5>
+                                                <div id="ig-most-liked" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="metric-card">
+                                                <h5>Most Comments</h5>
+                                                <div id="ig-most-commented" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="metric-card">
+                                                <h5>Most Shares</h5>
+                                                <div id="ig-most-shared" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="metric-card">
+                                                <h5>Most Saved</h5>
+                                                <div id="ig-most-saved" class="small">Loading...</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="top-ig-posts-table">
                                             <thead>
@@ -272,30 +412,78 @@
                             </div>
                         </div>
                     </div>
-
+                </div>
+                
+                <div class="row">
                     <div class="col-md-12 mb-4">
                         <div class="dashboard-section email-section">
-                            <h3 class="h5 mb-3">Top Email Campaigns</h3>
-                            <div class="table-responsive">
-                                <table class="table table-striped" id="top-email-campaigns-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Campaign</th>
-                                            <th>Open Rate</th>
-                                            <th>Click Rate</th>
-                                            <th>Sent</th>
-                                            <th>Opens</th>
-                                            <th>Clicks</th>
-                                            <th>Unsubscribe Rate</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td colspan="7" class="text-center">Loading data...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <h3 class="h5 mb-3">Subscriber Demographics</h3>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="chart-container">
+                                        <canvas id="email-age-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="chart-container">
+                                        <canvas id="email-gender-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="chart-container">
+                                        <canvas id="email-countries-chart"></canvas>
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-12 mb-4">
+                    <div class="dashboard-section email-section">
+                        <h3 class="h5 mb-3">Best Performing Links</h3>
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="best-links-table">
+                                <thead>
+                                    <tr>
+                                        <th>Link</th>
+                                        <th>Clicks</th>
+                                        <th>Click Rate</th>
+                                        <th>Campaign</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading link data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-12 mb-4">
+                    <div class="dashboard-section email-section">
+                        <h3 class="h5 mb-3">Top Email Campaigns</h3>
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="top-email-campaigns-table">
+                                <thead>
+                                    <tr>
+                                        <th>Campaign</th>
+                                        <th>Open Rate</th>
+                                        <th>Click Rate</th>
+                                        <th>Sent</th>
+                                        <th>Opens</th>
+                                        <th>Clicks</th>
+                                        <th>Unsubscribe Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="7" class="text-center">Loading data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -361,6 +549,7 @@
     <script src="table-service.js"></script>
     <script src="dashboard.js"></script>
     <script src="dashboard-fix.js"></script>
+    <script src="dashboard-kpi-extension.js"></script>
 
     <!-- CSS fixes for the dashboard -->
     <style>
