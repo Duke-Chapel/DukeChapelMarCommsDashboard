@@ -1,11 +1,4 @@
-# ----------------------------------------
-# Duke Chapel - GA4
-# DCDevelopment_UTMs Granular by Date+Hour-Free form 1
-# 20240224-20250423
-# ----------------------------------------
-
 Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual source platform,Manual ad content,Sessions,Engaged sessions,Key events,Engagement rate,Session key event rate,Event value
-,,,,,16833,16816,32283.000000000007,0.9989900790114655,1,0,Grand total
 2025042011,(organic),google / organic,(not set),(not set),70,70,103.440079,1,1,0
 2025042010,(organic),google / organic,(not set),(not set),57,57,71.9892,1,1,0
 2025030211,(organic),google / organic,(not set),(not set),41,41,157.622002,1,1,0
@@ -32,7 +25,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024100610,(organic),google / organic,(not set),(not set),21,21,42,1,1,0
 2024120110,(organic),google / organic,(not set),(not set),21,21,34,1,1,0
 2025033011,(organic),google / organic,(not set),(not set),21,21,75,1,1,0
-2025042011,(not set),(not set),(not set),,21,20,39,0.9523809523809523,1,0
+2025042011,(not set),(not set),(not set),,21,20,39,0.952380952,1,0
 2024081111,(organic),google / organic,(not set),(not set),20,20,41,1,1,0
 2024112410,(organic),google / organic,(not set),(not set),20,20,27,1,1,0
 2024112411,(organic),google / organic,(not set),(not set),20,20,54,1,1,0
@@ -84,8 +77,8 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024090112,(organic),google / organic,(not set),(not set),15,15,22,1,1,0
 2024111711,(organic),google / organic,(not set),(not set),15,15,27,1,1,0
 2025011910,(organic),google / organic,(not set),(not set),15,15,25,1,1,0
-2025020910,(not set),(not set),(not set),,15,14,82,0.9333333333333333,1,0
-2025041811,(organic),google / organic,(not set),(not set),15,14,20,0.9333333333333333,1,0
+2025020910,(not set),(not set),(not set),,15,14,82,0.933333333,1,0
+2025041811,(organic),google / organic,(not set),(not set),15,14,20,0.933333333,1,0
 2025041814,(organic),google / organic,(not set),(not set),15,15,19.5,1,1,0
 2024081809,(organic),google / organic,(not set),(not set),14,14,35,1,1,0
 2024081810,(organic),google / organic,(not set),(not set),14,14,20,1,1,0
@@ -193,7 +186,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024122413,(organic),google / organic,(not set),(not set),9,9,16,1,1,0
 2025020209,(organic),google / organic,(not set),(not set),9,9,22,1,1,0
 2025020914,(organic),google / organic,(not set),(not set),9,9,23,1,1,0
-2025021610,(not set),(not set),(not set),,9,8,26,0.8888888888888888,1,0
+2025021610,(not set),(not set),(not set),,9,8,26,0.888888889,1,0
 2025022308,(organic),google / organic,(not set),(not set),9,9,26,1,1,0
 2025033008,(organic),google / organic,(not set),(not set),9,9,27,1,1,0
 2025040611,(not set),(not set),(not set),,9,9,46,1,1,0
@@ -301,7 +294,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2025030910,(organic),google / organic,(not set),(not set),7,7,31,1,1,0
 2025031608,(organic),google / organic,(not set),(not set),7,7,23,1,1,0
 2025032321,(organic),google / organic,(not set),(not set),7,7,17,1,1,0
-2025040503,(not set),(not set),(not set),,7,6,81,0.8571428571428571,1,0
+2025040503,(not set),(not set),(not set),,7,6,81,0.857142857,1,0
 2025040521,(organic),google / organic,(not set),(not set),7,7,21,1,1,0
 2025041223,(organic),google / organic,(not set),(not set),7,7,15,1,1,0
 2025041318,(organic),google / organic,(not set),(not set),7,7,17,1,1,0
@@ -313,7 +306,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2025041815,(organic),google / organic,(not set),(not set),7,7,7,1,1,0
 2025041820,(organic),google / organic,(not set),(not set),7,7,20,1,1,0
 2025041915,(organic),google / organic,(not set),(not set),7,7,15,1,1,0
-2025041916,(organic),google / organic,(not set),(not set),7,6,7,0.8571428571428571,1,0
+2025041916,(organic),google / organic,(not set),(not set),7,6,7,0.857142857,1,0
 2025042011,duke_chapelnewsletter20250415,email / newsletter,(not set),featured_section_holyweek_button,7,7,19,1,1,0
 2025042021,(organic),google / organic,(not set),(not set),7,7,11,1,1,0
 2024072714,(organic),google / organic,(not set),(not set),6,6,9,1,1,0
@@ -349,7 +342,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024100616,(organic),google / organic,(not set),(not set),6,6,8,1,1,0
 2024101216,(organic),google / organic,(not set),(not set),6,6,9,1,1,0
 2024101217,(organic),google / organic,(not set),(not set),6,6,8,1,1,0
-2024101312,(organic),google / organic,(not set),(not set),6,5,8,0.8333333333333334,1,0
+2024101312,(organic),google / organic,(not set),(not set),6,5,8,0.833333333,1,0
 2024101319,(organic),google / organic,(not set),(not set),6,6,11,1,1,0
 2024101921,(organic),google / organic,(not set),(not set),6,6,8,1,1,0
 2024102000,(organic),google / organic,(not set),(not set),6,6,12,1,1,0
@@ -1200,7 +1193,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024101811,(organic),google / organic,(not set),(not set),3,3,4,1,1,0
 2024101818,(organic),google / organic,(not set),(not set),3,3,5,1,1,0
 2024101821,(organic),google / organic,(not set),(not set),3,3,3,1,1,0
-2024101900,(organic),google / organic,(not set),(not set),3,2,3,0.6666666666666666,1,0
+2024101900,(organic),google / organic,(not set),(not set),3,2,3,0.666666667,1,0
 2024101914,(not set),(not set),(not set),,3,3,7,1,1,0
 2024101914,(organic),google / organic,(not set),(not set),3,3,6,1,1,0
 2024101916,(not set),(not set),(not set),,3,3,4,1,1,0
@@ -1281,7 +1274,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024111609,(organic),google / organic,(not set),(not set),3,3,3,1,1,0
 2024111615,(organic),google / organic,(not set),(not set),3,3,4,1,1,0
 2024111617,(organic),google / organic,(not set),(not set),3,3,4,1,1,0
-2024111700,(organic),google / organic,(not set),(not set),3,2,5,0.6666666666666666,1,0
+2024111700,(organic),google / organic,(not set),(not set),3,2,5,0.666666667,1,0
 2024111714,(organic),google / organic,(not set),(not set),3,3,3,1,1,0
 2024111718,(organic),google / organic,(not set),(not set),3,3,3,1,1,0
 2024111821,(organic),google / organic,(not set),(not set),3,3,6,1,1,0
@@ -1473,7 +1466,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2025020919,(organic),google / organic,(not set),(not set),3,3,4,1,1,0
 2025020921,(organic),google / organic,(not set),(not set),3,3,15,1,1,0
 2025020923,(organic),google / organic,(not set),(not set),3,3,5,1,1,0
-2025021000,(organic),google / organic,(not set),(not set),3,2,11,0.6666666666666666,1,0
+2025021000,(organic),google / organic,(not set),(not set),3,2,11,0.666666667,1,0
 2025021008,(organic),google / organic,(not set),(not set),3,3,8,1,1,0
 2025021009,(organic),google / organic,(not set),(not set),3,3,9,1,1,0
 2025021109,(organic),google / organic,(not set),(not set),3,3,11,1,1,0
@@ -1584,7 +1577,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2025031614,(organic),google / organic,(not set),(not set),3,3,14,1,1,0
 2025031619,(organic),google / organic,(not set),(not set),3,3,5,1,1,0
 2025031621,(organic),google / organic,(not set),(not set),3,3,9,1,1,0
-2025031716,(organic),google / organic,(not set),(not set),3,2,3.004968,0.6666666666666666,1,0
+2025031716,(organic),google / organic,(not set),(not set),3,2,3.004968,0.666666667,1,0
 2025031720,(organic),google / organic,(not set),(not set),3,3,11,1,1,0
 2025031807,(organic),google / organic,(not set),(not set),3,3,10,1,1,0
 2025031809,(organic),google / organic,(not set),(not set),3,3,3.999688,1,1,0
@@ -1716,7 +1709,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2025042119,(organic),bing / organic,(not set),(not set),3,3,6,1,1,0
 2025042212,(organic),google / organic,(not set),(not set),3,3,9,1,1,0
 2025042215,(organic),google / organic,(not set),(not set),3,3,12,1,1,0
-2025042313,(organic),google / organic,(not set),(not set),3,2,3,0.6666666666666666,1,0
+2025042313,(organic),google / organic,(not set),(not set),3,2,3,0.666666667,1,0
 2024072210,(not set),(not set),(not set),(not set),2,2,2,1,1,0
 2024072213,(organic),google / organic,(not set),(not set),2,2,3,1,1,0
 2024072313,(organic),google / organic,(not set),(not set),2,2,3,1,1,0
@@ -4572,7 +4565,7 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2024091919,(not set),(not set),(not set),,1,1,4,1,1,0
 2024091919,(organic),google / organic,(not set),(not set),1,1,1,1,1,0
 2024091921,Find Sanctuary,Meta / social,(not set),(not set),1,1,1,1,1,0
-2024091921,Find Sanctuary,Meta / social,(not set),6608884824897,1,1,1,1,1,0
+2024091921,Find Sanctuary,Meta / social,(not set),6.60888E+12,1,1,1,1,1,0
 2024091922,(not set),(not set),(not set),,1,1,2,1,1,0
 2024091922,Find Sanctuary,Meta / social,(not set),(not set),1,1,2,1,1,0
 2024091923,(organic),google / organic,(not set),(not set),1,1,2,1,1,0
@@ -9050,4 +9043,3 @@ Date + hour (YYYYMMDDHH),Manual campaign name,Manual source / medium,Manual sour
 2025042322,(organic),google / organic,(not set),(not set),1,1,1,1,1,0
 2025042323,(not set),(not set),(not set),,1,1,1,1,1,0
 2025042323,(organic),google / organic,(not set),(not set),1,1,2,1,1,0
-
