@@ -9,7 +9,7 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css">
     
-    <!-- Dashboard CSS - Corrected reference -->
+    <!-- Dashboard CSS - Note the correct file name -->
     <link href="dashboard.css" rel="stylesheet">
     
     <!-- Chart.js -->
@@ -544,261 +544,20 @@
         </div>
     </footer>
 
-    <!-- File Upload Component -->
-    <div id="file-upload-modal" class="modal fade" tabindex="-1" aria-labelledby="fileUploadModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="fileUploadModalLabel">Upload CSV Files</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="upload-area border rounded p-4 text-center mb-3" id="upload-dropzone">
-                        <i class="bi bi-cloud-arrow-up fs-1 text-muted mb-3"></i>
-                        <p>Drag and drop files here, or <button class="btn btn-link p-0" id="browse-files">browse for files</button></p>
-                        <input type="file" id="file-input" multiple style="display: none" accept=".csv">
-                    </div>
-                    
-                    <h6>Uploaded Files</h6>
-                    <div class="uploaded-files-list p-3 border rounded bg-light" style="max-height: 300px; overflow-y: auto;">
-                        <div id="no-files-message" class="text-center text-muted py-4">
-                            <p>No files uploaded yet</p>
-                        </div>
-                        <ul id="uploaded-files" class="list-group list-group-flush">
-                            <!-- Files will be listed here -->
-                        </ul>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <div class="form-check me-auto">
-                        <input class="form-check-input" type="checkbox" id="auto-load" checked>
-                        <label class="form-check-label" for="auto-load">
-                            Automatically load new data after upload
-                        </label>
-                    </div>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button id="process-files" class="btn btn-primary">Update Dashboard</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Fixed Upload Button -->
-    <button id="upload-button" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; z-index: 1000;">
-        <i class="bi bi-upload me-2"></i> Upload Files
-    </button>
-
-    <!-- Dashboard Components - Consolidated Scripts -->
+    <!-- Dashboard Components - Original Scripts -->
     <script src="data-service.js"></script>
     <script src="enhanced-data-service.js"></script>
     <script src="chart-service.js"></script>
     <script src="kpi-cards-component.js"></script>
     <script src="table-service.js"></script>
     <script src="enhanced-date-filter.js"></script>
-    
-    <!-- Simplified File Manager -->
-    <script>
-    // Basic file upload manager implementation
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize upload functionality
-        setupFileUpload();
-        
-        // Set up upload button to open modal
-        document.getElementById('upload-button').addEventListener('click', function() {
-            var modal = new bootstrap.Modal(document.getElementById('file-upload-modal'));
-            modal.show();
-        });
-    });
+    <script src="dashboard-ui-enhancements.js"></script>
+    <script src="youtube-metrics-fix.js"></script>
+    <script src="file-upload-manager.js"></script>
+    <script src="dashboard.js"></script>
 
-    function setupFileUpload() {
-        const dropzone = document.getElementById('upload-dropzone');
-        const fileInput = document.getElementById('file-input');
-        const browseButton = document.getElementById('browse-files');
-        const processButton = document.getElementById('process-files');
-        const uploadedFiles = {};
-        
-        if (!dropzone || !fileInput || !browseButton || !processButton) return;
-        
-        // Handle file browse button
-        browseButton.addEventListener('click', function(e) {
-            e.preventDefault();
-            fileInput.click();
-        });
-        
-        // Handle file selection
-        fileInput.addEventListener('change', function() {
-            if (fileInput.files.length > 0) {
-                handleFiles(fileInput.files);
-            }
-        });
-        
-        // Handle drag and drop
-        dropzone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.add('bg-light');
-        });
-        
-        dropzone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.remove('bg-light');
-        });
-        
-        dropzone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.remove('bg-light');
-            
-            if (e.dataTransfer.files.length > 0) {
-                handleFiles(e.dataTransfer.files);
-            }
-        });
-        
-        // Handle process button
-        processButton.addEventListener('click', function() {
-            processUploadedFiles();
-            
-            // Close modal after processing
-            var modal = bootstrap.Modal.getInstance(document.getElementById('file-upload-modal'));
-            if (modal) modal.hide();
-        });
-        
-        // Handle uploaded files
-        function handleFiles(files) {
-            const uploadedFilesList = document.getElementById('uploaded-files');
-            const noFilesMessage = document.getElementById('no-files-message');
-            
-            if (!uploadedFilesList || !noFilesMessage) return;
-            
-            // Process each file
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                
-                // Only accept CSV files
-                if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-                    showMessage(`${file.name} is not a CSV file`, 'danger');
-                    continue;
-                }
-                
-                // Add to uploaded files
-                uploadedFiles[file.name] = file;
-                
-                // Update UI
-                noFilesMessage.style.display = 'none';
-                
-                // Create list item if it doesn't exist
-                let fileItem = document.getElementById(`file-${file.name.replace(/[^a-z0-9]/gi, '-')}`);
-                
-                if (!fileItem) {
-                    fileItem = document.createElement('li');
-                    fileItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    fileItem.id = `file-${file.name.replace(/[^a-z0-9]/gi, '-')}`;
-                    
-                    const removeButton = document.createElement('button');
-                    removeButton.className = 'btn btn-sm btn-outline-danger';
-                    removeButton.innerHTML = '<i class="bi bi-trash"></i>';
-                    removeButton.addEventListener('click', function() {
-                        // Remove from list and storage
-                        delete uploadedFiles[file.name];
-                        fileItem.remove();
-                        
-                        // Show no files message if no files left
-                        if (Object.keys(uploadedFiles).length === 0) {
-                            noFilesMessage.style.display = 'block';
-                        }
-                    });
-                    
-                    fileItem.innerHTML = `
-                        <div>
-                            <i class="bi bi-file-earmark-text text-primary me-2"></i>
-                            <span>${file.name}</span>
-                            <small class="text-muted ms-2">(${formatFileSize(file.size)})</small>
-                        </div>
-                    `;
-                    
-                    fileItem.appendChild(removeButton);
-                    uploadedFilesList.appendChild(fileItem);
-                }
-            }
-        }
-        
-        // Process uploaded files
-        function processUploadedFiles() {
-            if (Object.keys(uploadedFiles).length === 0) {
-                showMessage('No files to process', 'warning');
-                return;
-            }
-            
-            showMessage('Processing files...', 'info');
-            
-            // In a real implementation, this would upload the files to a server
-            // or process them locally. For now, we'll just simulate success.
-            setTimeout(function() {
-                showMessage('Files processed successfully', 'success');
-                
-                // Reload dashboard data
-                if (window.dashboardApi && window.dashboardApi.reloadData) {
-                    window.dashboardApi.reloadData();
-                }
-            }, 1000);
-        }
-        
-        // Format file size
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-    }
-
-    // Show message toast
-    function showMessage(message, type = 'info') {
-        // Create toast container if it doesn't exist
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '1050';
-            document.body.appendChild(toastContainer);
-        }
-        
-        // Create toast
-        const toast = document.createElement('div');
-        toast.className = `toast bg-${type} text-white`;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'assertive');
-        toast.setAttribute('aria-atomic', 'true');
-        
-        toast.innerHTML = `
-            <div class="toast-header">
-                <strong class="me-auto">Dashboard</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">
-                ${message}
-            </div>
-        `;
-        
-        toastContainer.appendChild(toast);
-        
-        // Initialize and show toast
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-        
-        // Remove after hidden
-        toast.addEventListener('hidden.bs.toast', function() {
-            toast.remove();
-        });
-    }
-    </script>
-
-    <!-- Consolidated Dashboard.js -->
-    <script src="consolidated-dashboard.js"></script>
+    <!-- Fix Script - Add this to fix all dashboard issues -->
+    <script src="apply-fixes.js"></script>
 </body>
 
 </html>
