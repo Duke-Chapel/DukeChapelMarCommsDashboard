@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  LineChart, BarChart, PieChart, 
-  Line, Bar, Pie, Cell, 
-  XAxis, YAxis, CartesianGrid, 
+  LineChart, BarChart, PieChart,
+  Line, Bar, Pie, Cell,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
   RadarChart, Radar, PolarGrid,
   PolarAngleAxis, PolarRadiusAxis
@@ -13,6 +13,7 @@ const MarketingDashboard = () => {
   // State for active tab, date range, data, and loading status
   const [activeTab, setActiveTab] = useState('overview');
   const [socialTab, setSocialTab] = useState('facebook');
+  const [youtubeTab, setYoutubeTab] = useState('overview');
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     endDate: new Date(),
@@ -33,7 +34,7 @@ const MarketingDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // New state for tracking data changes (for comparison)
+  // State for tracking data changes (for comparison)
   const [previousData, setPreviousData] = useState(null);
 
   // Define chart colors
@@ -1319,29 +1320,6 @@ const MarketingDashboard = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Open Rate</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Click Rate</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Opens</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Clicks</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.email.campaigns.map((campaign, index) => (
-                  <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{campaign.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.openRate, 'percent')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.clickRate, 'percent')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.sent)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.opens)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.clicks)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sessions</th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Rate</th>
                 </tr>
@@ -1882,6 +1860,39 @@ const MarketingDashboard = () => {
       );
     };
     
+    // Engagement metrics
+    const engagementMetrics = () => {
+      if (!hasEmailData) return null;
+      
+      const { notOpened, openedNotClicked, clicked } = data.email.metrics;
+      
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-md font-semibold mb-2 text-red-600">Never Opened</h3>
+            <div className="text-3xl font-bold">{formatNumber(notOpened, 'percent')}</div>
+            <p className="mt-2 text-sm text-gray-600">
+              {formatNumber(data.email.metrics.subscribers * (notOpened / 100))} subscribers have never opened an email
+            </p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-md font-semibold mb-2 text-yellow-600">Opened Only</h3>
+            <div className="text-3xl font-bold">{formatNumber(openedNotClicked, 'percent')}</div>
+            <p className="mt-2 text-sm text-gray-600">
+              {formatNumber(data.email.metrics.subscribers * (openedNotClicked / 100))} subscribers open but don't click
+            </p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-md font-semibold mb-2 text-green-600">Clicked</h3>
+            <div className="text-3xl font-bold">{formatNumber(clicked, 'percent')}</div>
+            <p className="mt-2 text-sm text-gray-600">
+              {formatNumber(data.email.metrics.subscribers * (clicked / 100))} subscribers click on email links
+            </p>
+          </div>
+        </div>
+      );
+    };
+    
     // Campaign performance chart
     const campaignChart = () => {
       if (!hasEmailData || !data.email.topByOpenRate || data.email.topByOpenRate.length === 0) return null;
@@ -2045,4 +2056,526 @@ const MarketingDashboard = () => {
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <h3 className="text-lg font-semibold mb-4">Email Campaigns</h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign Name</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Open Rate</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Click Rate</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Opens</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Clicks</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.email.campaigns.map((campaign, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{campaign.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.openRate, 'percent')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.clickRate, 'percent')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.sent)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.opens)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.clicks)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+    
+    // If no data is available
+    if (!hasEmailData) {
+      return (
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-semibold mb-4">Email Analytics</h3>
+          <p className="text-gray-500">No email data available. Please upload Email_Campaign_Performance.csv to see email analytics.</p>
+          <div className="mt-4 bg-blue-50 p-4 rounded border border-blue-100">
+            <h4 className="font-medium text-blue-800 mb-2">What you'll see here:</h4>
+            <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+              <li>Subscriber count and engagement metrics</li>
+              <li>Top campaigns by open rate and click rate</li>
+              <li>Best-performing links</li>
+              <li>Subscriber demographics</li>
+              <li>Detailed email campaign performance</li>
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {metrics()}
+        {engagementMetrics()}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {campaignChart()}
+          {engagementChart()}
+        </div>
+        {linkPerformanceChart()}
+        {demographicsCharts()}
+        {campaignsTable()}
+      </>
+    );
+  };
+
+  // YouTube Tab Content
+  const YouTubeContent = () => {
+    const hasYoutubeData = data.youtube !== null;
+    
+    // YouTube tab navigation
+    const YouTubeTabNav = () => (
+      <div className="mb-4">
+        <div className="flex border-b">
+          <button
+            className={`px-4 py-2 mr-2 font-medium ${youtubeTab === 'overview' ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setYoutubeTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            className={`px-4 py-2 mr-2 font-medium ${youtubeTab === 'demographics' ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setYoutubeTab('demographics')}
+          >
+            Demographics
+          </button>
+          <button
+            className={`px-4 py-2 font-medium ${youtubeTab === 'content' ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setYoutubeTab('content')}
+          >
+            Content
+          </button>
+        </div>
+      </div>
+    );
+    
+    // YouTube Overview Tab
+    const YouTubeOverview = () => {
+      if (!hasYoutubeData) return null;
+      
+      const metrics = [
+        {
+          title: 'Total Views',
+          value: data.youtube.pageRank.views,
+          type: 'number'
+        },
+        {
+          title: 'Subscribers',
+          value: data.youtube.pageRank.followers,
+          type: 'number'
+        },
+        {
+          title: 'Engagement Rate',
+          value: data.youtube.pageRank.engagement,
+          type: 'percent'
+        },
+        {
+          title: 'Top Countries',
+          value: data.youtube.topCountries && data.youtube.topCountries.length > 0 
+            ? data.youtube.topCountries.length 
+            : 0,
+          type: 'number'
+        }
+      ];
+      
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {metrics.map((metric, index) => (
+              <KpiCard 
+                key={index}
+                title={metric.title}
+                value={metric.value}
+                type={metric.type}
+              />
+            ))}
+          </div>
+          
+          {/* Subscription Status */}
+          {data.youtube.subscriptionStatus && data.youtube.subscriptionStatus.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Subscription Status</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.youtube.subscriptionStatus}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                    >
+                      <Cell fill="#ff0000" />
+                      <Cell fill="#d3d3d3" />
+                    </Pie>
+                    <Tooltip formatter={(value) => formatNumber(value)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="text-center mt-4 text-sm text-gray-600">
+                <p>This chart shows views from subscribers vs. non-subscribers</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Top Countries */}
+          {data.youtube.topCountries && data.youtube.topCountries.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Top Countries by Views</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={data.youtube.topCountries.slice(0, 10)}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="country" type="category" />
+                    <Tooltip formatter={(value) => formatNumber(value)} />
+                    <Legend />
+                    <Bar dataKey="value" name="Views" fill="#ff0000" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    };
+    
+    // YouTube Demographics Tab
+    const YouTubeDemographics = () => {
+      if (!hasYoutubeData || !data.youtube.demographics) return null;
+      
+      return (
+        <>
+          {/* Age Demographics */}
+          {data.youtube.demographics.age && data.youtube.demographics.age.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Age Demographics</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={data.youtube.demographics.age}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
+                    <Legend />
+                    <Bar dataKey="value" name="Percentage" fill="#ff0000" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+          
+          {/* Gender Demographics */}
+          {data.youtube.demographics.gender && data.youtube.demographics.gender.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Gender Demographics</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.youtube.demographics.gender}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                    >
+                      <Cell fill="#3b82f6" />
+                      <Cell fill="#ec4899" />
+                      <Cell fill="#a3a3a3" />
+                    </Pie>
+                    <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+          
+          {/* Geographic Distribution (Top 10 Cities) */}
+          {data.youtube.topCountries && data.youtube.topCountries.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Geographic Distribution</h3>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.youtube.topCountries.slice(0, 10)}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                      innerRadius={60}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="country"
+                      label
+                    >
+                      {data.youtube.topCountries.slice(0, 10).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatNumber(value)} />
+                    <Legend layout="vertical" verticalAlign="middle" align="right" />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    };
+    
+    // YouTube Content Tab
+    const YouTubeContent = () => {
+      if (!hasYoutubeData || !data.youtube.topVideos || data.youtube.topVideos.length === 0) return null;
+      
+      // Find the "top" video for each metric
+      const topByViews = [...data.youtube.topVideos].sort((a, b) => b.views - a.views)[0];
+      const topByLikes = [...data.youtube.topVideos].sort((a, b) => b.likes - a.likes)[0];
+      const topByComments = [...data.youtube.topVideos].sort((a, b) => b.comments - a.comments)[0];
+      const topByShares = [...data.youtube.topVideos].sort((a, b) => b.shares - a.shares)[0];
+      
+      return (
+        <>
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Top Videos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-gray-50 p-3 rounded border">
+                <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Views</h4>
+                <p className="font-medium mb-1">{topByViews.title}</p>
+                <p className="text-sm">Views: {formatNumber(topByViews.views)}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded border">
+                <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Liked</h4>
+                <p className="font-medium mb-1">{topByLikes.title}</p>
+                <p className="text-sm">Likes: {formatNumber(topByLikes.likes)}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded border">
+                <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Comments</h4>
+                <p className="font-medium mb-1">{topByComments.title}</p>
+                <p className="text-sm">Comments: {formatNumber(topByComments.comments)}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded border">
+                <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Shares</h4>
+                <p className="font-medium mb-1">{topByShares.title}</p>
+                <p className="text-sm">Shares: {formatNumber(topByShares.shares)}</p>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto mt-4">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Title</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.youtube.topVideos.map((video, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{video.title}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.views)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.likes)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.comments)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.shares)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* Video Performance Metrics */}
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Video Performance Analysis</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={data.youtube.topVideos.slice(0, 5)}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="title" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => formatNumber(value)} />
+                  <Legend />
+                  <Bar dataKey="views" name="Views" fill="#ff0000" />
+                  <Bar dataKey="likes" name="Likes" stackId="a" fill="#4c51bf" />
+                  <Bar dataKey="comments" name="Comments" stackId="a" fill="#38b2ac" />
+                  <Bar dataKey="shares" name="Shares" stackId="a" fill="#f6ad55" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      );
+    };
+    
+    // If no data is available
+    if (!hasYoutubeData) {
+      return (
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-semibold mb-4">YouTube Analytics</h3>
+          <p className="text-gray-500">No YouTube data available. Please upload YouTube_Age.csv, YouTube_Gender.csv, YouTube_Geography.csv, YouTube_Subscription_Status.csv, and YouTube_Content.csv to see YouTube analytics.</p>
+          <div className="mt-4 bg-red-50 p-4 rounded border border-red-100">
+            <h4 className="font-medium text-red-800 mb-2">What you'll see here:</h4>
+            <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+              <li>Basic channel metrics (views, subscribers, engagement)</li>
+              <li>Subscriber vs. non-subscriber views</li>
+              <li>Audience demographics (age, gender, location)</li>
+              <li>Top performing videos</li>
+              <li>Geographic distribution of viewers</li>
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <YouTubeTabNav />
+        {youtubeTab === 'overview' && <YouTubeOverview />}
+        {youtubeTab === 'demographics' && <YouTubeDemographics />}
+        {youtubeTab === 'content' && <YouTubeContent />}
+      </>
+    );
+  };
+
+  // Main dashboard render
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4 md:justify-start md:space-x-10">
+            <div className="flex justify-start lg:w-0 lg:flex-1">
+              <h1 className="text-xl font-bold text-gray-900">Marketing Analytics Dashboard</h1>
+            </div>
+            <div className="md:flex items-center justify-end md:flex-1 lg:w-0">
+              <span className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="ml-3 text-gray-600">Loading data...</span>
+          </div>
+        )}
+
+        {/* Error message */}
+        {errorMessage && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{errorMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Date range filter and file uploader */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="md:col-span-2">
+            <DateFilter />
+          </div>
+          <div>
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h2 className="text-lg font-semibold mb-2">Upload Data</h2>
+              <FileUploader />
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="flex border-b">
+            <button
+              className={`px-4 py-2 mr-2 font-medium ${activeTab === 'overview' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button
+              className={`px-4 py-2 mr-2 font-medium ${activeTab === 'web' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('web')}
+            >
+              Web Analytics
+            </button>
+            <button
+              className={`px-4 py-2 mr-2 font-medium ${activeTab === 'social' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('social')}
+            >
+              Social Media
+            </button>
+            <button
+              className={`px-4 py-2 mr-2 font-medium ${activeTab === 'email' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('email')}
+            >
+              Email
+            </button>
+            <button
+              className={`px-4 py-2 font-medium ${activeTab === 'youtube' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('youtube')}
+            >
+              YouTube
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {!isLoading && (
+          <div>
+            {activeTab === 'overview' && <OverviewContent />}
+            {activeTab === 'web' && <WebAnalyticsContent />}
+            {activeTab === 'social' && <SocialMediaContent />}
+            {activeTab === 'email' && <EmailContent />}
+            {activeTab === 'youtube' && <YouTubeContent />}
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white py-4 border-t mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">Marketing Analytics Dashboard © {new Date().getFullYear()}</p>
+            <div>
+              <p className="text-xs text-gray-400">All data is processed locally in your browser - no information is sent to any servers</p>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+// Export the component
+export default MarketingDashboard;

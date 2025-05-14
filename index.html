@@ -8,9 +8,6 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-    
     <!-- React and ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -25,43 +22,6 @@
     <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
     
     <style>
-        /* Additional custom styles */
-        .dashboard-section {
-            background-color: #fff;
-            border-radius: 0.5rem;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .metric-card {
-            background-color: #fff;
-            border-radius: 0.5rem;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-            padding: 1.25rem;
-            height: 100%;
-            transition: transform 0.2s ease-in-out;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
-        }
-        
-        .positive-change {
-            color: #38a169;
-            background-color: rgba(56, 161, 105, 0.1);
-            padding: 0.25rem 0.5rem;
-            border-radius: 1rem;
-        }
-        
-        .negative-change {
-            color: #e53e3e;
-            background-color: rgba(229, 62, 62, 0.1);
-            padding: 0.25rem 0.5rem;
-            border-radius: 1rem;
-        }
-        
         /* Loading animation */
         @keyframes pulse {
             0%, 100% {
@@ -78,8 +38,8 @@
         
         /* Custom scrollbar */
         ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
         }
         
         ::-webkit-scrollbar-track {
@@ -97,7 +57,7 @@
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen">
     <div id="app-root">
         <!-- Loading state while React loads -->
         <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
@@ -112,12 +72,11 @@
         </div>
     </div>
     
-    <!-- Load our React dashboard component -->
+    <!-- Load the MarketingDashboard component -->
+    <script type="text/babel" src="MarketingDashboard.jsx"></script>
+    
+    <!-- Initialize the app -->
     <script type="text/babel">
-        // Import MarketingDashboard component
-        const { MarketingDashboard } = window;
-        
-        // Render once page is loaded
         document.addEventListener('DOMContentLoaded', () => {
             ReactDOM.render(
                 <MarketingDashboard />,
@@ -125,8 +84,5 @@
             );
         });
     </script>
-    
-    <!-- Load our dashboard component -->
-    <script type="text/babel" src="MarketingDashboard.jsx"></script>
 </body>
 </html>
