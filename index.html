@@ -1,777 +1,732 @@
-className={`px-4 py-2 mr-2 font-medium ${socialTab === 'facebook' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setSocialTab('facebook')}
-                                >
-                                    Facebook
-                                </button>
-                                <button
-                                    className={`px-4 py-2 font-medium ${socialTab === 'instagram' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setSocialTab('instagram')}
-                                >
-                                    Instagram
-                                </button>
-                            </div>
-                        </div>
-                        
-                        {socialTab === 'facebook' ? <FacebookContent /> : <InstagramContent />}
-                    </>
-                );
-            };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Analytics Dashboard</title>
+    
+    <!-- Base path fix for GitHub Pages -->
+    <base href="https://duke-chapel.github.io/DukeChapelMarCommsDashboard/">
+    
+    <!-- All-in-one CSS -->
+    <style>
+        /* Base styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+            color: #111827;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .header {
+            background-color: #fff;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .last-updated {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .panel {
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .grid {
+            display: grid;
+            grid-gap: 1rem;
+        }
+        
+        .grid-cols-1 {
+            grid-template-columns: 1fr;
+        }
+        
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .grid-cols-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        
+        @media (max-width: 768px) {
+            .grid-cols-2, .grid-cols-3, .grid-cols-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .metric-card {
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .metric-title {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 0.75rem 1rem;
+            margin-right: 0.5rem;
+            font-weight: 500;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .tab:hover {
+            color: #4b5563;
+        }
+        
+        .tab.active {
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+        }
+        
+        .upload-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .upload-zone:hover, .upload-zone.dragging {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        .upload-icon {
+            width: 3rem;
+            height: 3rem;
+            margin: 0 auto 0.75rem;
+            color: #9ca3af;
+        }
+        
+        .upload-text {
+            margin-bottom: 0.5rem;
+            color: #6b7280;
+        }
+        
+        .btn {
+            display: inline-block;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .date-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .date-range-btn {
+            background-color: #f3f4f6;
+            color: #374151;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .date-range-btn:hover {
+            background-color: #e5e7eb;
+        }
+        
+        .date-inputs {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .form-control {
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .comparison-check {
+            display: flex;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+        
+        .footer {
+            background-color: #fff;
+            border-top: 1px solid #e5e7eb;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+        
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .copyright {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .privacy-note {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+        
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            text-align: left;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b7280;
+            background-color: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        td {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        
+        /* Chart placeholders */
+        .chart {
+            width: 100%;
+            height: 300px;
+            background-color: #f9fafb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-message {
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        /* Loading animation */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 16rem;
+        }
+        
+        .spinner {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            border: 0.25rem solid #e5e7eb;
+            border-top-color: #3b82f6;
+            animation: spin 1s infinite linear;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        /* Status indicators */
+        .positive {
+            color: #10b981;
+        }
+        
+        .negative {
+            color: #ef4444;
+        }
+        
+        /* File list */
+        .file-list {
+            background-color: #f9fafb;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            max-height: 10rem;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .file-name {
+            font-size: 0.875rem;
+        }
+        
+        .file-status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            background-color: #d1fae5;
+            color: #065f46;
+            border-radius: 1rem;
+        }
+        
+        /* Placeholder content */
+        .placeholder-box {
+            background-color: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .what-to-expect {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .what-to-expect h4 {
+            color: #1e40af;
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .what-to-expect ul {
+            padding-left: 1.5rem;
+            margin: 0;
+            color: #4b5563;
+            font-size: 0.875rem;
+        }
+        
+        .what-to-expect li {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container header-content">
+            <h1 class="page-title">Marketing Analytics Dashboard</h1>
+            <span class="last-updated">Last updated: <span id="current-date">May 14, 2025</span></span>
+        </div>
+    </header>
 
-            // Email Tab Content
-            const EmailContent = () => {
-                const hasEmailData = data.email !== null;
-                
-                // Metrics
-                const metrics = () => {
-                    if (!hasEmailData) return null;
-                    
-                    return (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <KpiCard 
-                                title="Subscribers"
-                                value={data.email.metrics.subscribers}
-                                type="number"
-                            />
-                            <KpiCard 
-                                title="Average Open Rate"
-                                value={data.email.campaigns.length > 0 
-                                    ? data.email.campaigns.reduce((sum, c) => sum + c.openRate, 0) / data.email.campaigns.length 
-                                    : 0}
-                                type="percent"
-                            />
-                            <KpiCard 
-                                title="Average Click Rate"
-                                value={data.email.campaigns.length > 0 
-                                    ? data.email.campaigns.reduce((sum, c) => sum + c.clickRate, 0) / data.email.campaigns.length 
-                                    : 0}
-                                type="percent"
-                            />
+    <main class="container" style="padding-top: 2rem;">
+        <!-- Loading state -->
+        <div id="loading-screen" class="loading">
+            <div class="spinner"></div>
+        </div>
+        
+        <!-- Dashboard Content (hidden until loaded) -->
+        <div id="dashboard-content" style="display: none;">
+            <!-- Date range and upload section -->
+            <div class="grid grid-cols-3" style="margin-bottom: 1.5rem;">
+                <div style="grid-column: span 2;">
+                    <div class="panel">
+                        <h2 class="panel-title">Date Range</h2>
+                        <div class="date-filter">
+                            <button class="date-range-btn">Last 7 days</button>
+                            <button class="date-range-btn">Last 30 days</button>
+                            <button class="date-range-btn">Last 90 days</button>
+                            <button class="date-range-btn">Last 12 months</button>
                         </div>
-                    );
-                };
-                
-                // Engagement metrics
-                const engagementMetrics = () => {
-                    if (!hasEmailData) return null;
-                    
-                    const { notOpened, openedNotClicked, clicked } = data.email.metrics;
-                    
-                    return (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div className="bg-white rounded-lg shadow-md p-4">
-                                <h3 className="text-md font-semibold mb-2 text-red-600">Never Opened</h3>
-                                <div className="text-3xl font-bold">{formatNumber(notOpened, 'percent')}</div>
-                                <p className="mt-2 text-sm text-gray-600">
-                                    {formatNumber(data.email.metrics.subscribers * (notOpened / 100))} subscribers have never opened an email
-                                </p>
-                            </div>
-                            <div className="bg-white rounded-lg shadow-md p-4">
-                                <h3 className="text-md font-semibold mb-2 text-yellow-600">Opened Only</h3>
-                                <div className="text-3xl font-bold">{formatNumber(openedNotClicked, 'percent')}</div>
-                                <p className="mt-2 text-sm text-gray-600">
-                                    {formatNumber(data.email.metrics.subscribers * (openedNotClicked / 100))} subscribers open but don't click
-                                </p>
-                            </div>
-                            <div className="bg-white rounded-lg shadow-md p-4">
-                                <h3 className="text-md font-semibold mb-2 text-green-600">Clicked</h3>
-                                <div className="text-3xl font-bold">{formatNumber(clicked, 'percent')}</div>
-                                <p className="mt-2 text-sm text-gray-600">
-                                    {formatNumber(data.email.metrics.subscribers * (clicked / 100))} subscribers click on email links
-                                </p>
-                            </div>
-                        </div>
-                    );
-                };
-                
-                // Campaign performance chart
-                const campaignChart = () => {
-                    if (!hasEmailData || !data.email.topByOpenRate || data.email.topByOpenRate.length === 0) return null;
-                    
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Top Email Campaigns by Open Rate</h3>
-                            <div className="h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={data.email.topByOpenRate}
-                                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" />
-                                        <YAxis />
-                                        <Tooltip formatter={(value, name) => [formatNumber(value, 'percent'), name]} />
-                                        <Legend />
-                                        <Bar dataKey="openRate" name="Open Rate (%)" fill="#4299e1" />
-                                        <Bar dataKey="clickRate" name="Click Rate (%)" fill="#9f7aea" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    );
-                };
-                
-                // Engagement segmentation chart
-                const engagementChart = () => {
-                    if (!hasEmailData || !data.email.engagementData) return null;
-                    
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Email Engagement Segmentation</h3>
-                            <div className="h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={data.email.engagementData}
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                            nameKey="name"
-                                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                                        >
-                                            <Cell fill="#fc8181" />
-                                            <Cell fill="#f6ad55" />
-                                            <Cell fill="#68d391" />
-                                        </Pie>
-                                        <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    );
-                };
-                
-                // Link performance chart
-                const linkPerformanceChart = () => {
-                    if (!hasEmailData || !data.email.links || data.email.links.length === 0) return null;
-                    
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Best-Performing Links</h3>
-                            <div className="h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={data.email.links}
-                                        layout="vertical"
-                                        margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" />
-                                        <YAxis dataKey="name" type="category" />
-                                        <Tooltip formatter={(value, name) => [name === 'clickRate' ? formatNumber(value, 'percent') : formatNumber(value), name === 'clickRate' ? 'Click Rate' : 'Clicks']} />
-                                        <Legend />
-                                        <Bar dataKey="clicks" name="Clicks" fill="#4c51bf" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    );
-                };
-                
-                // Subscriber demographics charts
-                const demographicsCharts = () => {
-                    if (!hasEmailData || !data.email.demographics) return null;
-                    
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Subscriber Demographics</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <h4 className="text-md font-medium mb-2 text-center">Regions</h4>
-                                    <div className="h-48">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={data.email.demographics.regions}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    outerRadius={60}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                                >
-                                                    {data.email.demographics.regions.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 className="text-md font-medium mb-2 text-center">Age Groups</h4>
-                                    <div className="h-48">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart
-                                                data={data.email.demographics.age}
-                                                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="name" />
-                                                <YAxis />
-                                                <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
-                                                <Bar dataKey="value" name="Percentage" fill="#9f7aea" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 className="text-md font-medium mb-2 text-center">Interests</h4>
-                                    <div className="h-48">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart cx="50%" cy="50%" outerRadius={60} data={data.email.demographics.interests}>
-                                                <PolarGrid />
-                                                <PolarAngleAxis dataKey="name" />
-                                                <PolarRadiusAxis />
-                                                <Radar name="Interests" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                                                <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
-                                            </RadarChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Current Period</label>
+                                <div class="date-inputs">
+                                    <input type="date" class="form-control">
+                                    <span>to</span>
+                                    <input type="date" class="form-control">
                                 </div>
                             </div>
-                        </div>
-                    );
-                };
-                
-                // Campaigns table
-                const campaignsTable = () => {
-                    if (!hasEmailData || !data.email.campaigns || data.email.campaigns.length === 0) return null;
-                    
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Email Campaigns</h3>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign Name</th>
-                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Open Rate</th>
-                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Click Rate</th>
-                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
-                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Opens</th>
-                                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Clicks</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {data.email.campaigns.map((campaign, index) => (
-                                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{campaign.name}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.openRate, 'percent')}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.clickRate, 'percent')}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.sent)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.opens)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(campaign.clicks)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div class="flex items-end">
+                                <div class="comparison-check">
+                                    <input type="checkbox" id="enable-comparison" class="mr-2">
+                                    <label for="enable-comparison">Enable period comparison</label>
+                                </div>
                             </div>
-                        </div>
-                    );
-                };
-                
-                // If no data is available
-                if (!hasEmailData) {
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4">
-                            <h3 className="text-lg font-semibold mb-4">Email Analytics</h3>
-                            <p className="text-gray-500">No email data available. Please upload Email_Campaign_Performance.csv to see email analytics.</p>
-                            <div className="mt-4 bg-blue-50 p-4 rounded border border-blue-100">
-                                <h4 className="font-medium text-blue-800 mb-2">What you'll see here:</h4>
-                                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                                    <li>Subscriber count and engagement metrics</li>
-                                    <li>Top campaigns by open rate and click rate</li>
-                                    <li>Best-performing links</li>
-                                    <li>Subscriber demographics</li>
-                                    <li>Detailed email campaign performance</li>
-                                </ul>
-                            </div>
-                        </div>
-                    );
-                }
-
-                return (
-                    <>
-                        {metrics()}
-                        {engagementMetrics()}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            {campaignChart()}
-                            {engagementChart()}
-                        </div>
-                        {linkPerformanceChart()}
-                        {demographicsCharts()}
-                        {campaignsTable()}
-                    </>
-                );
-            };
-
-            // YouTube Tab Content
-            const YouTubeContent = () => {
-                const hasYoutubeData = data.youtube !== null;
-                
-                // YouTube tab navigation
-                const YouTubeTabNav = () => (
-                    <div className="mb-4">
-                        <div className="flex border-b">
-                            <button
-                                className={`px-4 py-2 mr-2 font-medium ${youtubeTab === 'overview' ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                onClick={() => setYoutubeTab('overview')}
-                            >
-                                Overview
-                            </button>
-                            <button
-                                className={`px-4 py-2 mr-2 font-medium ${youtubeTab === 'demographics' ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                onClick={() => setYoutubeTab('demographics')}
-                            >
-                                Demographics
-                            </button>
-                            <button
-                                className={`px-4 py-2 font-medium ${youtubeTab === 'content' ? 'border-b-2 border-red-500 text-red-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                onClick={() => setYoutubeTab('content')}
-                            >
-                                Content
-                            </button>
                         </div>
                     </div>
-                );
-                
-                // YouTube Overview Tab
-                const YouTubeOverview = () => {
-                    if (!hasYoutubeData) return null;
-                    
-                    const metrics = [
-                        {
-                            title: 'Total Views',
-                            value: data.youtube.pageRank.views,
-                            type: 'number'
-                        },
-                        {
-                            title: 'Subscribers',
-                            value: data.youtube.pageRank.followers,
-                            type: 'number'
-                        },
-                        {
-                            title: 'Engagement Rate',
-                            value: data.youtube.pageRank.engagement,
-                            type: 'percent'
-                        },
-                        {
-                            title: 'Top Countries',
-                            value: data.youtube.topCountries && data.youtube.topCountries.length > 0 
-                                ? data.youtube.topCountries.length 
-                                : 0,
-                            type: 'number'
-                        }
-                    ];
-                    
-                    return (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                {metrics.map((metric, index) => (
-                                    <KpiCard 
-                                        key={index}
-                                        title={metric.title}
-                                        value={metric.value}
-                                        type={metric.type}
-                                    />
-                                ))}
-                            </div>
-                            
-                            {/* Subscription Status */}
-                            {data.youtube.subscriptionStatus && data.youtube.subscriptionStatus.length > 0 && (
-                                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                    <h3 className="text-lg font-semibold mb-4">Subscription Status</h3>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={data.youtube.subscriptionStatus}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    outerRadius={100}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                                                >
-                                                    <Cell fill="#ff0000" />
-                                                    <Cell fill="#d3d3d3" />
-                                                </Pie>
-                                                <Tooltip formatter={(value) => formatNumber(value)} />
-                                                <Legend />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                    <div className="text-center mt-4 text-sm text-gray-600">
-                                        <p>This chart shows views from subscribers vs. non-subscribers</p>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Top Countries */}
-                            {data.youtube.topCountries && data.youtube.topCountries.length > 0 && (
-                                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                    <h3 className="text-lg font-semibold mb-4">Top Countries by Views</h3>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart
-                                                data={data.youtube.topCountries.slice(0, 10)}
-                                                layout="vertical"
-                                                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis type="number" />
-                                                <YAxis dataKey="country" type="category" />
-                                                <Tooltip formatter={(value) => formatNumber(value)} />
-                                                <Legend />
-                                                <Bar dataKey="value" name="Views" fill="#ff0000" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    );
-                };
-                
-                // YouTube Demographics Tab
-                const YouTubeDemographics = () => {
-                    if (!hasYoutubeData || !data.youtube.demographics) return null;
-                    
-                    return (
-                        <>
-                            {/* Age Demographics */}
-                            {data.youtube.demographics.age && data.youtube.demographics.age.length > 0 && (
-                                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                    <h3 className="text-lg font-semibold mb-4">Age Demographics</h3>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart
-                                                data={data.youtube.demographics.age}
-                                                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="name" />
-                                                <YAxis />
-                                                <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
-                                                <Legend />
-                                                <Bar dataKey="value" name="Percentage" fill="#ff0000" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Gender Demographics */}
-                            {data.youtube.demographics.gender && data.youtube.demographics.gender.length > 0 && (
-                                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                    <h3 className="text-lg font-semibold mb-4">Gender Demographics</h3>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={data.youtube.demographics.gender}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    outerRadius={100}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                                                >
-                                                    <Cell fill="#3b82f6" />
-                                                    <Cell fill="#ec4899" />
-                                                    <Cell fill="#a3a3a3" />
-                                                </Pie>
-                                                <Tooltip formatter={(value) => formatNumber(value, 'percent')} />
-                                                <Legend />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Geographic Distribution (Top 10 Cities) */}
-                            {data.youtube.topCountries && data.youtube.topCountries.length > 0 && (
-                                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                    <h3 className="text-lg font-semibold mb-4">Geographic Distribution</h3>
-                                    <div className="h-80">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={data.youtube.topCountries.slice(0, 10)}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    outerRadius={120}
-                                                    innerRadius={60}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                    nameKey="country"
-                                                    label
-                                                >
-                                                    {data.youtube.topCountries.slice(0, 10).map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip formatter={(value) => formatNumber(value)} />
-                                                <Legend layout="vertical" verticalAlign="middle" align="right" />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    );
-                };
-                
-                // YouTube Content Tab
-                const YouTubeContentTab = () => {
-                    if (!hasYoutubeData || !data.youtube.topVideos || data.youtube.topVideos.length === 0) return null;
-                    
-                    // Find the "top" video for each metric
-                    const topByViews = [...data.youtube.topVideos].sort((a, b) => b.views - a.views)[0];
-                    const topByLikes = [...data.youtube.topVideos].sort((a, b) => b.likes - a.likes)[0];
-                    const topByComments = [...data.youtube.topVideos].sort((a, b) => b.comments - a.comments)[0];
-                    const topByShares = [...data.youtube.topVideos].sort((a, b) => b.shares - a.shares)[0];
-                    
-                    return (
-                        <>
-                            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                <h3 className="text-lg font-semibold mb-4">Top Videos</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                    <div className="bg-gray-50 p-3 rounded border">
-                                        <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Views</h4>
-                                        <p className="font-medium mb-1">{topByViews.title}</p>
-                                        <p className="text-sm">Views: {formatNumber(topByViews.views)}</p>
-                                    </div>
-                                    <div className="bg-gray-50 p-3 rounded border">
-                                        <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Liked</h4>
-                                        <p className="font-medium mb-1">{topByLikes.title}</p>
-                                        <p className="text-sm">Likes: {formatNumber(topByLikes.likes)}</p>
-                                    </div>
-                                    <div className="bg-gray-50 p-3 rounded border">
-                                        <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Comments</h4>
-                                        <p className="font-medium mb-1">{topByComments.title}</p>
-                                        <p className="text-sm">Comments: {formatNumber(topByComments.comments)}</p>
-                                    </div>
-                                    <div className="bg-gray-50 p-3 rounded border">
-                                        <h4 className="text-sm font-semibold text-gray-500 mb-1">Most Shares</h4>
-                                        <p className="font-medium mb-1">{topByShares.title}</p>
-                                        <p className="text-sm">Shares: {formatNumber(topByShares.shares)}</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="overflow-x-auto mt-4">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Title</th>
-                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
-                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
-                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {data.youtube.topVideos.map((video, index) => (
-                                                <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{video.title}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.views)}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.likes)}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.comments)}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(video.shares)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            {/* Video Performance Metrics */}
-                            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                                <h3 className="text-lg font-semibold mb-4">Video Performance Analysis</h3>
-                                <div className="h-64">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={data.youtube.topVideos.slice(0, 5)}
-                                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="title" />
-                                            <YAxis />
-                                            <Tooltip formatter={(value) => formatNumber(value)} />
-                                            <Legend />
-                                            <Bar dataKey="views" name="Views" fill="#ff0000" />
-                                            <Bar dataKey="likes" name="Likes" stackId="a" fill="#4c51bf" />
-                                            <Bar dataKey="comments" name="Comments" stackId="a" fill="#38b2ac" />
-                                            <Bar dataKey="shares" name="Shares" stackId="a" fill="#f6ad55" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </>
-                    );
-                };
-                
-                // If no data is available
-                if (!hasYoutubeData) {
-                    return (
-                        <div className="bg-white rounded-lg shadow-md p-4">
-                            <h3 className="text-lg font-semibold mb-4">YouTube Analytics</h3>
-                            <p className="text-gray-500">No YouTube data available. Please upload YouTube_Age.csv, YouTube_Gender.csv, YouTube_Geography.csv, YouTube_Subscription_Status.csv, and YouTube_Content.csv to see YouTube analytics.</p>
-                            <div className="mt-4 bg-red-50 p-4 rounded border border-red-100">
-                                <h4 className="font-medium text-red-800 mb-2">What you'll see here:</h4>
-                                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                                    <li>Basic channel metrics (views, subscribers, engagement)</li>
-                                    <li>Subscriber vs. non-subscriber views</li>
-                                    <li>Audience demographics (age, gender, location)</li>
-                                    <li>Top performing videos</li>
-                                    <li>Geographic distribution of viewers</li>
-                                </ul>
-                            </div>
-                        </div>
-                    );
-                }
-
-                return (
-                    <>
-                        <YouTubeTabNav />
-                        {youtubeTab === 'overview' && <YouTubeOverview />}
-                        {youtubeTab === 'demographics' && <YouTubeDemographics />}
-                        {youtubeTab === 'content' && <YouTubeContentTab />}
-                    </>
-                );
-            };
-
-            // Main dashboard render
-            return (
-                <div className="min-h-screen bg-gray-100">
-                    {/* Header */}
-                    <header className="bg-white shadow-sm">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex justify-between items-center py-4 md:justify-start md:space-x-10">
-                                <div className="flex justify-start lg:w-0 lg:flex-1">
-                                    <h1 className="text-xl font-bold text-gray-900">Marketing Analytics Dashboard</h1>
-                                </div>
-                                <div className="md:flex items-center justify-end md:flex-1 lg:w-0">
-                                    <span className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </header>
-
-                    {/* Main Content */}
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                        {/* Loading state */}
-                        {isLoading && (
-                            <div className="flex justify-center items-center h-64">
-                                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                                <span className="ml-3 text-gray-600">Loading data...</span>
-                            </div>
-                        )}
-
-                        {/* Error message */}
-                        {errorMessage && (
-                            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
-                                <div className="flex">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                    <div className="ml-3">
-                                        <p className="text-sm text-red-700">{errorMessage}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Date range filter and file uploader */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div className="md:col-span-2">
-                                <DateFilter />
-                            </div>
-                            <div>
-                                <div className="bg-white rounded-lg shadow-md p-4">
-                                    <h2 className="text-lg font-semibold mb-2">Upload Data</h2>
-                                    <FileUploader />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tab Navigation */}
-                        <div className="mb-6">
-                            <div className="flex border-b">
-                                <button
-                                    className={`px-4 py-2 mr-2 font-medium ${activeTab === 'overview' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setActiveTab('overview')}
-                                >
-                                    Overview
-                                </button>
-                                <button
-                                    className={`px-4 py-2 mr-2 font-medium ${activeTab === 'web' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setActiveTab('web')}
-                                >
-                                    Web Analytics
-                                </button>
-                                <button
-                                    className={`px-4 py-2 mr-2 font-medium ${activeTab === 'social' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setActiveTab('social')}
-                                >
-                                    Social Media
-                                </button>
-                                <button
-                                    className={`px-4 py-2 mr-2 font-medium ${activeTab === 'email' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setActiveTab('email')}
-                                >
-                                    Email
-                                </button>
-                                <button
-                                    className={`px-4 py-2 font-medium ${activeTab === 'youtube' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                    onClick={() => setActiveTab('youtube')}
-                                >
-                                    YouTube
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Tab Content */}
-                        {!isLoading && (
-                            <div>
-                                {activeTab === 'overview' && <OverviewContent />}
-                                {activeTab === 'web' && <WebAnalyticsContent />}
-                                {activeTab === 'social' && <SocialMediaContent />}
-                                {activeTab === 'email' && <EmailContent />}
-                                {activeTab === 'youtube' && <YouTubeContent />}
-                            </div>
-                        )}
-                    </main>
-
-                    {/* Footer */}
-                    <footer className="bg-white py-4 border-t mt-8">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex justify-between items-center">
-                                <p className="text-sm text-gray-500">Marketing Analytics Dashboard © {new Date().getFullYear()}</p>
-                                <div>
-                                    <p className="text-xs text-gray-400">All data is processed locally in your browser - no information is sent to any servers</p>
-                                </div>
-                            </div>
-                        </div>
-                    </footer>
                 </div>
-            );
-        };
+                <div>
+                    <div class="panel">
+                        <h2 class="panel-title">Upload Data</h2>
+                        <div class="upload-zone" id="upload-zone">
+                            <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            <p class="upload-text">Drag and drop CSV files here, or</p>
+                            <label for="file-upload" class="btn btn-primary">
+                                Browse files
+                            </label>
+                            <input id="file-upload" type="file" multiple accept=".csv" class="file-input">
+                            <p class="text-xs mt-2" style="color: #9ca3af;">Upload CSV files from each platform</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        // Render the dashboard
-        ReactDOM.render(
-            <MarketingDashboard />,
-            document.getElementById('app-root')
-        );
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab active" data-tab="overview">Overview</button>
+                <button class="tab" data-tab="web">Web Analytics</button>
+                <button class="tab" data-tab="social">Social Media</button>
+                <button class="tab" data-tab="email">Email</button>
+                <button class="tab" data-tab="youtube">YouTube</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="tab-overview">
+                <!-- Overview KPIs -->
+                <div class="grid grid-cols-4 gap-4" style="margin-bottom: 1.5rem;">
+                    <div class="metric-card">
+                        <div class="metric-title">Email Subscribers</div>
+                        <div class="metric-value">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Facebook Reach</div>
+                        <div class="metric-value">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Instagram Engagement</div>
+                        <div class="metric-value">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">YouTube Views</div>
+                        <div class="metric-value">--</div>
+                    </div>
+                </div>
+
+                <!-- Overview Charts -->
+                <div class="grid grid-cols-2 gap-6" style="margin-bottom: 1.5rem;">
+                    <div class="panel">
+                        <h3 class="panel-title">Channel Traffic Comparison</h3>
+                        <div class="chart">
+                            <div class="chart-message">
+                                <p>Upload your data files to see this chart</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3 class="panel-title">Engagement by Platform</h3>
+                        <div class="chart">
+                            <div class="chart-message">
+                                <p>Upload your data files to see this chart</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Analytics Tab (hidden by default) -->
+            <div class="tab-content" id="tab-web" style="display: none;">
+                <div class="panel">
+                    <h3 class="panel-title">Web Analytics</h3>
+                    <p style="color: #6b7280;">No web analytics data available. Please upload GA_Demographics.csv, GA_Traffic_Acquisition.csv, GA_Pages_And_Screens.csv, and GA_UTMs.csv to see web analytics.</p>
+                    <div class="what-to-expect">
+                        <h4>What you'll see here:</h4>
+                        <ul>
+                            <li>Demographics (age, gender, location)</li>
+                            <li>Top landing pages by sessions/engagement time</li>
+                            <li>Traffic sources (organic, social, direct, email)</li>
+                            <li>Campaign performance metrics</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media Tab (hidden by default) -->
+            <div class="tab-content" id="tab-social" style="display: none;">
+                <!-- Social Media Platform Selector -->
+                <div class="tabs" style="border-bottom-width: 1px; margin-bottom: 1.5rem;">
+                    <button class="tab active" data-social-tab="facebook">Facebook</button>
+                    <button class="tab" data-social-tab="instagram">Instagram</button>
+                </div>
+                
+                <!-- Facebook Content -->
+                <div class="social-tab-content" id="social-facebook">
+                    <div class="panel">
+                        <h3 class="panel-title">Facebook Analytics</h3>
+                        <p style="color: #6b7280;">No Facebook data available. Please upload FB_Videos.csv, FB_Posts.csv, FB_Follows.csv, FB_Reach.csv, FB_Visits.csv, and FB_Interactions.csv to see Facebook analytics.</p>
+                        <div class="what-to-expect" style="background-color: #ebf5ff; border-color: #bfdeff;">
+                            <h4 style="color: #1e429f;">What you'll see here:</h4>
+                            <ul>
+                                <li>Page rank metrics (engagement, followers, views, reach)</li>
+                                <li>Audience demographics</li>
+                                <li>Follower growth over time</li>
+                                <li>Top performing posts</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Instagram Content (hidden by default) -->
+                <div class="social-tab-content" id="social-instagram" style="display: none;">
+                    <div class="panel">
+                        <h3 class="panel-title">Instagram Analytics</h3>
+                        <p style="color: #6b7280;">No Instagram data available. Please upload IG_Posts.csv, IG_Follows.csv, IG_Reach.csv, IG_Views.csv, and IG_Interactions.csv to see Instagram analytics.</p>
+                        <div class="what-to-expect" style="background-color: #fdf2f8; border-color: #fbcfe8;">
+                            <h4 style="color: #9d174d;">What you'll see here:</h4>
+                            <ul>
+                                <li>Page rank metrics (engagement, followers, views, reach)</li>
+                                <li>Engagement distribution</li>
+                                <li>Follower growth over time</li>
+                                <li>Top performing posts</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Tab (hidden by default) -->
+            <div class="tab-content" id="tab-email" style="display: none;">
+                <div class="panel">
+                    <h3 class="panel-title">Email Analytics</h3>
+                    <p style="color: #6b7280;">No email data available. Please upload Email_Campaign_Performance.csv to see email analytics.</p>
+                    <div class="what-to-expect" style="background-color: #eff6ff; border-color: #bfdbfe;">
+                        <h4 style="color: #1e40af;">What you'll see here:</h4>
+                        <ul>
+                            <li>Subscriber count and engagement metrics</li>
+                            <li>Top campaigns by open rate and click rate</li>
+                            <li>Best-performing links</li>
+                            <li>Subscriber demographics</li>
+                            <li>Detailed email campaign performance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YouTube Tab (hidden by default) -->
+            <div class="tab-content" id="tab-youtube" style="display: none;">
+                <div class="panel">
+                    <h3 class="panel-title">YouTube Analytics</h3>
+                    <p style="color: #6b7280;">No YouTube data available. Please upload YouTube_Age.csv, YouTube_Gender.csv, YouTube_Geography.csv, YouTube_Subscription_Status.csv, and YouTube_Content.csv to see YouTube analytics.</p>
+                    <div class="what-to-expect" style="background-color: #fef2f2; border-color: #fecaca;">
+                        <h4 style="color: #b91c1c;">What you'll see here:</h4>
+                        <ul>
+                            <li>Basic channel metrics (views, subscribers, engagement)</li>
+                            <li>Subscriber vs. non-subscriber views</li>
+                            <li>Audience demographics (age, gender, location)</li>
+                            <li>Top performing videos</li>
+                            <li>Geographic distribution of viewers</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-content">
+            <p class="copyright">Marketing Analytics Dashboard © 2025</p>
+            <div>
+                <p class="privacy-note">All data is processed locally in your browser - no information is sent to any servers</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Simple Dashboard Functionality (No external dependencies)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Display current date
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString();
+            
+            // Show dashboard content and hide loading screen after short delay
+            setTimeout(function() {
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+            }, 800);
+            
+            // Tab navigation
+            const tabs = document.querySelectorAll('.tab[data-tab]');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show corresponding content
+                    const tabContents = document.querySelectorAll('.tab-content');
+                    tabContents.forEach(content => {
+                        content.style.display = 'none';
+                    });
+                    document.getElementById('tab-' + this.dataset.tab).style.display = 'block';
+                });
+            });
+            
+            // Social media tab navigation
+            const socialTabs = document.querySelectorAll('.tab[data-social-tab]');
+            socialTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update active tab
+                    socialTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show corresponding content
+                    const tabContents = document.querySelectorAll('.social-tab-content');
+                    tabContents.forEach(content => {
+                        content.style.display = 'none';
+                    });
+                    document.getElementById('social-' + this.dataset.socialTab).style.display = 'block';
+                });
+            });
+            
+            // File upload handling
+            const uploadZone = document.getElementById('upload-zone');
+            const fileInput = document.getElementById('file-upload');
+            
+            uploadZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.add('dragging');
+            });
+            
+            uploadZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('dragging');
+            });
+            
+            uploadZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('dragging');
+                
+                handleFiles(e.dataTransfer.files);
+            });
+            
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+            
+            uploadZone.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // Simple file handler (just for UI demonstration)
+            function handleFiles(files) {
+                if (!files || files.length === 0) return;
+                
+                // Create file list if it doesn't exist
+                let fileList = document.querySelector('.file-list');
+                if (!fileList) {
+                    fileList = document.createElement('div');
+                    fileList.className = 'file-list';
+                    uploadZone.insertAdjacentElement('afterend', fileList);
+                }
+                
+                // Add files to list
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    
+                    // Check if it's a CSV
+                    if (!file.name.endsWith('.csv')) continue;
+                    
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-status">Processed</span>
+                    `;
+                    
+                    fileList.appendChild(fileItem);
+                }
+                
+                // Show a placeholder message that data is being processed
+                alert('Files received! In a full implementation, these would be processed and visualized in the dashboard.');
+            }
+        });
     </script>
 </body>
 </html>
