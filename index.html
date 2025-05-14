@@ -5,16 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Marketing Analytics Dashboard</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Dashboard CSS -->
-    <link href="dashboard.css" rel="stylesheet">
-    <!-- Dashboard Fixes CSS -->
-    <link href="dashboard-fixes.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css">
+    
+    <!-- Combined Dashboard CSS -->
+    <link href="dashboard-styles.css" rel="stylesheet">
+    
     <!-- Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
     <!-- PapaParse for CSV handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </head>
 
 <body>
@@ -26,7 +31,11 @@
     </header>
 
     <div class="container">
-        <!-- Date filter will be inserted here by JavaScript -->
+        <!-- File upload area will be added here by file-upload-manager.js -->
+        
+        <!-- Date filter will be inserted here by dateFilter.render() -->
+        <div id="date-filter-container"></div>
+        
         <!-- Main tabs navigation -->
         <div class="row mb-4">
             <div class="col-md-12">
@@ -91,7 +100,7 @@
             <!-- Web Analytics Tab -->
             <div class="tab-pane fade" id="web" role="tabpanel" aria-labelledby="web-tab">
                 <div class="row">
-                    <div class="col-md-6 mb-4">
+                    <div class="col-md-12 mb-4">
                         <div class="dashboard-section web-section">
                             <h3 class="h5 mb-3">Demographics Breakdown</h3>
                             <div class="row">
@@ -114,20 +123,11 @@
                         </div>
                     </div>
 
-                    <div class="col-md-6 mb-4">
+                    <div class="col-md-12 mb-4">
                         <div class="dashboard-section web-section">
                             <h3 class="h5 mb-3">Traffic Sources</h3>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="chart-container">
-                                        <canvas id="traffic-channels-chart"></canvas>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="chart-container">
-                                        <canvas id="traffic-sources-detail-chart"></canvas>
-                                    </div>
-                                </div>
+                            <div class="chart-container">
+                                <canvas id="traffic-sources-chart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -142,6 +142,13 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
+                                    <div class="chart-container">
+                                        <canvas id="campaign-platforms-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-4">
+                                <div class="col-md-12">
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="campaigns-table">
                                             <thead>
@@ -149,11 +156,12 @@
                                                     <th>Campaign</th>
                                                     <th>Sessions</th>
                                                     <th>Engagement Rate</th>
+                                                    <th>Change</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr>
-                                                    <td colspan="3" class="text-center">Loading campaign data...</td>
+                                                    <td colspan="4" class="text-center">Loading campaign data...</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -210,16 +218,7 @@
                 <div class="tab-content" id="socialTabContent">
                     <!-- Facebook Tab -->
                     <div class="tab-pane fade show active" id="facebook" role="tabpanel" aria-labelledby="facebook-tab">
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="dashboard-section facebook-section">
-                                    <h3 class="h5 mb-3">Facebook Page Performance</h3>
-                                    <div class="row" id="fb-page-metrics-row">
-                                        <!-- KPI cards will be inserted here by JavaScript -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Facebook Page Metrics will be added by dashboard-ui-enhancements.js -->
                         
                         <div class="row">
                             <div class="col-md-6 mb-4">
@@ -243,35 +242,7 @@
                             <div class="col-md-12 mb-4">
                                 <div class="dashboard-section facebook-section">
                                     <h3 class="h5 mb-3">Top Facebook Videos</h3>
-                                    <div class="row mb-3">
-                                        <div class="col-md-12">
-                                            <h4 class="h6 mb-3">Top Posts by Category</h4>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="metric-card">
-                                                <h5>Most Reach</h5>
-                                                <div id="fb-most-reach" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="metric-card">
-                                                <h5>Most Likes</h5>
-                                                <div id="fb-most-liked" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="metric-card">
-                                                <h5>Most Comments</h5>
-                                                <div id="fb-most-commented" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="metric-card">
-                                                <h5>Most Shares</h5>
-                                                <div id="fb-most-shared" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <!-- Top Posts will be added by dashboard-ui-enhancements.js -->
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="fb-videos-table">
                                             <thead>
@@ -298,16 +269,7 @@
 
                     <!-- Instagram Tab -->
                     <div class="tab-pane fade" id="instagram" role="tabpanel" aria-labelledby="instagram-tab">
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="dashboard-section instagram-section">
-                                    <h3 class="h5 mb-3">Instagram Page Performance</h3>
-                                    <div class="row" id="ig-page-metrics-row">
-                                        <!-- KPI cards will be inserted here by JavaScript -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Instagram Page Metrics will be added by dashboard-ui-enhancements.js -->
                         
                         <div class="row">
                             <div class="col-md-6 mb-4">
@@ -331,41 +293,7 @@
                             <div class="col-md-12 mb-4">
                                 <div class="dashboard-section instagram-section">
                                     <h3 class="h5 mb-3">Top Instagram Posts</h3>
-                                    <div class="row mb-3">
-                                        <div class="col-md-12">
-                                            <h4 class="h6 mb-3">Top Posts by Category</h4>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="metric-card">
-                                                <h5>Most Reach</h5>
-                                                <div id="ig-most-reach" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="metric-card">
-                                                <h5>Most Likes</h5>
-                                                <div id="ig-most-liked" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="metric-card">
-                                                <h5>Most Comments</h5>
-                                                <div id="ig-most-commented" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="metric-card">
-                                                <h5>Most Shares</h5>
-                                                <div id="ig-most-shared" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="metric-card">
-                                                <h5>Most Saved</h5>
-                                                <div id="ig-most-saved" class="small">Loading...</div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <!-- Top Posts will be added by dashboard-ui-enhancements.js -->
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="top-ig-posts-table">
                                             <thead>
@@ -414,53 +342,9 @@
                     </div>
                 </div>
                 
-                <div class="row">
-                    <div class="col-md-12 mb-4">
-                        <div class="dashboard-section email-section">
-                            <h3 class="h5 mb-3">Subscriber Demographics</h3>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="chart-container">
-                                        <canvas id="email-age-chart"></canvas>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="chart-container">
-                                        <canvas id="email-gender-chart"></canvas>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="chart-container">
-                                        <canvas id="email-countries-chart"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-12 mb-4">
-                    <div class="dashboard-section email-section">
-                        <h3 class="h5 mb-3">Best Performing Links</h3>
-                        <div class="table-responsive">
-                            <table class="table table-striped" id="best-links-table">
-                                <thead>
-                                    <tr>
-                                        <th>Link</th>
-                                        <th>Clicks</th>
-                                        <th>Click Rate</th>
-                                        <th>Campaign</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="4" class="text-center">Loading link data...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                <!-- Email Demographics will be added by dashboard-ui-enhancements.js -->
+                
+                <!-- Best Performing Links will be added by dashboard-ui-enhancements.js -->
 
                 <div class="col-md-12 mb-4">
                     <div class="dashboard-section email-section">
@@ -491,6 +375,8 @@
 
             <!-- YouTube Tab -->
             <div class="tab-pane fade" id="youtube" role="tabpanel" aria-labelledby="youtube-tab">
+                <!-- YouTube Metrics Row will be added by dashboard-ui-enhancements.js -->
+                
                 <div class="row">
                     <div class="col-md-6 mb-4">
                         <div class="dashboard-section youtube-section">
@@ -528,6 +414,8 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- YouTube Videos Table will be added by dashboard-ui-enhancements.js -->
             </div>
         </div>
     </div>
@@ -538,70 +426,24 @@
         </div>
     </footer>
 
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Dashboard Components -->
-    <script src="enhanced-date-filter.js"></script>
-    <script src="kpi-cards-component.js"></script>
+    <!-- Dashboard Components - Correct Loading Order -->
     <script src="data-service.js"></script>
+    <script src="enhanced-data-service.js"></script>
     <script src="chart-service.js"></script>
+    <script src="kpi-cards-component.js"></script>
     <script src="table-service.js"></script>
+    <script src="enhanced-date-filter.js"></script>
+    <script src="dashboard-ui-enhancements.js"></script>
+    <script src="youtube-metrics-fix.js"></script>
+    <script src="file-upload-manager.js"></script>
     <script src="dashboard.js"></script>
 
-    <!-- CSS fixes for the dashboard -->
-    <style>
-        /* Loader styling */
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 5px solid #0d6efd;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Fix tab display issue */
-        .tab-content>.tab-pane {
-            display: none;
-        }
-
-        .tab-content>.active {
-            display: block;
-        }
-
-        /* Empty state styling */
-        .no-data-message {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 200px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            color: #6c757d;
-            font-style: italic;
-            text-align: center;
-            padding: 1rem;
-        }
-
-        /* Fix canvas sizing issues */
-        .chart-container canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
-    </style>
-
+    <!-- Empty nojekyll file for GitHub Pages -->
+    <script>
+        // Create .nojekyll file for GitHub Pages
+        // This is just a note - you'll need to actually create an empty file named .nojekyll
+        // in your repository root for GitHub Pages to work properly
+    </script>
 </body>
 
 </html>

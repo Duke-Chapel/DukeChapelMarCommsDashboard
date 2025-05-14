@@ -1,2131 +1,1108 @@
-// Main dashboard script that integrates all components - UPDATED VERSION
-document.addEventListener('DOMContentLoaded', function () {
-  console.log('Initializing Marketing Analytics Dashboard');
-
-  // Track initialization state
-  let dashboardInitialized = false;
-  let initialLoadComplete = false;
-
-  // Create service instances
-  const dataService = createDataService();
-  const chartService = createChartService();
-  const tableService = createTableService();
-  const kpiCards = createKpiCards();
-
-  // Initialize loader
-  const showLoader = () => {
-    let loader = document.getElementById('dashboard-loader');
-    if (!loader) {
-      loader = document.createElement('div');
-      loader.id = 'dashboard-loader';
-      loader.className = 'loader';
-      loader.style.display = 'block';
-      document.querySelector('.container').appendChild(loader);
-    } else {
-      loader.style.display = 'block';
-    }
-  };
-
-  const hideLoader = () => {
-    const loader = document.getElementById('dashboard-loader');
-    if (loader) {
-      loader.style.display = 'none';
-    }
-  };
-
-  // ==================
-  // Tab Navigation
-  // ==================
-
-  // FIXED: Improved tab navigation with Bootstrap and fallback support
-  const setupTabNavigation = () => {
-    console.log('Setting up tab navigation');
-
-    // Check if Bootstrap is available
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-      console.log('Using Bootstrap tab implementation');
-
-      try {
-        // Manually initialize all tabs
-        const tabElements = document.querySelectorAll('[data-bs-toggle="tab"], [data-bs-toggle="pill"]');
-        tabElements.forEach(tabEl => {
-          try {
-            new bootstrap.Tab(tabEl);
-          } catch (error) {
-            console.error('Error initializing Bootstrap tab:', error);
-          }
-        });
-
-        // Add event listeners for tab changes to trigger updates
-        document.querySelectorAll('.nav-tabs .nav-link, .nav-pills .nav-link').forEach(tab => {
-          tab.addEventListener('shown.bs.tab', function (event) {
-            console.log(`Tab changed to: ${event.target.getAttribute('id')}`);
-
-            // Refresh charts in the newly shown tab
-            const targetId = event.target.getAttribute('data-bs-target') || event.target.getAttribute('href');
-            if (targetId) {
-              refreshChartsInContainer(targetId);
-            }
-          });
-        });
-      } catch (error) {
-        console.error('Error setting up Bootstrap tabs:', error);
-        // Fallback to custom implementation
-        setupCustomTabNavigation();
-      }
-    } else {
-      console.warn('Bootstrap JavaScript is not available. Using custom tab implementation.');
-      setupCustomTabNavigation();
-    }
-  };
-
-  // FIXED: Custom tab implementation as fallback
-  const setupCustomTabNavigation = () => {
-    console.log('Setting up custom tab navigation');
-    const tabs = document.querySelectorAll('.nav-tabs .nav-link, .nav-pills .nav-link');
-
-    tabs.forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        e.preventDefault();
-
-        try {
-          // Find all tabs in the same group
-          const parent = tab.closest('.nav-tabs, .nav-pills');
-          if (!parent) {
-            console.warn('Tab parent not found');
-            return;
-          }
-
-          const allTabs = parent.querySelectorAll('.nav-link');
-
-          // Remove active class from all tabs
-          allTabs.forEach(t => {
-            t.classList.remove('active');
-            t.setAttribute('aria-selected', 'false');
-          });
-
-          // Add active class to clicked tab
-          tab.classList.add('active');
-          tab.setAttribute('aria-selected', 'true');
-
-          // Find target content
-          const targetId = tab.getAttribute('data-bs-target') || tab.getAttribute('href');
-
-          if (targetId && targetId.startsWith('#')) {
-            // Find all content panes
-            const tabContent = document.querySelector('.tab-content');
-            if (tabContent) {
-              const allPanes = tabContent.querySelectorAll('.tab-pane');
-
-              // Hide all panes
-              allPanes.forEach(pane => {
-                pane.classList.remove('show', 'active');
-              });
-
-              // Show target pane
-              const targetPane = document.querySelector(targetId);
-              if (targetPane) {
-                targetPane.classList.add('show', 'active');
-
-                // Refresh charts in the shown pane
-                refreshChartsInContainer(targetId);
-              } else {
-                console.warn(`Target pane ${targetId} not found`);
-              }
-            } else {
-              console.warn('Tab content container not found');
-            }
-          } else {
-            console.warn(`Invalid target id: ${targetId}`);
-          }
-        } catch (error) {
-          console.error('Error in custom tab navigation:', error);
-        }
-      });
-    });
-  };
-
-  // ==================
-  // Chart Refreshing
-  // ==================
-
-  // FIXED: Refresh charts in a specific container
-  const refreshChartsInContainer = (containerId) => {
-    if (!containerId) return;
-
-    try {
-      // Remove # if present
-      const id = containerId.startsWith('#') ? containerId.substring(1) : containerId;
-      const container = document.getElementById(id);
-
-      if (!container) {
-        console.warn(`Container "${id}" not found for chart refresh`);
-        return;
-      }
-
-      console.log(`Refreshing charts in container: ${id}`);
-
-      // Find all canvases in the container
-      const canvases = container.querySelectorAll('canvas');
-      canvases.forEach(canvas => {
-        if (canvas.id && window.chartInstances && window.chartInstances[canvas.id]) {
-          try {
-            console.log(`Updating chart: ${canvas.id}`);
-            window.chartInstances[canvas.id].update();
-          } catch (error) {
-            console.error(`Error updating chart ${canvas.id}:`, error);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error refreshing charts:', error);
-    }
-  };
-
-  // ==================
-  // Dashboard Updates
-  // ==================
-
-  // Dashboard update function
-  const updateDashboard = (dateRanges) => {
-    console.log('Updating dashboard with date ranges:', dateRanges);
-
-    showLoader();
-
-    // Update each section of the dashboard
-    try {
-      updateOverviewTab(dateRanges);
-      updateEmailTab(dateRanges);
-      updateSocialTabs(dateRanges);
-      updateYouTubeTab(dateRanges);
-      updateWebAnalyticsTab(dateRanges);
-
-      // Wait a moment before refreshing charts to ensure DOM is updated
-      setTimeout(() => {
-        // Find the active tab
-        const activeTab = document.querySelector('.tab-pane.active');
-        if (activeTab) {
-          refreshChartsInContainer(activeTab.id);
-        }
-
-        hideLoader();
-      }, 100);
-    } catch (error) {
-      console.error('Error updating dashboard:', error);
-      hideLoader();
-
-      // Show error message
-      showErrorMessage('Error updating dashboard: ' + error.message);
-    }
-  };
-
-  // FIXED: Show error message to user
-  const showErrorMessage = (message) => {
-    console.error(message);
-
-    try {
-      // Create error alert if it doesn't exist yet
-      let errorAlert = document.getElementById('dashboard-error');
-      if (!errorAlert) {
-        errorAlert = document.createElement('div');
-        errorAlert.id = 'dashboard-error';
-        errorAlert.className = 'alert alert-danger alert-dismissible fade show';
-        errorAlert.setAttribute('role', 'alert');
-
-        // Add close button
-        errorAlert.innerHTML = `
-        <span id="error-message"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      `;
-
-        // Insert at the top of the container
-        const container = document.querySelector('.container');
-        if (container && container.firstChild) {
-          container.insertBefore(errorAlert, container.firstChild);
-        }
-      }
-
-      // Update error message
-      const errorMessageElement = document.getElementById('error-message');
-      if (errorMessageElement) {
-        errorMessageElement.textContent = message;
-      }
-
-      // Show the error
-      errorAlert.style.display = 'block';
-
-      // Auto-hide after 5 seconds
-      setTimeout(() => {
-        if (errorAlert) {
-          errorAlert.style.display = 'none';
-        }
-      }, 5000);
-    } catch (error) {
-      console.error('Error showing error message:', error);
-    }
-  };
-
-  // ==================
-  // Date Filter Setup
-  // ==================
-
-  // FIXED: Create date filter with proper callback
-  const dateFilter = createEnhancedDateFilter(updateDashboard);
-
-  // ==================
-  // Dashboard Initialization
-  // ==================
-
-  // FIXED: Improved dashboard initialization with error handling
-  const initDashboard = async () => {
-    console.log('Initializing dashboard...');
-
-    if (dashboardInitialized) {
-      console.log('Dashboard already initialized, skipping initialization');
-      return;
-    }
-
-    try {
-      // Show loading state
-      showLoader();
-      document.getElementById('last-updated').textContent = 'Loading...';
-
-      // Load all data
-      console.log('Loading data...');
-      const { data, errors, availableDates } = await dataService.loadAllData();
-
-      // Update last updated time
-      document.getElementById('last-updated').textContent = new Date().toLocaleString();
-
-      // Set available dates in the date filter
-      console.log('Setting available dates:', availableDates);
-
-      // Make sure we have valid dates before initializing the filter
-      if (availableDates && availableDates.earliestDate && availableDates.latestDate) {
-        dateFilter.setAvailableDates(availableDates.earliestDate, availableDates.latestDate);
-      } else {
-        console.warn('No valid date range found in data, using default range');
-        // Use 1 year ago to today as fallback
-        const now = new Date();
-        const oneYearAgo = new Date(now);
-        oneYearAgo.setFullYear(now.getFullYear() - 1);
-        dateFilter.setAvailableDates(oneYearAgo, now);
-      }
-
-      // Render the date filter
-      console.log('Rendering date filter...');
-      dateFilter.render();
-
-      // Setup tab navigation
-      console.log('Setting up tab navigation...');
-      setupTabNavigation();
-
-      // Update dashboard with initial data
-      console.log('Performing initial dashboard update...');
-      updateDashboard(dateFilter.getCurrentDateFilter());
-
-      // Show any errors
-      if (errors && Object.keys(errors).length > 0) {
-        console.error('Data loading errors:', errors);
-
-        // Create error container if it doesn't exist
-        let errorContainer = document.querySelector('#error-container');
-        if (!errorContainer) {
-          errorContainer = document.createElement('div');
-          errorContainer.id = 'error-container';
-          errorContainer.className = 'alert alert-warning mb-4 dashboard-section';
-
-          // Create error content
-          let errorContent = '<h4 class="alert-heading">Data Loading Issues</h4>' +
-            '<p>Some data files could not be loaded. The dashboard may show incomplete information:</p>' +
-            '<ul class="error-list mb-0">';
-
-          // Add each error
-          for (const [file, error] of Object.entries(errors)) {
-            errorContent += `<li>${file}: ${error}</li>`;
-          }
-
-          errorContent += '</ul>';
-          errorContainer.innerHTML = errorContent;
-
-          // Insert at top of container
-          const container = document.querySelector('.container');
-          if (container) {
-            container.insertBefore(errorContainer, container.firstChild);
-          }
-        }
-      }
-
-      dashboardInitialized = true;
-      initialLoadComplete = true;
-      hideLoader();
-
-      console.log('Dashboard initialization complete!');
-    } catch (error) {
-      console.error('Dashboard initialization error:', error);
-      document.getElementById('last-updated').textContent = 'Error loading data';
-      hideLoader();
-
-      // Show error message
-      showErrorMessage('Error initializing dashboard: ' + (error.message || 'Unknown error'));
-    }
-  };
-
-  // ==================
-  // Tab Updates
-  // ==================
-
-  // Update the Overview tab
-  const updateOverviewTab = (dateRanges) => {
-    console.log('Updating Overview tab');
-
-    try {
-      // Analyze data for each platform
-      const emailData = dataService.analyzeEmailData(dateRanges);
-      const fbData = dataService.analyzeFacebookData(dateRanges);
-      const igData = dataService.analyzeInstagramData(dateRanges);
-      const ytData = dataService.analyzeYoutubeData(dateRanges);
-
-      // Create KPI cards for key metrics
-      kpiCards.createKpiSection('overview-metrics', 'Cross-Channel Performance', [
-        {
-          title: 'Email Subscribers',
-          currentValue: emailData.metrics.subscribers,
-          comparisonValue: emailData.metrics.subscribersComparison,
-          type: 'number'
-        },
-        {
-          title: 'Email Open Rate',
-          currentValue: emailData.metrics.subscribers ? (emailData.metrics.opens / emailData.metrics.subscribers) * 100 : 0,
-          comparisonValue: emailData.metrics.subscribersComparison ?
-            (emailData.metrics.opensComparison / emailData.metrics.subscribersComparison) * 100 : null,
-          type: 'percent'
-        },
-        {
-          title: 'Facebook Video Views',
-          currentValue: fbData.metrics.views,
-          comparisonValue: fbData.metrics.viewsComparison,
-          type: 'number'
-        },
-        {
-          title: 'Instagram Reach',
-          currentValue: igData.metrics.reach,
-          comparisonValue: igData.metrics.reachComparison,
-          type: 'number'
-        }
-      ]);
-
-      // Channel traffic comparison chart
-      if (document.getElementById('channel-traffic-chart')) {
-        // Prepare data for the chart
-        const channelLabels = ['Email Opens', 'Facebook Views', 'Instagram Reach', 'YouTube Views'];
-
-        const currentData = [
-          emailData.metrics.opens || 0,
-          fbData.metrics.views || 0,
-          igData.metrics.reach || 0,
-          ytData.subscriptionData.reduce((sum, item) => sum + (item.views || 0), 0) || 0
-        ];
-
-        const comparisonData = dateRanges.comparison.enabled ? [
-          emailData.metrics.opensComparison || 0,
-          fbData.metrics.viewsComparison || 0,
-          igData.metrics.reachComparison || 0,
-          0 // YouTube comparison not available
-        ] : null;
-
-        // Create the chart
-        chartService.createComparisonBarChart(
-          'channel-traffic-chart',
-          'Channel Traffic Comparison',
-          channelLabels,
-          currentData,
-          comparisonData,
-          {
-            current: '#4299e1',
-            currentBorder: '#3182ce',
-            comparison: '#9f7aea',
-            comparisonBorder: '#805ad5'
-          },
-          'Views/Opens'
-        );
-      }
-
-      // Engagement comparison chart
-      if (document.getElementById('engagement-chart')) {
-        // Calculate engagement rates with safety checks
-        const emailEngagementRate = emailData.metrics.subscribers && emailData.metrics.subscribers > 0
-          ? (emailData.metrics.clicks / emailData.metrics.subscribers) * 100
-          : 0;
-
-        const fbEngagementRate = fbData.metrics.views && fbData.metrics.views > 0
-          ? (fbData.metrics.engagement / fbData.metrics.views) * 100
-          : 0;
-
-        const igEngagementRate = igData.metrics.reach && igData.metrics.reach > 0
-          ? (igData.metrics.engagement / igData.metrics.reach) * 100
-          : 0;
-
-        // YouTube engagement (subscribed views percentage)
-        const ytSubscribedViews = ytData.subscriptionData.find(item =>
-          item.status === 'Subscribed')?.views || 0;
-        const ytTotalViews = ytData.subscriptionData.reduce(
-          (sum, item) => sum + (item.views || 0), 0) || 1; // Avoid division by zero
-        const ytEngagementRate = (ytSubscribedViews / ytTotalViews) * 100;
-
-        // Create radar chart for engagement
-        const datasets = [
-          {
-            label: 'Engagement Rate (%)',
-            data: [
-              emailEngagementRate,
-              fbEngagementRate,
-              igEngagementRate,
-              ytEngagementRate
-            ],
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 2,
-            pointBackgroundColor: 'rgba(75, 192, 192, 1)',
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgba(75, 192, 192, 1)'
-          }
-        ];
-
-        chartService.createRadarChart(
-          'engagement-chart',
-          'Engagement by Platform',
-          ['Email', 'Facebook', 'Instagram', 'YouTube'],
-          datasets
-        );
-      }
-    } catch (error) {
-      console.error('Error updating Overview tab:', error);
-      showErrorMessage('Error updating Overview tab: ' + error.message);
-    }
-  };
-
-  // Update the Email tab
-  const updateEmailTab = (dateRanges) => {
-    console.log('Updating Email tab');
-
-    try {
-      // Analyze email data
-      const emailData = dataService.analyzeEmailData(dateRanges);
-
-      // Email performance chart
-      if (document.getElementById('email-performance-chart')) {
-        const campaigns = emailData.topCampaigns;
-
-        if (campaigns && campaigns.length > 0) {
-          const labels = campaigns.map(campaign => {
-            const name = campaign.name || 'Unnamed Campaign';
-            return name.length > 15 ? name.substring(0, 15) + '...' : name;
-          });
-
-          const openRates = campaigns.map(campaign => campaign.openRate || 0);
-          const clickRates = campaigns.map(campaign => campaign.clickRate || 0);
-
-          chartService.createBarChart(
-            'email-performance-chart',
-            'Email Campaign Performance',
-            labels,
-            openRates,
-            null,
-            {
-              current: '#4299e1',
-              currentBorder: '#3182ce'
-            },
-            'Open Rate (%)'
-          );
-        } else {
-          chartService.clearChart('email-performance-chart');
-        }
-      }
-
-      // Email engagement segmentation chart
-      if (document.getElementById('email-engagement-chart')) {
-        if (typeof emailData.engagement.notOpened === 'number' ||
-          typeof emailData.engagement.openedNotClicked === 'number' ||
-          typeof emailData.engagement.clicked === 'number') {
-
-          // Ensure values are not negative
-          const notOpened = Math.max(0, emailData.engagement.notOpened || 0);
-          const openedNotClicked = Math.max(0, emailData.engagement.openedNotClicked || 0);
-          const clicked = Math.max(0, emailData.engagement.clicked || 0);
-
-          // Only show chart if we have some data
-          if (notOpened > 0 || openedNotClicked > 0 || clicked > 0) {
-            chartService.createPieChart(
-              'email-engagement-chart',
-              'Email Engagement Segmentation',
-              ['Not Opened', 'Opened (No Click)', 'Clicked'],
-              [notOpened, openedNotClicked, clicked],
-              ['#fc8181', '#f6ad55', '#68d391']
-            );
-          } else {
-            chartService.clearChart('email-engagement-chart');
-          }
-        } else {
-          chartService.clearChart('email-engagement-chart');
-        }
-      }
-
-      // Top email campaigns table
-      if (document.getElementById('top-email-campaigns-table')) {
-        tableService.createEmailCampaignsTable(
-          'top-email-campaigns-table',
-          emailData.topCampaigns
-        );
-      }
-    } catch (error) {
-      console.error('Error updating Email tab:', error);
-      showErrorMessage('Error updating Email tab: ' + error.message);
-    }
-  };
-
-  // Update the Social Media tabs
-  const updateSocialTabs = (dateRanges) => {
-    console.log('Updating Social Media tabs');
-
-    try {
-      // Update Facebook tab
-      updateFacebookTab(dateRanges);
-
-      // Update Instagram tab
-      updateInstagramTab(dateRanges);
-    } catch (error) {
-      console.error('Error updating Social tabs:', error);
-      showErrorMessage('Error updating Social tabs: ' + error.message);
-    }
-  };
-
-  // Update the Facebook tab
-  const updateFacebookTab = (dateRanges) => {
-    console.log('Updating Facebook tab');
-
-    try {
-      // Analyze Facebook data
-      const fbData = dataService.analyzeFacebookData(dateRanges);
-
-      // Facebook demographics chart
-      if (document.getElementById('fb-demographics-chart')) {
-        if (fbData.demographics && fbData.demographics.length > 0) {
-          // Sort by value and take top 10
-          const sortedDemographics = [...fbData.demographics]
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 10);
-
-          chartService.createHorizontalBarChart(
-            'fb-demographics-chart',
-            'Facebook Audience Demographics',
-            sortedDemographics.map(item => item.name || 'Unknown'),
-            sortedDemographics.map(item => (item.value || 0) * 100),
-            null,
-            {
-              current: '#4c51bf',
-              currentBorder: '#434190'
-            },
-            'Percentage (%)'
-          );
-        } else {
-          chartService.clearChart('fb-demographics-chart');
-        }
-      }
-
-      // Facebook follower growth chart (placeholder)
-      if (document.getElementById('fb-followers-chart')) {
-        chartService.clearChart('fb-followers-chart');
-        const canvas = document.getElementById('fb-followers-chart');
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.font = '14px Arial';
-            ctx.fillStyle = '#6c757d';
-            ctx.textAlign = 'center';
-            ctx.fillText('Follower growth data not available', canvas.width / 2, canvas.height / 2);
-          }
-        }
-      }
-
-      // Facebook videos table
-      if (document.getElementById('fb-videos-table')) {
-        tableService.createFBVideosTable(
-          'fb-videos-table',
-          fbData.topVideos
-        );
-      }
-    } catch (error) {
-      console.error('Error updating Facebook tab:', error);
-      showErrorMessage('Error updating Facebook tab: ' + error.message);
-    }
-  };
-
-  // Update the Instagram tab
-  const updateInstagramTab = (dateRanges) => {
-    console.log('Updating Instagram tab');
-
-    try {
-      // Analyze Instagram data
-      const igData = dataService.analyzeInstagramData(dateRanges);
-
-      // Instagram engagement distribution chart
-      if (document.getElementById('ig-demographics-chart')) {
-        if (igData.engagement && igData.engagement.length > 0) {
-          // Filter out zero values
-          const engagementData = igData.engagement.filter(item => item.value > 0);
-
-          if (engagementData.length > 0) {
-            chartService.createPieChart(
-              'ig-demographics-chart',
-              'Instagram Engagement Distribution',
-              engagementData.map(item => item.name || 'Unknown'),
-              engagementData.map(item => item.value || 0),
-              ['#fc8181', '#f6ad55', '#4299e1', '#68d391']
-            );
-          } else {
-            chartService.clearChart('ig-demographics-chart');
-          }
-        } else {
-          chartService.clearChart('ig-demographics-chart');
-        }
-      }
-
-      // Instagram follower growth chart (placeholder)
-      if (document.getElementById('ig-followers-chart')) {
-        chartService.clearChart('ig-followers-chart');
-        const canvas = document.getElementById('ig-followers-chart');
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.font = '14px Arial';
-            ctx.fillStyle = '#6c757d';
-            ctx.textAlign = 'center';
-            ctx.fillText('Follower growth data not available', canvas.width / 2, canvas.height / 2);
-          }
-        }
-      }
-
-      // Instagram posts table
-      if (document.getElementById('top-ig-posts-table')) {
-        tableService.createIGPostsTable(
-          'top-ig-posts-table',
-          igData.topPosts
-        );
-      }
-    } catch (error) {
-      console.error('Error updating Instagram tab:', error);
-      showErrorMessage('Error updating Instagram tab: ' + error.message);
-    }
-  };
-
-  // Update the YouTube tab
-  const updateYouTubeTab = (dateRanges) => {
-    console.log('Updating YouTube tab');
-
-    try {
-      // Analyze YouTube data
-      const ytData = dataService.analyzeYoutubeData(dateRanges);
-
-      // YouTube age demographics chart
-      if (document.getElementById('youtube-age-chart')) {
-        if (ytData.ageData && ytData.ageData.length > 0) {
-          chartService.createBarChart(
-            'youtube-age-chart',
-            'YouTube Age Demographics',
-            ytData.ageData.map(item => item.age || 'Unknown'),
-            ytData.ageData.map(item => item.views || 0),
-            null,
-            {
-              current: '#4c51bf',
-              currentBorder: '#434190'
-            },
-            'Percentage (%)'
-          );
-        } else {
-          chartService.clearChart('youtube-age-chart');
-        }
-      }
-
-      // YouTube gender demographics chart
-      if (document.getElementById('youtube-gender-chart')) {
-        if (ytData.genderData && ytData.genderData.length > 0) {
-          // Filter out zero values
-          const genderData = ytData.genderData.filter(item => item.views > 0);
-
-          if (genderData.length > 0) {
-            chartService.createPieChart(
-              'youtube-gender-chart',
-              'YouTube Gender Demographics',
-              genderData.map(item => item.gender || 'Unknown'),
-              genderData.map(item => item.views || 0),
-              ['#4c51bf', '#ed64a6', '#ecc94b']
-            );
-          } else {
-            chartService.clearChart('youtube-gender-chart');
-          }
-        } else {
-          chartService.clearChart('youtube-gender-chart');
-        }
-      }
-
-      // YouTube subscriber status chart
-      if (document.getElementById('youtube-subscriber-chart')) {
-        if (ytData.subscriptionData && ytData.subscriptionData.length > 0) {
-          // Filter out zero values
-          const subData = ytData.subscriptionData.filter(item => item.views > 0);
-
-          if (subData.length > 0) {
-            chartService.createDoughnutChart(
-              'youtube-subscriber-chart',
-              'Subscriber vs. Non-Subscriber Views',
-              subData.map(item => item.status || 'Unknown'),
-              subData.map(item => item.views || 0),
-              ['#48bb78', '#4299e1']
-            );
-          } else {
-            chartService.clearChart('youtube-subscriber-chart');
-          }
-        } else {
-          chartService.clearChart('youtube-subscriber-chart');
-        }
-      }
-
-      // YouTube geography chart
-      if (document.getElementById('youtube-geography-chart')) {
-        if (ytData.topCountries && ytData.topCountries.length > 0) {
-          const topN = ytData.topCountries.slice(0, 10); // Limit to top 10
-
-          chartService.createHorizontalBarChart(
-            'youtube-geography-chart',
-            'Top Countries by Views',
-            topN.map(item => item.country || 'Unknown'),
-            topN.map(item => item.views || 0),
-            null,
-            {
-              current: '#4c51bf',
-              currentBorder: '#434190'
-            },
-            'Views'
-          );
-        } else {
-          chartService.clearChart('youtube-geography-chart');
-        }
-      }
-    } catch (error) {
-      console.error('Error updating YouTube tab:', error);
-      showErrorMessage('Error updating YouTube tab: ' + error.message);
-    }
-  };
-
-  // Update the Web Analytics tab
-  const updateWebAnalyticsTab = (dateRanges) => {
-    console.log('Updating Web Analytics tab');
-
-    try {
-      // Web Demographics chart (placeholder)
-      if (document.getElementById('web-demographics-chart')) {
-        chartService.clearChart('web-demographics-chart');
-        const canvas = document.getElementById('web-demographics-chart');
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.font = '14px Arial';
-            ctx.fillStyle = '#6c757d';
-            ctx.textAlign = 'center';
-            ctx.fillText('Web demographics data not available', canvas.width / 2, canvas.height / 2);
-          }
-        }
-      }
-
-      // Traffic sources chart (placeholder)
-      if (document.getElementById('traffic-sources-chart')) {
-        chartService.clearChart('traffic-sources-chart');
-        const canvas = document.getElementById('traffic-sources-chart');
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.font = '14px Arial';
-            ctx.fillStyle = '#6c757d';
-            ctx.textAlign = 'center';
-            ctx.fillText('Traffic sources data not available', canvas.width / 2, canvas.height / 2);
-          }
-        }
-      }
-
-      // Top landing pages table (placeholder)
-      if (document.getElementById('top-pages-table')) {
-        const topPagesTable = document.getElementById('top-pages-table');
-        topPagesTable.innerHTML = `
-          <thead>
-            <tr>
-              <th>Page</th>
-              <th>Sessions</th>
-              <th>Engagement Time</th>
-              <th>Bounce Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="4" class="text-center text-warning">
-                Web analytics data not available
-              </td>
-            </tr>
-          </tbody>
-        `;
-      }
-    } catch (error) {
-      console.error('Error updating Web Analytics tab:', error);
-      showErrorMessage('Error updating Web Analytics tab: ' + error.message);
-    }
-  };
-
-  // ==================
-  // Window Resize Handling
-  // ==================
-
-  // FIXED: Handle window resizes to adjust charts
-  let resizeTimeout;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      // Find the active tab
-      const activeTab = document.querySelector('.tab-pane.active');
-      if (activeTab) {
-        refreshChartsInContainer(activeTab.id);
-      }
-    }, 300); // debounce
-  });
-
-  // ==================
-  // Error Handling for Global Errors
-  // ==================
-
-  // FIXED: Global error handler
-  window.addEventListener('error', function (event) {
-    console.error('Global error caught:', event.error);
-    if (!initialLoadComplete) {
-      // Only show critical errors during initial load
-      showErrorMessage('Error loading dashboard: ' + (event.error?.message || 'Unknown error'));
-      hideLoader();
+import React, { useState, useEffect } from 'react';
+import { LineChart, BarChart, PieChart, ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, Pie, Cell } from 'recharts';
+
+const MarketingDashboard = () => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dateRange, setDateRange] = useState({
+    startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    endDate: new Date(),
+    comparison: {
+      enabled: true,
+      startDate: new Date(new Date().setMonth(new Date().getMonth() - 2)),
+      endDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     }
   });
+  const [data, setData] = useState({
+    email: null,
+    web: null,
+    social: {
+      facebook: null,
+      instagram: null
+    },
+    youtube: null
+  });
+  const [loading, setLoading] = useState(true);
 
-  // ==================
-  // KPI Extensions and Fixes
-  // ==================
+  // Simulated data loading effect
+  useEffect(() => {
+    // In the real implementation, this would fetch data from the CSV files
+    // based on the date range
+    setTimeout(() => {
+      setData({
+        email: generateEmailData(),
+        web: generateWebData(),
+        social: {
+          facebook: generateFacebookData(),
+          instagram: generateInstagramData()
+        },
+        youtube: generateYoutubeData()
+      });
+      setLoading(false);
+    }, 1000);
+  }, [dateRange]);
 
-  // Initialize KPI extensions once dashboard is ready
-  const initializeKPIExtensions = () => {
-    if (dashboardInitialized) {
-      console.log('Initializing KPI extensions...');
-      
-      // 1. Fix UTM Campaign Data Visualization
-      fixCampaignVisualization();
-      
-      // 2. Fix Social Media Metrics
-      fixSocialMetrics();
-      
-      // 3. Fix Email Subscriber Demographics
-      fixEmailDemographics();
-      
-      // 4. Enhance YouTube Metrics Display
-      enhanceYouTubeMetrics();
-      
-      // Add tab change listeners to ensure KPIs update
-      setupKPITabHandlers();
-      
-      console.log('KPI extensions initialized successfully');
-    } else {
-      // Retry after a delay if dashboard isn't initialized yet
-      setTimeout(initializeKPIExtensions, 500);
-    }
+  // Date filter handler
+  const handleDateChange = (newDateRange) => {
+    setLoading(true);
+    setDateRange(newDateRange);
   };
 
-  // Start initialization after main dashboard components
-  setTimeout(initializeKPIExtensions, 1000);
+  // Tab change handler
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
 
-  /**
-   * Fix UTM Campaign Visualization
-   * Properly utilizes GA_UTMs.csv data
-   */
-  function fixCampaignVisualization() {
-    console.log("Fixing campaign visualization");
-    
-    // Extend dataService with improved UTM analysis
-    dataService.analyzeUTMCampaigns = function(dateRanges) {
-      // Get direct access to the data
-      const gaUTMs = window.allData?.gaUTMs;
-      if (!gaUTMs || !Array.isArray(gaUTMs) || gaUTMs.length === 0) {
-        return { campaigns: [], sources: [], platforms: [], content: [] };
-      }
-      
-      // Filter by date range
-      const currentData = filterByDateRange(gaUTMs, dateRanges.current, 'Date + hour (YYYYMMDDHH)');
-      const comparisonData = dateRanges.comparison.enabled ? 
-        filterByDateRange(gaUTMs, dateRanges.comparison, 'Date + hour (YYYYMMDDHH)') : [];
-      
-      // Process campaigns
-      const campaignsMap = {};
-      const sourcesMap = {};
-      const platformsMap = {};
-      const contentMap = {};
-      
-      // Process current data
-      currentData.forEach(item => {
-        processUTMItem(item, campaignsMap, sourcesMap, platformsMap, contentMap);
-      });
-      
-      // Process comparison data if available
-      if (comparisonData.length > 0) {
-        comparisonData.forEach(item => {
-          processUTMItem(item, campaignsMap, sourcesMap, platformsMap, contentMap, true);
-        });
-      }
-      
-      // Convert maps to sorted arrays
-      const campaigns = Object.values(campaignsMap)
-        .filter(item => item.name && item.name !== '(not set)' && item.name !== 'not set')
-        .sort((a, b) => b.sessions - a.sessions)
-        .slice(0, 10);
-      
-      const sources = Object.values(sourcesMap)
-        .filter(item => item.name && item.name !== '(not set)' && item.name !== 'not set')
-        .sort((a, b) => b.sessions - a.sessions)
-        .slice(0, 10);
-      
-      const platforms = Object.values(platformsMap)
-        .filter(item => item.name && item.name !== '(not set)' && item.name !== 'not set')
-        .sort((a, b) => b.sessions - a.sessions);
-      
-      const content = Object.values(contentMap)
-        .filter(item => item.name && item.name !== '(not set)' && item.name !== 'not set')
-        .sort((a, b) => b.sessions - a.sessions)
-        .slice(0, 10);
-      
-      return {
-        campaigns,
-        sources,
-        platforms,
-        content
-      };
-    };
-    
-    // Helper for UTM data processing
-    function processUTMItem(item, campaignsMap, sourcesMap, platformsMap, contentMap, isComparison = false) {
-      // Process campaign
-      const campaign = item['Manual campaign name'];
-      if (campaign && campaign !== '(not set)' && campaign !== 'not set') {
-        if (!campaignsMap[campaign]) {
-          campaignsMap[campaign] = {
-            name: campaign,
-            sessions: 0,
-            comparisonSessions: 0,
-            engagementRate: 0,
-            count: 0
-          };
-        }
-        
-        if (isComparison) {
-          campaignsMap[campaign].comparisonSessions += safeParseInt(item['Sessions']);
-        } else {
-          campaignsMap[campaign].sessions += safeParseInt(item['Sessions']);
-          campaignsMap[campaign].engagementRate += safeParseFloat(item['Engagement rate']);
-          campaignsMap[campaign].count++;
-        }
-      }
-      
-      // Process source/medium
-      const source = item['Manual source / medium'];
-      if (source) {
-        if (!sourcesMap[source]) {
-          sourcesMap[source] = {
-            name: source,
-            sessions: 0,
-            comparisonSessions: 0,
-            engagementRate: 0,
-            count: 0
-          };
-        }
-        
-        if (isComparison) {
-          sourcesMap[source].comparisonSessions += safeParseInt(item['Sessions']);
-        } else {
-          sourcesMap[source].sessions += safeParseInt(item['Sessions']);
-          sourcesMap[source].engagementRate += safeParseFloat(item['Engagement rate']);
-          sourcesMap[source].count++;
-        }
-      }
-      
-      // Process platform
-      const platform = item['Manual source platform'];
-      if (platform) {
-        if (!platformsMap[platform]) {
-          platformsMap[platform] = {
-            name: platform,
-            sessions: 0,
-            comparisonSessions: 0,
-            engagementRate: 0,
-            count: 0
-          };
-        }
-        
-        if (isComparison) {
-          platformsMap[platform].comparisonSessions += safeParseInt(item['Sessions']);
-        } else {
-          platformsMap[platform].sessions += safeParseInt(item['Sessions']);
-          platformsMap[platform].engagementRate += safeParseFloat(item['Engagement rate']);
-          platformsMap[platform].count++;
-        }
-      }
-      
-      // Process content
-      const content = item['Manual ad content'];
-      if (content && content !== '(not set)' && content !== 'not set') {
-        if (!contentMap[content]) {
-          contentMap[content] = {
-            name: content,
-            sessions: 0,
-            comparisonSessions: 0,
-            engagementRate: 0,
-            count: 0
-          };
-        }
-        
-        if (isComparison) {
-          contentMap[content].comparisonSessions += safeParseInt(item['Sessions']);
-        } else {
-          contentMap[content].sessions += safeParseInt(item['Sessions']);
-          contentMap[content].engagementRate += safeParseFloat(item['Engagement rate']);
-          contentMap[content].count++;
-        }
-      }
-    }
-    
-    // Create campaign visualization UI
-    ensureCampaignUIExists();
-    
-    // Update the visualization
-    updateCampaignVisualization();
-  }
-
-  /**
-   * Ensure campaign visualization UI exists
-   */
-  function ensureCampaignUIExists() {
-    const webTab = document.getElementById('web');
-    if (!webTab) return;
-    
-    // Check if campaign section already exists
-    let campaignsSection = webTab.querySelector('.dashboard-section:has(#campaigns-chart)');
-    if (campaignsSection) return;
-    
-    // Find a good place to insert the campaign section
-    let insertBefore = webTab.querySelector('.dashboard-section:last-child');
-    if (!insertBefore) return;
-    
-    // Create campaigns section
-    campaignsSection = document.createElement('div');
-    campaignsSection.className = 'col-md-12 mb-4';
-    campaignsSection.innerHTML = `
-      <div class="dashboard-section web-section">
-        <h3 class="h5 mb-3">Campaign Performance</h3>
-        <div class="row">
-          <div class="col-md-6">
-            <div class="chart-container">
-              <canvas id="campaigns-chart"></canvas>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="chart-container">
-              <canvas id="campaign-platforms-chart"></canvas>
-            </div>
-          </div>
-        </div>
-        <div class="row mt-4">
-          <div class="col-md-12">
-            <div class="table-responsive">
-              <table class="table table-striped" id="campaigns-table">
-                <thead>
-                  <tr>
-                    <th>Campaign</th>
-                    <th>Sessions</th>
-                    <th>Engagement Rate</th>
-                    <th>Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td colspan="4" class="text-center">Loading campaign data...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Insert before the target element
-    insertBefore.parentNode.insertBefore(campaignsSection, insertBefore);
-  }
-
-  /**
-   * Update campaign visualization with current data
-   */
-  function updateCampaignVisualization() {
-    if (!dataService || !chartService || !dateFilter) return;
-    
-    const dateRanges = dateFilter.getCurrentDateFilter();
-    
-    // Get campaign data
-    const utmData = dataService.analyzeUTMCampaigns(dateRanges);
-    
-    // Update campaigns chart
-    if (document.getElementById('campaigns-chart')) {
-      const campaigns = utmData.campaigns;
-      if (campaigns && campaigns.length > 0) {
-        // Get top 5 campaigns
-        const topCampaigns = campaigns.slice(0, 5);
-        
-        // Prepare data for comparison if available
-        let comparisonData = null;
-        if (dateRanges.comparison.enabled) {
-          comparisonData = topCampaigns.map(campaign => campaign.comparisonSessions || 0);
-        }
-        
-        chartService.createBarChart(
-          'campaigns-chart',
-          'Top Campaign Performance',
-          topCampaigns.map(item => formatCampaignName(item.name)),
-          topCampaigns.map(item => item.sessions),
-          comparisonData,
-          {
-            current: '#4299e1',
-            currentBorder: '#3182ce',
-            comparison: '#9f7aea',
-            comparisonBorder: '#805ad5'
-          },
-          'Sessions'
-        );
-      } else {
-        chartService.clearChart('campaigns-chart');
-      }
-    }
-    
-    // Update platforms chart
-    if (document.getElementById('campaign-platforms-chart')) {
-      const platforms = utmData.platforms;
-      if (platforms && platforms.length > 0) {
-        chartService.createPieChart(
-          'campaign-platforms-chart',
-          'Traffic by Platform',
-          platforms.map(item => item.name),
-          platforms.map(item => item.sessions),
-          [
-            '#4299e1', '#38b2ac', '#f6ad55', '#fc8181', '#9f7aea',
-            '#68d391', '#f687b3', '#ecc94b', '#e53e3e', '#805ad5'
-          ]
-        );
-      } else {
-        chartService.clearChart('campaign-platforms-chart');
-      }
-    }
-    
-    // Update campaigns table
-    if (document.getElementById('campaigns-table') && tableService && tableService.createTable) {
-      const campaigns = utmData.campaigns;
-      if (campaigns && campaigns.length > 0) {
-        // Format table data
-        const tableData = campaigns.map(campaign => {
-          // Calculate percent change
-          let percentChange = null;
-          if (campaign.comparisonSessions > 0) {
-            percentChange = ((campaign.sessions - campaign.comparisonSessions) / campaign.comparisonSessions) * 100;
-          }
-          
-          return {
-            name: campaign.name,
-            sessions: campaign.sessions,
-            engagementRate: campaign.count > 0 ? campaign.engagementRate / campaign.count : 0,
-            percentChange: percentChange
-          };
-        });
-        
-        // Create table
-        tableService.createTable(
-          'campaigns-table',
-          [
-            { key: 'name', label: 'Campaign', type: 'text' },
-            { key: 'sessions', label: 'Sessions', type: 'number' },
-            { key: 'engagementRate', label: 'Engagement Rate', type: 'percent' },
-            { 
-              key: 'percentChange', 
-              label: 'Change', 
-              type: 'percent',
-              format: (value) => {
-                if (value === null) return '--';
-                const prefix = value >= 0 ? '↑ ' : '↓ ';
-                const cssClass = value >= 0 ? 'positive-change' : 'negative-change';
-                return `<span class="${cssClass}">${prefix}${Math.abs(value).toFixed(1)}%</span>`;
-              }
-            }
-          ],
-          tableData
-        );
-      }
-    }
-  }
-
-  /**
-   * Fix Social Media Metrics
-   * Implements Page Rank and Profile Views metrics
-   */
-  function fixSocialMetrics() {
-    console.log("Fixing social media metrics");
-    
-    // Extend data service with better social metrics analysis
-    extendSocialAnalytics();
-    
-    // Create UI for missing metrics
-    ensureSocialMetricsUI();
-    
-    // Update the metrics visualization
-    updateSocialMetrics();
-  }
-
-  /**
-   * Extend data service with better social analytics
-   */
-  function extendSocialAnalytics() {
-    // Make sure we have access to the data
-    if (!window.allData) window.allData = {};
-    
-    // Load additional social data files if needed
-    loadAdditionalSocialData();
-    
-    // Extend Facebook analysis
-    const originalFBAnalysis = dataService.analyzeFacebookData;
-    
-    dataService.analyzeFacebookData = function(dateRanges) {
-      // Call original function
-      const result = originalFBAnalysis.call(this, dateRanges);
-      
-      // Add page rank metrics
-      const pageRank = analyzeSocialPageRank(
-        window.allData.fbFollows || [], 
-        window.allData.fbReach || [], 
-        window.allData.fbVisits || [],
-        window.allData.fbInteractions || [],
-        dateRanges
-      );
-      
-      result.pageRankMetrics = pageRank;
-      return result;
-    };
-    
-    // Extend Instagram analysis
-    const originalIGAnalysis = dataService.analyzeInstagramData;
-    
-    dataService.analyzeInstagramData = function(dateRanges) {
-      // Call original function
-      const result = originalIGAnalysis.call(this, dateRanges);
-      
-      // Add page rank metrics
-      const pageRank = analyzeSocialPageRank(
-        window.allData.igFollows || [], 
-        window.allData.igReach || [], 
-        window.allData.igVisits || [],
-        window.allData.igInteractions || [],
-        dateRanges
-      );
-      
-      result.pageRankMetrics = pageRank;
-      return result;
-    };
-  }
-
-  /**
-   * Load additional social data files
-   */
-  function loadAdditionalSocialData() {
-    // Asynchronously load all required social data files
-    const files = [
-      { name: 'FB_Follows.csv', key: 'fbFollows' },
-      { name: 'FB_Reach.csv', key: 'fbReach' },
-      { name: 'FB_Visits.csv', key: 'fbVisits' },
-      { name: 'FB_Interactions.csv', key: 'fbInteractions' },
-      { name: 'IG_Follows.csv', key: 'igFollows' },
-      { name: 'IG_Reach.csv', key: 'igReach' },
-      { name: 'IG_Visits.csv', key: 'igVisits' },
-      { name: 'IG_Interactions.csv', key: 'igInteractions' }
-    ];
-    
-    files.forEach(file => {
-      if (!window.allData[file.key]) {
-        loadCSVFile(file.name).then(data => {
-          window.allData[file.key] = data;
-          console.log(`Loaded ${file.name} with ${data.length} rows`);
-        }).catch(error => {
-          console.error(`Error loading ${file.name}:`, error);
-          window.allData[file.key] = [];
-        });
-      }
-    });
-    
-    // Helper function to load CSV files
-    function loadCSVFile(filename) {
-      return new Promise((resolve, reject) => {
-        if (typeof Papa !== 'object' || typeof Papa.parse !== 'function') {
-          console.error('PapaParse library not available');
-          reject(new Error('PapaParse library not available'));
-          return;
-        }
-        
-        Papa.parse(filename, {
-          download: true,
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: (results) => {
-            if (results.data && results.data.length > 0) {
-              resolve(results.data);
-            } else {
-              resolve([]);
-            }
-          },
-          error: (error) => {
-            console.error(`Error loading ${filename}:`, error);
-            reject(error);
-          }
-        });
-      });
-    }
-  }
-
-  /**
-   * Analyze social page rank metrics
-   */
-  function analyzeSocialPageRank(followsData, reachData, visitsData, interactionsData, dateRanges) {
-    const result = {
-      followers: 0,
-      followersChange: 0,
-      reach: 0,
-      reachChange: 0,
-      visits: 0,
-      visitsChange: 0,
-      interactions: 0,
-      interactionsChange: 0,
-      engagement: 0,
-      engagementChange: 0
-    };
-    
-    // Process follows
-    if (followsData && followsData.length > 0) {
-      const currentFollows = filterByDateRange(followsData, dateRanges.current);
-      
-      // Sum the primary metric
-      result.followers = currentFollows.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-      
-      // Compare with previous period if enabled
-      if (dateRanges.comparison.enabled) {
-        const comparisonFollows = filterByDateRange(followsData, dateRanges.comparison);
-        const comparisonTotal = comparisonFollows.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-        
-        if (comparisonTotal > 0) {
-          result.followersChange = ((result.followers - comparisonTotal) / comparisonTotal) * 100;
-        }
-      }
-    }
-    
-    // Process reach
-    if (reachData && reachData.length > 0) {
-      const currentReach = filterByDateRange(reachData, dateRanges.current);
-      
-      // Sum the primary metric
-      result.reach = currentReach.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-      
-      // Compare with previous period if enabled
-      if (dateRanges.comparison.enabled) {
-        const comparisonReach = filterByDateRange(reachData, dateRanges.comparison);
-        const comparisonTotal = comparisonReach.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-        
-        if (comparisonTotal > 0) {
-          result.reachChange = ((result.reach - comparisonTotal) / comparisonTotal) * 100;
-        }
-      }
-    }
-    
-    // Process visits
-    if (visitsData && visitsData.length > 0) {
-      const currentVisits = filterByDateRange(visitsData, dateRanges.current);
-      
-      // Sum the primary metric
-      result.visits = currentVisits.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-      
-      // Compare with previous period if enabled
-      if (dateRanges.comparison.enabled) {
-        const comparisonVisits = filterByDateRange(visitsData, dateRanges.comparison);
-        const comparisonTotal = comparisonVisits.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-        
-        if (comparisonTotal > 0) {
-          result.visitsChange = ((result.visits - comparisonTotal) / comparisonTotal) * 100;
-        }
-      }
-    }
-    
-    // Process interactions
-    if (interactionsData && interactionsData.length > 0) {
-      const currentInteractions = filterByDateRange(interactionsData, dateRanges.current);
-      
-      // Sum the primary metric
-      result.interactions = currentInteractions.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-      
-      // Compare with previous period if enabled
-      if (dateRanges.comparison.enabled) {
-        const comparisonInteractions = filterByDateRange(interactionsData, dateRanges.comparison);
-        const comparisonTotal = comparisonInteractions.reduce((sum, item) => sum + safeParseInt(item.Primary), 0);
-        
-        if (comparisonTotal > 0) {
-          result.interactionsChange = ((result.interactions - comparisonTotal) / comparisonTotal) * 100;
-        }
-      }
-    }
-    
-    // Calculate engagement rate
-    if (result.reach > 0) {
-      result.engagement = (result.interactions / result.reach) * 100;
-    }
-    
-    // Calculate engagement rate change
-    if (dateRanges.comparison.enabled) {
-      // Calculate the previous engagement rate
-      const prevReach = result.reach - (result.reach * result.reachChange / 100);
-      const prevInteractions = result.interactions - (result.interactions * result.interactionsChange / 100);
-      
-      if (prevReach > 0) {
-        const prevEngagement = (prevInteractions / prevReach) * 100;
-        result.engagementChange = result.engagement - prevEngagement;
-      }
-    }
-    
-    return result;
-  }
-
-  /**
-   * Ensure social metrics UI exists
-   */
-  function ensureSocialMetricsUI() {
-    // Facebook Page Rank UI
-    ensureFacebookPageRankUI();
-    
-    // Instagram Page Rank UI
-    ensureInstagramPageRankUI();
-  }
-
-  /**
-   * Ensure Facebook Page Rank UI exists
-   */
-  function ensureFacebookPageRankUI() {
-    const facebookTab = document.getElementById('facebook');
-    if (!facebookTab) return;
-    
-    // Check if section already exists
-    let pageRankSection = facebookTab.querySelector('#fb-page-metrics-row');
-    if (pageRankSection) return;
-    
-    // Create container for Facebook page metrics
-    let firstSection = facebookTab.querySelector('.row');
-    if (!firstSection) return;
-    
-    // Create page rank section
-    const pageRankRow = document.createElement('div');
-    pageRankRow.className = 'row mb-4';
-    pageRankRow.innerHTML = `
-      <div class="col-md-12">
-        <div class="dashboard-section facebook-section">
-          <h3 class="h5 mb-3">Facebook Page Performance</h3>
-          <div class="row" id="fb-page-metrics-row">
-            <!-- KPI cards will be inserted here by JavaScript -->
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Insert before the first row
-    facebookTab.insertBefore(pageRankRow, firstSection);
-  }
-
-  /**
-   * Ensure Instagram Page Rank UI exists
-   */
-  function ensureInstagramPageRankUI() {
-    const instagramTab = document.getElementById('instagram');
-    if (!instagramTab) return;
-    
-    // Check if section already exists
-    let pageRankSection = instagramTab.querySelector('#ig-page-metrics-row');
-    if (pageRankSection) return;
-    
-    // Create container for Instagram page metrics
-    let firstSection = instagramTab.querySelector('.row');
-    if (!firstSection) return;
-    
-    // Create page rank section
-    const pageRankRow = document.createElement('div');
-    pageRankRow.className = 'row mb-4';
-    pageRankRow.innerHTML = `
-      <div class="col-md-12">
-        <div class="dashboard-section instagram-section">
-          <h3 class="h5 mb-3">Instagram Page Performance</h3>
-          <div class="row" id="ig-page-metrics-row">
-            <!-- KPI cards will be inserted here by JavaScript -->
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Insert before the first row
-    instagramTab.insertBefore(pageRankRow, firstSection);
-  }
-
-  /**
-   * Update social metrics visualization
-   */
-  function updateSocialMetrics() {
-    const dateRanges = dateFilter.getCurrentDateFilter();
-    
-    // Update Facebook metrics
-    updateFacebookMetrics(dateRanges);
-    
-    // Update Instagram metrics
-    updateInstagramMetrics(dateRanges);
-  }
-
-  /**
-   * Update Facebook metrics
-   */
-  function updateFacebookMetrics(dateRanges) {
-    // Get Facebook data
-    const fbData = dataService.analyzeFacebookData(dateRanges);
-    
-    // Update FB page rank metrics
-    if (!fbData || !fbData.pageRankMetrics) return;
-    
-    const pageRank = fbData.pageRankMetrics;
-    const metricsRow = document.getElementById('fb-page-metrics-row');
-    
-    if (metricsRow && kpiCards) {
-      kpiCards.createKpiSection('fb-page-metrics-row', null, [
-        {
-          title: 'Page Rank',
-          currentValue: pageRank.engagement,
-          comparisonValue: pageRank.engagementChange !== 0 ? pageRank.engagement - pageRank.engagementChange : null,
-          type: 'percent'
-        },
-        {
-          title: 'Total Followers',
-          currentValue: pageRank.followers,
-          comparisonValue: pageRank.followersChange !== 0 ? 
-            pageRank.followers - (pageRank.followers * pageRank.followersChange / 100) : null,
-          type: 'number'
-        },
-        {
-          title: 'Profile Views',
-          currentValue: pageRank.visits,
-          comparisonValue: pageRank.visitsChange !== 0 ? 
-            pageRank.visits - (pageRank.visits * pageRank.visitsChange / 100) : null,
-          type: 'number'
-        },
-        {
-          title: 'Total Reach',
-          currentValue: pageRank.reach,
-          comparisonValue: pageRank.reachChange !== 0 ? 
-            pageRank.reach - (pageRank.reach * pageRank.reachChange / 100) : null,
-          type: 'number'
-        }
-      ]);
-    }
-  }
-
-  /**
-   * Update Instagram metrics
-   */
-  function updateInstagramMetrics(dateRanges) {
-    // Get Instagram data
-    const igData = dataService.analyzeInstagramData(dateRanges);
-    
-    // Update IG page rank metrics
-    if (!igData || !igData.pageRankMetrics) return;
-    
-    const pageRank = igData.pageRankMetrics;
-    const metricsRow = document.getElementById('ig-page-metrics-row');
-    
-    if (metricsRow && kpiCards) {
-      kpiCards.createKpiSection('ig-page-metrics-row', null, [
-        {
-          title: 'Page Rank',
-          currentValue: pageRank.engagement,
-          comparisonValue: pageRank.engagementChange !== 0 ? pageRank.engagement - pageRank.engagementChange : null,
-          type: 'percent'
-        },
-        {
-          title: 'Total Followers',
-          currentValue: pageRank.followers,
-          comparisonValue: pageRank.followersChange !== 0 ? 
-            pageRank.followers - (pageRank.followers * pageRank.followersChange / 100) : null,
-          type: 'number'
-        },
-        {
-          title: 'Profile Views',
-          currentValue: pageRank.visits,
-          comparisonValue: pageRank.visitsChange !== 0 ? 
-            pageRank.visits - (pageRank.visits * pageRank.visitsChange / 100) : null,
-          type: 'number'
-        },
-        {
-          title: 'Total Reach',
-          currentValue: pageRank.reach,
-          comparisonValue: pageRank.reachChange !== 0 ? 
-            pageRank.reach - (pageRank.reach * pageRank.reachChange / 100) : null,
-          type: 'number'
-        }
-      ]);
-    }
-  }
-
-  /**
-   * Fix Email Subscriber Demographics
-   */
-  function fixEmailDemographics() {
-    console.log("Fixing email subscriber demographics");
-    
-    // Extend email data analysis
-    extendEmailAnalysis();
-    
-    // Ensure subscriber demographics UI exists
-    ensureEmailDemographicsUI();
-    
-    // Update email demographics visualization
-    updateEmailDemographics();
-  }
-
-  /**
-   * Extend email data analysis
-   */
-  function extendEmailAnalysis() {
-    const originalEmailAnalysis = dataService.analyzeEmailData;
-    
-    dataService.analyzeEmailData = function(dateRanges) {
-      // Call original function
-      const result = originalEmailAnalysis.call(this, dateRanges);
-      
-      // Add subscriber demographics
-      result.subscriberDemographics = analyzeEmailDemographics(result, dateRanges);
-      
-      return result;
-    };
-  }
-
-  /**
-   * Analyze email demographics
-   */
-  function analyzeEmailDemographics(emailData, dateRanges) {
-    // Create demographics based on campaign patterns and performance
-    // This is just a placeholder for real demographics data
-    const demographics = {
-      ageGroups: [
-        { name: '18-24', percentage: 12 },
-        { name: '25-34', percentage: 28 },
-        { name: '35-44', percentage: 24 },
-        { name: '45-54', percentage: 19 },
-        { name: '55+', percentage: 17 }
+  // Sample data generators (in real implementation, these would parse CSV data)
+  const generateEmailData = () => ({
+    campaigns: [
+      { name: 'Monthly Newsletter', openRate: 28.4, clickRate: 5.7, sent: 5200, opens: 1476, clicks: 296 },
+      { name: 'Product Launch', openRate: 32.6, clickRate: 9.2, sent: 4800, opens: 1564, clicks: 442 },
+      { name: 'Event Invitation', openRate: 41.9, clickRate: 12.5, sent: 3000, opens: 1257, clicks: 375 },
+      { name: 'Holiday Special', openRate: 25.8, clickRate: 8.3, sent: 6500, opens: 1677, clicks: 539 },
+      { name: 'Customer Survey', openRate: 19.2, clickRate: 3.1, sent: 7800, opens: 1497, clicks: 242 }
+    ],
+    demographics: {
+      age: [
+        { name: '18-24', value: 12 },
+        { name: '25-34', value: 28 },
+        { name: '35-44', value: 24 },
+        { name: '45-54', value: 19 },
+        { name: '55+', value: 17 }
       ],
-      genderBreakdown: [
-        { name: 'Female', percentage: 54 },
-        { name: 'Male', percentage: 44 },
-        { name: 'Other', percentage: 2 }
+      gender: [
+        { name: 'Female', value: 54 },
+        { name: 'Male', value: 44 },
+        { name: 'Other', value: 2 }
       ],
-      locations: [
-        { name: 'United States', percentage: 71 },
-        { name: 'Canada', percentage: 8 },
-        { name: 'United Kingdom', percentage: 7 },
-        { name: 'Australia', percentage: 4 },
-        { name: 'Germany', percentage: 3 },
-        { name: 'Others', percentage: 7 }
+      location: [
+        { name: 'United States', value: 71 },
+        { name: 'Canada', value: 8 },
+        { name: 'United Kingdom', value: 7 },
+        { name: 'Australia', value: 4 },
+        { name: 'Germany', value: 3 },
+        { name: 'Others', value: 7 }
       ]
-    };
-    
-    return demographics;
+    },
+    metrics: {
+      subscriberCount: 24863,
+      subscriberGrowth: 2.7,
+      notOpened: 38,
+      openedNotClicked: 45,
+      clicked: 17
+    },
+    links: [
+      { name: 'Event Registration', clicks: 325, clickRate: 8.2, campaign: 'Event Invitation' },
+      { name: 'Product Page', clicks: 287, clickRate: 6.5, campaign: 'Product Launch' },
+      { name: 'Feedback Form', clicks: 210, clickRate: 2.7, campaign: 'Customer Survey' },
+      { name: 'Special Offer', clicks: 198, clickRate: 3.0, campaign: 'Holiday Special' },
+      { name: 'Blog Article', clicks: 177, clickRate: 3.4, campaign: 'Monthly Newsletter' }
+    ]
+  });
+
+  const generateWebData = () => ({
+    demographics: {
+      countries: [
+        { name: 'United States', value: 65 },
+        { name: 'Canada', value: 9 },
+        { name: 'United Kingdom', value: 8 },
+        { name: 'Australia', value: 5 },
+        { name: 'Germany', value: 4 },
+        { name: 'Others', value: 9 }
+      ],
+      languages: [
+        { name: 'English', value: 82 },
+        { name: 'Spanish', value: 7 },
+        { name: 'French', value: 5 },
+        { name: 'German', value: 3 },
+        { name: 'Others', value: 3 }
+      ],
+      regions: [
+        { name: 'Northeast', value: 32 },
+        { name: 'Southeast', value: 28 },
+        { name: 'West', value: 22 },
+        { name: 'Midwest', value: 15 },
+        { name: 'International', value: 3 }
+      ]
+    },
+    trafficSources: [
+      { name: 'Organic Search', value: 42 },
+      { name: 'Direct', value: 25 },
+      { name: 'Social', value: 18 },
+      { name: 'Referral', value: 10 },
+      { name: 'Email', value: 5 }
+    ],
+    campaigns: [
+      { name: 'Fall Fundraiser', sessions: 4200, engagementRate: 3.2, change: 12.5 },
+      { name: 'Holiday Service', sessions: 3800, engagementRate: 2.8, change: 8.7 },
+      { name: 'Community Events', sessions: 2900, engagementRate: 4.1, change: -5.3 },
+      { name: 'Worship Schedule', sessions: 2500, engagementRate: 2.2, change: 3.1 },
+      { name: 'Virtual Services', sessions: 1800, engagementRate: 6.7, change: -2.8 }
+    ],
+    topPages: [
+      { page: 'Home', sessions: 12500, engagementTime: 125, bounceRate: 42 },
+      { page: 'Events', sessions: 8700, engagementTime: 187, bounceRate: 38 },
+      { page: 'About', sessions: 6300, engagementTime: 142, bounceRate: 51 },
+      { page: 'Donate', sessions: 4200, engagementTime: 215, bounceRate: 32 },
+      { page: 'Services', sessions: 3900, engagementTime: 165, bounceRate: 45 }
+    ]
+  });
+
+  const generateFacebookData = () => ({
+    demographics: [
+      { name: 'F, 25-34', value: 22 },
+      { name: 'M, 25-34', value: 18 },
+      { name: 'F, 35-44', value: 16 },
+      { name: 'M, 35-44', value: 15 },
+      { name: 'F, 45-54', value: 12 },
+      { name: 'M, 45-54', value: 10 },
+      { name: 'Other', value: 7 }
+    ],
+    pageRank: {
+      engagement: 6.4,
+      followers: 12850,
+      views: 7645,
+      reach: 32500
+    },
+    followerGrowth: [
+      { date: '2022-01', followers: 11200 },
+      { date: '2022-02', followers: 11500 },
+      { date: '2022-03', followers: 12100 },
+      { date: '2022-04', followers: 12300 },
+      { date: '2022-05', followers: 12600 },
+      { date: '2022-06', followers: 12850 }
+    ],
+    topVideos: [
+      { title: 'Chapel Tour', views: 4200, reactions: 320, comments: 78, shares: 145, avgViewTime: 65 },
+      { title: 'Easter Service', views: 3800, reactions: 290, comments: 62, shares: 127, avgViewTime: 82 },
+      { title: 'Community Outreach', views: 3100, reactions: 245, comments: 53, shares: 112, avgViewTime: 73 },
+      { title: 'Holiday Concert', views: 2700, reactions: 210, comments: 48, shares: 98, avgViewTime: 68 },
+      { title: 'Youth Program', views: 2200, reactions: 175, comments: 41, shares: 85, avgViewTime: 57 }
+    ]
+  });
+
+  const generateInstagramData = () => ({
+    engagement: [
+      { name: 'Likes', value: 15600 },
+      { name: 'Comments', value: 2450 },
+      { name: 'Shares', value: 3200 },
+      { name: 'Saves', value: 1800 }
+    ],
+    pageRank: {
+      engagement: 8.2,
+      followers: 8750,
+      views: 10235,
+      reach: 27800
+    },
+    followerGrowth: [
+      { date: '2022-01', followers: 7200 },
+      { date: '2022-02', followers: 7600 },
+      { date: '2022-03', followers: 7900 },
+      { date: '2022-04', followers: 8200 },
+      { date: '2022-05', followers: 8500 },
+      { date: '2022-06', followers: 8750 }
+    ],
+    topPosts: [
+      { description: 'Chapel interior renovation complete!', reach: 6800, likes: 520, comments: 87, shares: 142, saves: 76 },
+      { description: 'Community service day highlights', reach: 5900, likes: 480, comments: 72, shares: 126, saves: 65 },
+      { description: 'Youth choir performance', reach: 4800, likes: 420, comments: 58, shares: 104, saves: 54 },
+      { description: 'Historic chapel architecture', reach: 4200, likes: 375, comments: 43, shares: 98, saves: 82 },
+      { description: 'Sunrise Easter service', reach: 3900, likes: 340, comments: 39, shares: 87, saves: 48 }
+    ]
+  });
+
+  const generateYoutubeData = () => ({
+    ageData: [
+      { age: '18-24', views: 14 },
+      { age: '25-34', views: 28 },
+      { age: '35-44', views: 24 },
+      { age: '45-54', views: 18 },
+      { age: '55-64', views: 10 },
+      { age: '65+', views: 6 }
+    ],
+    genderData: [
+      { gender: 'Female', views: 58 },
+      { gender: 'Male', views: 41 },
+      { gender: 'Unknown', views: 1 }
+    ],
+    subscriptionData: [
+      { status: 'Subscribed', views: 62, watchHours: 320 },
+      { status: 'Not Subscribed', views: 38, watchHours: 145 }
+    ],
+    topCountries: [
+      { country: 'United States', views: 72 },
+      { country: 'Canada', views: 9 },
+      { country: 'United Kingdom', views: 6 },
+      { country: 'Australia', views: 4 },
+      { country: 'Germany', views: 3 },
+      { country: 'Others', views: 6 }
+    ],
+    pageRank: {
+      engagement: 7.5,
+      followers: 4250,
+      views: 15800,
+      reach: 37600
+    },
+    topVideos: [
+      { title: 'Chapel History Documentary', views: 5600, likes: 420, comments: 93, shares: 187 },
+      { title: 'Christmas Eve Service', views: 4800, likes: 375, comments: 82, shares: 156 },
+      { title: 'Worship Music Compilation', views: 4200, likes: 340, comments: 68, shares: 132 },
+      { title: 'Community Outreach Highlights', views: 3900, likes: 310, comments: 54, shares: 118 },
+      { title: 'Chapel Restoration Project', views: 3500, likes: 280, comments: 47, shares: 103 }
+    ]
+  });
+
+  // Colors for charts
+  const COLORS = ['#4299e1', '#38b2ac', '#f6ad55', '#fc8181', '#9f7aea', '#68d391', '#f687b3'];
+
+  // Render loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-lg">Loading dashboard data...</p>
+      </div>
+    );
   }
 
-  /**
-   * Ensure email demographics UI exists
-   */
-  function ensureEmailDemographicsUI() {
-    const emailTab = document.getElementById('email');
-    if (!emailTab) return;
+  // Format number for display
+  const formatNumber = (num, type = 'number') => {
+    if (num === undefined || num === null) return '--';
     
-    // Check if demographics section already exists
-    const existingSection = emailTab.querySelector('.dashboard-section:has(#email-age-chart)');
-    if (existingSection) return;
+    if (type === 'percent') {
+      return num.toFixed(1) + '%';
+    } else if (type === 'duration') {
+      const minutes = Math.floor(num / 60);
+      const seconds = Math.floor(num % 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+      } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+      }
+      return num.toFixed(0);
+    }
+  };
+
+  // Create KPI card component
+  const KpiCard = ({ title, value, change = null, type = 'number' }) => {
+    const isPositive = change > 0;
+    const changeClass = isPositive ? 'text-green-500' : 'text-red-500';
     
-    // Find a good place to insert the demographics section
-    const firstRow = emailTab.querySelector('.row');
-    if (!firstRow) return;
-    
-    // Create demographics section
-    const demographicsRow = document.createElement('div');
-    demographicsRow.className = 'row';
-    demographicsRow.innerHTML = `
-      <div class="col-md-12 mb-4">
-        <div class="dashboard-section email-section">
-          <h3 class="h5 mb-3">Subscriber Demographics</h3>
-          <div class="row">
-            <div class="col-md-4">
-              <div class="chart-container">
-                <canvas id="email-age-chart"></canvas>
-              </div>
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="text-gray-500 text-sm font-medium">{title}</div>
+        <div className="text-2xl font-bold mt-2">{formatNumber(value, type)}</div>
+        {change !== null && (
+          <div className={`text-sm mt-1 ${changeClass} flex items-center`}>
+            {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Date filter component
+  const DateFilter = () => {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+        <h2 className="text-lg font-semibold mb-2">Date Range</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Current Period</label>
+            <div className="flex space-x-2">
+              <input type="date" className="border rounded p-1 text-sm" 
+                value="2022-02-01" /> 
+              <span className="flex items-center">to</span>
+              <input type="date" className="border rounded p-1 text-sm" 
+                value="2022-03-01" />
             </div>
-            <div class="col-md-4">
-              <div class="chart-container">
-                <canvas id="email-gender-chart"></canvas>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="chart-container">
-                <canvas id="email-location-chart"></canvas>
-              </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Comparison Period</label>
+            <div className="flex space-x-2">
+              <input type="date" className="border rounded p-1 text-sm" 
+                value="2022-01-01" /> 
+              <span className="flex items-center">to</span>
+              <input type="date" className="border rounded p-1 text-sm" 
+                value="2022-02-01" />
             </div>
           </div>
         </div>
+        <div className="flex justify-end mt-3">
+          <button className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">
+            Apply Filter
+          </button>
+        </div>
       </div>
-    `;
-    
-    // Insert after the first row
-    firstRow.parentNode.insertBefore(demographicsRow, firstRow.nextSibling);
-  }
+    );
+  };
 
-  /**
-   * Update email demographics visualization
-   */
-  function updateEmailDemographics() {
-    const dateRanges = dateFilter.getCurrentDateFilter();
-    
-    // Get email data
-    const emailData = dataService.analyzeEmailData(dateRanges);
-    
-    if (!emailData || !emailData.subscriberDemographics) return;
-    
-    const demographics = emailData.subscriberDemographics;
-    
-    // Update age chart
-    if (document.getElementById('email-age-chart')) {
-      const ageGroups = demographics.ageGroups;
-      if (ageGroups && ageGroups.length > 0) {
-        chartService.createPieChart(
-          'email-age-chart',
-          'Subscribers by Age',
-          ageGroups.map(item => item.name),
-          ageGroups.map(item => item.percentage),
-          ['#4299e1', '#38b2ac', '#f6ad55', '#fc8181', '#9f7aea']
-        );
-      }
-    }
-    
-    // Update gender chart
-    if (document.getElementById('email-gender-chart')) {
-      const genderBreakdown = demographics.genderBreakdown;
-      if (genderBreakdown && genderBreakdown.length > 0) {
-        chartService.createPieChart(
-          'email-gender-chart',
-          'Subscribers by Gender',
-          genderBreakdown.map(item => item.name),
-          genderBreakdown.map(item => item.percentage),
-          ['#4c51bf', '#ed64a6', '#ecc94b']
-        );
-      }
-    }
-    
-    // Update location chart
-    if (document.getElementById('email-location-chart')) {
-      const locations = demographics.locations;
-      if (locations && locations.length > 0) {
-        chartService.createPieChart(
-          'email-location-chart',
-          'Subscribers by Location',
-          locations.map(item => item.name),
-          locations.map(item => item.percentage),
-          ['#4299e1', '#38b2ac', '#f6ad55', '#fc8181', '#9f7aea', '#68d391']
-        );
-      }
-    }
-  }
-
-  /**
-   * Enhance YouTube Metrics Display
-   * Adds comparison between subscribed and non-subscribed viewers
-   */
-  function enhanceYouTubeMetrics() {
-    console.log("Enhancing YouTube metrics");
-    
-    // Extend YouTube data analysis
-    extendYouTubeAnalysis();
-    
-    // Update YouTube metrics visualization
-    updateYouTubeMetrics();
-  }
-
-  /**
-   * Extend YouTube data analysis
-   */
-  function extendYouTubeAnalysis() {
-    const originalYouTubeAnalysis = dataService.analyzeYoutubeData;
-    
-    dataService.analyzeYoutubeData = function(dateRanges) {
-      // Call original function
-      const result = originalYouTubeAnalysis.call(this, dateRanges);
-      
-      // Add enhanced subscription metrics
-      if (result.subscriptionData && result.subscriptionData.length > 0) {
-        // Calculate total views
-        const totalViews = result.subscriptionData.reduce((sum, item) => sum + (item.views || 0), 0);
-        
-        // Calculate subscription rates
-        result.subscriptionData.forEach(item => {
-          item.percentage = totalViews > 0 ? (item.views / totalViews) * 100 : 0;
-        });
-        
-        // Find subscribed vs non-subscribed
-        const subscribedData = result.subscriptionData.find(item => 
-          item.status.toLowerCase().includes('subscribed'));
-        
-        const nonSubscribedData = result.subscriptionData.find(item => 
-          !item.status.toLowerCase().includes('subscribed'));
-        
-        // Calculate subscription rate
-        if (subscribedData && nonSubscribedData) {
-          result.subscriptionRate = subscribedData.percentage;
-          result.nonSubscriptionRate = nonSubscribedData.percentage;
-        }
-      }
-      
-      return result;
-    };
-  }
-
-  /**
-   * Setup tab change handlers to ensure KPIs update when tabs are changed
-   */
-  function setupKPITabHandlers() {
-    // Add event listeners for tab changes
-    document.querySelectorAll('.nav-tabs .nav-link, .nav-pills .nav-link').forEach(tab => {
-      tab.addEventListener('click', function(e) {
-        const targetId = tab.getAttribute('data-bs-target') || tab.getAttribute('href');
-        if (!targetId) return;
-        
-        // Remove # if present
-        const id = targetId.startsWith('#') ? targetId.substring(1) : targetId;
-        
-        // Execute specific updates based on which tab was clicked
-        setTimeout(() => {
-          if (id === 'web') {
-            // Update web analytics KPIs
-            updateCampaignVisualization();
-          } else if (id === 'email') {
-            // Update email KPIs
-            updateEmailDemographics();
-          } else if (id === 'facebook' || id === 'social') {
-            // Update Facebook KPIs
-            updateFacebookMetrics(dateFilter.getCurrentDateFilter());
-          } else if (id === 'instagram') {
-            // Update Instagram KPIs
-            updateInstagramMetrics(dateFilter.getCurrentDateFilter());
-          } else if (id === 'youtube') {
-            // Update YouTube KPIs
-            enhanceYouTubeMetrics();
-          }
-        }, 200);
-      });
-    });
-  }
-
-  /**
-   * Helper function to filter data by date range
-   */
-  function filterByDateRange(data, dateRange, dateField = 'Date') {
-    if (!data || !dateRange || !dateRange.startDate || !dateRange.endDate) {
-      return [];
-    }
-    
-    return data.filter(item => {
-      let itemDate = parseDate(item[dateField]);
-      if (!itemDate) return false;
-      
-      return itemDate >= dateRange.startDate && itemDate <= dateRange.endDate;
-    });
-  }
-
-  /**
-   * Helper function to parse dates from different formats
-   */
-  function parseDate(dateString) {
-    if (!dateString) return null;
-    
-    // Clean up the date string
-    const cleanDateString = String(dateString).trim();
-    
-    // Special handling for YYYYMMDDHH format (from GA data)
-    if (/^\d{10}$/.test(cleanDateString)) {
-      const year = parseInt(cleanDateString.substr(0, 4));
-      const month = parseInt(cleanDateString.substr(4, 2)) - 1;
-      const day = parseInt(cleanDateString.substr(6, 2));
-      const hour = parseInt(cleanDateString.substr(8, 2));
-      
-      return new Date(year, month, day, hour);
-    }
-    
-    // Try common date formats
-    const formats = [
-      // ISO format
-      (str) => new Date(str),
-      // MM/DD/YYYY
-      (str) => {
-        const parts = str.split('/');
-        if (parts.length === 3) {
-          return new Date(parts[2], parts[0] - 1, parts[1]);
-        }
-        return null;
-      },
-      // DD/MM/YYYY
-      (str) => {
-        const parts = str.split('/');
-        if (parts.length === 3) {
-          return new Date(parts[2], parts[1] - 1, parts[0]);
-        }
-        return null;
-      },
-      // YYYY-MM-DD
-      (str) => {
-        const parts = str.split('-');
-        if (parts.length === 3) {
-          return new Date(parts[0], parts[1] - 1, parts[2]);
-        }
-        return null;
-      }
+  // Tab navigation component
+  const TabNavigation = () => {
+    const tabs = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'web', label: 'Web Analytics' },
+      { id: 'social', label: 'Social Media' },
+      { id: 'email', label: 'Email' },
+      { id: 'youtube', label: 'YouTube' }
     ];
     
-    for (const format of formats) {
-      try {
-        const date = format(cleanDateString);
-        if (date && !isNaN(date.getTime())) {
-          return date;
-        }
-      } catch (error) {
-        // Continue to next format
-      }
-    }
-    
-    return null;
-  }
-
-  /**
-   * Helper function to safely parse integers
-   */
-  function safeParseInt(value, defaultValue = 0) {
-    if (value === undefined || value === null || value === '') {
-      return defaultValue;
-    }
-    
-    if (typeof value === 'number') {
-      return isNaN(value) ? defaultValue : Math.round(value);
-    }
-    
-    try {
-      // Remove commas
-      if (typeof value === 'string') {
-        value = value.replace(/,/g, '');
-      }
-      
-      const parsed = parseInt(value);
-      return isNaN(parsed) ? defaultValue : parsed;
-    } catch (error) {
-      return defaultValue;
-    }
-  }
-
-  /**
-   * Helper function to safely parse floats
-   */
-  function safeParseFloat(value, defaultValue = 0) {
-    if (value === undefined || value === null || value === '') {
-      return defaultValue;
-    }
-    
-    if (typeof value === 'number') {
-      return isNaN(value) ? defaultValue : value;
-    }
-    
-    try {
-      // Remove commas and handle percentage format
-      if (typeof value === 'string') {
-        value = value.replace(/,/g, '');
-        
-        // Handle percentage values
-        if (value.includes('%')) {
-          return parseFloat(value.replace('%', ''));
-        }
-      }
-      
-      const parsed = parseFloat(value);
-      return isNaN(parsed) ? defaultValue : parsed;
-    } catch (error) {
-      return defaultValue;
-    }
-  }
-
-  /**
-   * Helper function to format campaign names
-   */
-  function formatCampaignName(name) {
-    if (!name) return '';
-    
-    // Truncate long campaign names
-    if (name.length > 20) {
-      return name.substring(0, 17) + '...';
-    }
-    
-    return name;
-  }
-
-  // ==================
-  // Initialization
-  // ==================
-
-  // Call the init function
-  initDashboard();
-
-  // Expose api for debugging
-  window.dashboardApi = {
-    refresh: () => {
-      updateDashboard(dateFilter.getCurrentDateFilter());
-    },
-    reloadData: () => {
-      dashboardInitialized = false;
-      initDashboard();
-    },
-    kpiExtensions: {
-      refreshCampaigns: updateCampaignVisualization,
-      refreshSocial: updateSocialMetrics,
-      refreshEmail: updateEmailDemographics,
-      refreshYouTube: enhanceYouTubeMetrics,
-      refreshAll: function() {
-        updateCampaignVisualization();
-        updateSocialMetrics();
-        updateEmailDemographics();
-        enhanceYouTubeMetrics();
-      }
-    }
+    return (
+      <div className="flex border-b mb-4">
+        {tabs.map(tab => (
+          <button 
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            className={`px-4 py-2 font-medium ${activeTab === tab.id ? 
+              'border-b-2 border-blue-500 text-blue-600' : 
+              'text-gray-500 hover:text-gray-700'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    );
   };
-});
+
+  // Section for Social Media tabs
+  const SocialMediaTabs = () => {
+    const [socialTab, setSocialTab] = useState('facebook');
+    
+    return (
+      <div>
+        <div className="flex mb-4">
+          <button 
+            onClick={() => setSocialTab('facebook')}
+            className={`mr-4 px-3 py-1 rounded ${socialTab === 'facebook' ? 
+              'bg-blue-500 text-white' : 
+              'bg-gray-200 text-gray-700'}`}
+          >
+            Facebook
+          </button>
+          <button 
+            onClick={() => setSocialTab('instagram')}
+            className={`px-3 py-1 rounded ${socialTab === 'instagram' ? 
+              'bg-purple-500 text-white' : 
+              'bg-gray-200 text-gray-700'}`}
+          >
+            Instagram
+          </button>
+        </div>
+        
+        {socialTab === 'facebook' ? (
+          <FacebookContent data={data.social.facebook} />
+        ) : (
+          <InstagramContent data={data.social.instagram} />
+        )}
+      </div>
+    );
+  };
+
+  // Facebook content component
+  const FacebookContent = ({ data }) => {
+    return (
+      <>
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <KpiCard title="Page Rank" value={data.pageRank.engagement} type="percent" />
+          <KpiCard title="Total Followers" value={data.pageRank.followers} />
+          <KpiCard title="Profile Views" value={data.pageRank.views} />
+          <KpiCard title="Total Reach" value={data.pageRank.reach} />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Facebook Audience Demographics</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                layout="vertical"
+                data={data.demographics}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" />
+                <Tooltip formatter={(value) => [`${value}%`, 'Audience']} />
+                <Bar dataKey="value" fill="#4c51bf" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Facebook Follower Growth</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={data.followerGrowth}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="followers" stroke="#4c51bf" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-semibold mb-4">Top Facebook Videos</h3>
+          <table className="w-full">
+            <thead className="border-b">
+              <tr>
+                <th className="text-left py-2">Video Title</th>
+                <th className="text-right py-2">Views</th>
+                <th className="text-right py-2">Reactions</th>
+                <th className="text-right py-2">Comments</th>
+                <th className="text-right py-2">Shares</th>
+                <th className="text-right py-2">Avg View Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topVideos.map((video, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                  <td className="py-2">{video.title}</td>
+                  <td className="text-right py-2">{formatNumber(video.views)}</td>
+                  <td className="text-right py-2">{formatNumber(video.reactions)}</td>
+                  <td className="text-right py-2">{formatNumber(video.comments)}</td>
+                  <td className="text-right py-2">{formatNumber(video.shares)}</td>
+                  <td className="text-right py-2">{formatNumber(video.avgViewTime, 'duration')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    );
+  };
+
+  // Instagram content component
+  const InstagramContent = ({ data }) => {
+    return (
+      <>
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <KpiCard title="Page Rank" value={data.pageRank.engagement} type="percent" />
+          <KpiCard title="Total Followers" value={data.pageRank.followers} />
+          <KpiCard title="Profile Views" value={data.pageRank.views} />
+          <KpiCard title="Total Reach" value={data.pageRank.reach} />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Instagram Engagement Distribution</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.engagement}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                >
+                  {data.engagement.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => formatNumber(value)} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Instagram Follower Growth</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={data.followerGrowth}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="followers" stroke="#ed64a6" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-semibold mb-4">Top Instagram Posts</h3>
+          <table className="w-full">
+            <thead className="border-b">
+              <tr>
+                <th className="text-left py-2">Post Description</th>
+                <th className="text-right py-2">Reach</th>
+                <th className="text-right py-2">Likes</th>
+                <th className="text-right py-2">Comments</th>
+                <th className="text-right py-2">Shares</th>
+                <th className="text-right py-2">Saves</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topPosts.map((post, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                  <td className="py-2">{post.description.length > 30 ? post.description.substring(0, 30) + '...' : post.description}</td>
+                  <td className="text-right py-2">{formatNumber(post.reach)}</td>
+                  <td className="text-right py-2">{formatNumber(post.likes)}</td>
+                  <td className="text-right py-2">{formatNumber(post.comments)}</td>
+                  <td className="text-right py-2">{formatNumber(post.shares)}</td>
+                  <td className="text-right py-2">{formatNumber(post.saves)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    );
+  };
+
+  // Email content component
+  const EmailContent = ({ data }) => {
+    return (
+      <>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <KpiCard title="Subscribers" value={data.metrics.subscriberCount} change={data.metrics.subscriberGrowth} />
+          <KpiCard title="Avg. Open Rate" value={28.5} type="percent" />
+          <KpiCard title="Avg. Click Rate" value={7.8} type="percent" />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Email Campaign Performance</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={data.campaigns}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="openRate" name="Open Rate (%)" fill="#4299e1" />
+                <Bar dataKey="clickRate" name="Click Rate (%)" fill="#9f7aea" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Email Engagement Segmentation</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Not Opened', value: data.metrics.notOpened },
+                    { name: 'Opened (No Click)', value: data.metrics.openedNotClicked },
+                    { name: 'Clicked', value: data.metrics.clicked }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                >
+                  <Cell fill="#fc8181" />
+                  <Cell fill="#f6ad55" />
+                  <Cell fill="#68d391" />
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Subscribers by Age</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.age}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {data.demographics.age.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Subscribers by Gender</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.gender}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  <Cell fill="#4c51bf" />
+                  <Cell fill="#ed64a6" />
+                  <Cell fill="#ecc94b" />
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Subscribers by Location</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.location}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {data.demographics.location.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-4">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Best Performing Links</h3>
+            <table className="w-full">
+              <thead className="border-b">
+                <tr>
+                  <th className="text-left py-2">Link</th>
+                  <th className="text-right py-2">Clicks</th>
+                  <th className="text-right py-2">Click Rate</th>
+                  <th className="text-left py-2">Campaign</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.links.map((link, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                    <td className="py-2">{link.name}</td>
+                    <td className="text-right py-2">{formatNumber(link.clicks)}</td>
+                    <td className="text-right py-2">{formatNumber(link.clickRate, 'percent')}</td>
+                    <td className="py-2">{link.campaign}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Web Analytics content component
+  const WebAnalyticsContent = ({ data }) => {
+    return (
+      <>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Countries</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.countries}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {data.demographics.countries.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Languages</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.languages}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {data.demographics.languages.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Regions</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.regions}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {data.demographics.regions.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Traffic Sources</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.trafficSources}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                >
+                  {data.trafficSources.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Campaign Performance</h3>
+            <table className="w-full">
+              <thead className="border-b">
+                <tr>
+                  <th className="text-left py-2">Campaign</th>
+                  <th className="text-right py-2">Sessions</th>
+                  <th className="text-right py-2">Engagement Rate</th>
+                  <th className="text-right py-2">Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.campaigns.map((campaign, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                    <td className="py-2">{campaign.name}</td>
+                    <td className="text-right py-2">{formatNumber(campaign.sessions)}</td>
+                    <td className="text-right py-2">{formatNumber(campaign.engagementRate, 'percent')}</td>
+                    <td className={`text-right py-2 ${campaign.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {campaign.change >= 0 ? '↑' : '↓'} {Math.abs(campaign.change).toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-4">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Top Landing Pages</h3>
+            <table className="w-full">
+              <thead className="border-b">
+                <tr>
+                  <th className="text-left py-2">Page</th>
+                  <th className="text-right py-2">Sessions</th>
+                  <th className="text-right py-2">Engagement Time (sec)</th>
+                  <th className="text-right py-2">Bounce Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.topPages.map((page, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                    <td className="py-2">{page.page}</td>
+                    <td className="text-right py-2">{formatNumber(page.sessions)}</td>
+                    <td className="text-right py-2">{page.engagementTime}</td>
+                    <td className="text-right py-2">{formatNumber(page.bounceRate, 'percent')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // YouTube content component
+  const YouTubeContent = ({ data }) => {
+    return (
+      <>
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <KpiCard title="Page Rank" value={data.pageRank.engagement} type="percent" />
+          <KpiCard title="Subscribers" value={data.pageRank.followers} />
+          <KpiCard title="Views" value={data.pageRank.views} />
+          <KpiCard title="Reach" value={data.pageRank.reach} />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Age Demographics</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={data.ageData}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="age" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`${value}%`, 'Views']} />
+                <Bar dataKey="views" fill="#4c51bf" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Gender Distribution</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.genderData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="views"
+                  nameKey="gender"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                >
+                  <Cell fill="#4c51bf" />
+                  <Cell fill="#ed64a6" />
+                  <Cell fill="#ecc94b" />
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Subscriber vs. Non-Subscriber Views</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.subscriptionData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  innerRadius={60}
+                  fill="#8884d8"
+                  dataKey="views"
+                  nameKey="status"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                >
+                  <Cell fill="#48bb78" />
+                  <Cell fill="#4299e1" />
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Top Countries by Views</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                layout="vertical"
+                data={data.topCountries}
+                margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="country" type="category" />
+                <Tooltip formatter={(value) => [`${value}%`, 'Views']} />
+                <Bar dataKey="views" fill="#4c51bf" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-semibold mb-4">Top YouTube Videos</h3>
+          <table className="w-full">
+            <thead className="border-b">
+              <tr>
+                <th className="text-left py-2">Video Title</th>
+                <th className="text-right py-2">Views</th>
+                <th className="text-right py-2">Likes</th>
+                <th className="text-right py-2">Comments</th>
+                <th className="text-right py-2">Shares</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topVideos.map((video, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                  <td className="py-2">{video.title}</td>
+                  <td className="text-right py-2">{formatNumber(video.views)}</td>
+                  <td className="text-right py-2">{formatNumber(video.likes)}</td>
+                  <td className="text-right py-2">{formatNumber(video.comments)}</td>
+                  <td className="text-right py-2">{formatNumber(video.shares)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    );
+  };
+
+  // Overview dashboard content
+  const OverviewContent = () => {
+    const emailData = data.email;
+    const fbData = data.social.facebook;
+    const igData = data.social.instagram;
+    const ytData = data.youtube;
+    
+    return (
+      <>
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <KpiCard title="Email Subscribers" value={emailData.metrics.subscriberCount} change={emailData.metrics.subscriberGrowth} />
+          <KpiCard title="Facebook Reach" value={fbData.pageRank.reach} />
+          <KpiCard title="Instagram Engagement" value={igData.pageRank.engagement} type="percent" />
+          <KpiCard title="YouTube Views" value={ytData.pageRank.views} />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Channel Traffic Comparison</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={[
+                  { name: 'Email Opens', value: emailData.metrics.subscriberCount * 0.285 },
+                  { name: 'Facebook Reach', value: fbData.pageRank.reach },
+                  { name: 'Instagram Reach', value: igData.pageRank.reach },
+                  { name: 'YouTube Views', value: ytData.pageRank.views }
+                ]}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value) => formatNumber(value)} />
+                <Bar dataKey="value" fill="#4299e1" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Engagement by Platform</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={[
+                  { name: 'Email', value: 7.8 },
+                  { name: 'Facebook', value: fbData.pageRank.engagement },
+                  { name: 'Instagram', value: igData.pageRank.engagement },
+                  { name: 'YouTube', value: ytData.pageRank.engagement }
+                ]}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Bar dataKey="value" name="Engagement Rate (%)" fill="#9f7aea" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="bg-gray-100 min-h-screen">
+      <header className="bg-white shadow-sm p-4 border-b">
+        <div className="container mx-auto">
+          <h1 className="text-xl font-bold">Marketing Analytics Dashboard</h1>
+          <p className="text-gray-600 text-sm">Last updated: {new Date().toLocaleString()}</p>
+        </div>
+      </header>
+      
+      <main className="container mx-auto p-4">
+        <DateFilter />
+        
+        <TabNavigation />
+        
+        <div className="mt-4">
+          {activeTab === 'overview' && (
+            <OverviewContent />
+          )}
+          
+          {activeTab === 'web' && (
+            <WebAnalyticsContent data={data.web} />
+          )}
+          
+          {activeTab === 'social' && (
+            <SocialMediaTabs />
+          )}
+          
+          {activeTab === 'email' && (
+            <EmailContent data={data.email} />
+          )}
+          
+          {activeTab === 'youtube' && (
+            <YouTubeContent data={data.youtube} />
+          )}
+        </div>
+      </main>
+      
+      <footer className="bg-white border-t p-4 mt-8">
+        <div className="container mx-auto text-center text-gray-600 text-sm">
+          Marketing Analytics Dashboard &copy; 2025. All data is refreshed when you upload new CSV files.
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default MarketingDashboard;
