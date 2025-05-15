@@ -12,11 +12,7 @@
     <script crossorigin src="https://unpkg.com/react@16.14.0/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@16.14.0/umd/react-dom.development.js"></script>
     
-    <!-- PropTypes - Required by Recharts -->
-    <script crossorigin src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
-    
-    <!-- Load Recharts directly -->
-    <script src="https://unpkg.com/recharts@2.0.9/umd/Recharts.min.js"></script>
+    <!-- Recharts is not required for the basic dashboard functionality -->
     
     <!-- Papa Parse for CSV handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -289,36 +285,6 @@
             return loaded;
           }
           
-          // Load Recharts components
-          function loadRechartsComponents() {
-            log("Setting up Recharts components");
-            try {
-              if (typeof Recharts !== 'undefined') {
-                window.LineChart = Recharts.LineChart;
-                window.BarChart = Recharts.BarChart;
-                window.PieChart = Recharts.PieChart;
-                window.Line = Recharts.Line;
-                window.Bar = Recharts.Bar;
-                window.Pie = Recharts.Pie;
-                window.Cell = Recharts.Cell;
-                window.XAxis = Recharts.XAxis;
-                window.YAxis = Recharts.YAxis;
-                window.CartesianGrid = Recharts.CartesianGrid;
-                window.Tooltip = Recharts.Tooltip;
-                window.Legend = Recharts.Legend;
-                window.ResponsiveContainer = Recharts.ResponsiveContainer;
-                log("Recharts components extracted successfully");
-                return true;
-              } else {
-                logError("Recharts library not loaded properly!");
-                return false;
-              }
-            } catch (e) {
-              logError("Error setting up Recharts components:", e);
-              return false;
-            }
-          }
-          
           // Render the marketing dashboard
           function renderDashboard() {
             log("Attempting to render Marketing Dashboard");
@@ -332,6 +298,7 @@
                   document.getElementById('root')
                 );
                 log("Dashboard rendered successfully");
+                window.dashboardRendered = true;
                 return true;
               } else {
                 throw new Error("Marketing Dashboard component not found");
@@ -354,21 +321,23 @@
           
           // Check prerequisites
           function checkPrerequisites() {
-            let allLoaded = true;
+            let criticalComponentsLoaded = true;
             
-            // Check React
-            allLoaded = allLoaded && isLibraryLoaded("React", "React");
+            // Check React (critical)
+            const reactLoaded = isLibraryLoaded("React", "React");
+            criticalComponentsLoaded = criticalComponentsLoaded && reactLoaded;
             
-            // Check ReactDOM
-            allLoaded = allLoaded && isLibraryLoaded("ReactDOM", "ReactDOM");
+            // Check ReactDOM (critical)
+            const reactDOMLoaded = isLibraryLoaded("ReactDOM", "ReactDOM");
+            criticalComponentsLoaded = criticalComponentsLoaded && reactDOMLoaded;
             
-            // Check Recharts
-            allLoaded = allLoaded && isLibraryLoaded("Recharts", "Recharts");
+            // Check Recharts (optional for basic dashboard)
+            isLibraryLoaded("Recharts", "Recharts");
             
-            // Check Papa Parse
-            allLoaded = allLoaded && isLibraryLoaded("Papa Parse", "Papa");
+            // Check Papa Parse (optional for basic dashboard)
+            isLibraryLoaded("Papa Parse", "Papa");
             
-            return allLoaded;
+            return criticalComponentsLoaded;
           }
           
           // Main initialization function
@@ -378,27 +347,20 @@
             // Step 1: Check prerequisites
             const prerequisitesLoaded = checkPrerequisites();
             if (!prerequisitesLoaded) {
-              logError("Not all prerequisites are loaded. Check console for details.");
+              logError("Critical components are not loaded. Check console for details.");
               return;
             }
             
-            // Step 2: Load Recharts components
-            const rechartsLoaded = loadRechartsComponents();
-            if (!rechartsLoaded) {
-              logError("Failed to load Recharts components.");
-              return;
-            }
-            
-            // Step 3: Wait for all dashboard components to be loaded by Babel
+            // Step 2: Wait for all dashboard components to be loaded by Babel
             log("Waiting for dashboard components to be loaded by Babel...");
             setTimeout(() => {
-              // Step 4: Check if dashboard components are available
+              // Step 3: Check if dashboard components are available
               log("Checking dashboard components availability...");
               const isDashboardAvailable = typeof window.MarketingDashboard !== 'undefined';
               log(`MarketingDashboard available: ${isDashboardAvailable}`);
               
               if (isDashboardAvailable) {
-                // Step 5: Render the dashboard
+                // Step 4: Render the dashboard
                 renderDashboard();
               } else {
                 logError("Dashboard components not found after waiting.");
@@ -417,7 +379,7 @@
                   </div>
                 `;
               }
-            }, 2000); // Longer timeout for Babel processing
+            }, 1000); // Timeout for Babel processing
           }
           
           // Set up initialization when the window is fully loaded
