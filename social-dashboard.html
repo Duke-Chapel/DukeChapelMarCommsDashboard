@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.min.js"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.5.0/umd/Recharts.js"></script>
+    
+    <!-- Papa Parse for CSV handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root">
+        <!-- React app will be rendered here -->
+        <div class="flex justify-center items-center h-screen">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+    </div>
+
+    <!-- Load our dashboard component -->
+    <script type="text/babel" src="social-dashboard-bridge.jsx"></script>
+    
+    <!-- Initialize the app -->
+    <script type="text/babel">
+        // Extract the components from Recharts
+        const {
+            LineChart, BarChart, PieChart,
+            Line, Bar, Pie, Cell,
+            XAxis, YAxis, CartesianGrid,
+            Tooltip, Legend, ResponsiveContainer
+        } = Recharts;
+
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Import the SocialDashboard component
+            const { default: SocialDashboard } = window.SocialDashboard || { 
+                default: () => <div>Loading Social Dashboard...</div> 
+            };
+            
+            // Render our app
+            ReactDOM.render(
+                <SocialDashboard />,
+                document.getElementById('root')
+            );
+        });
+    </script>
+</body>
+</html>
