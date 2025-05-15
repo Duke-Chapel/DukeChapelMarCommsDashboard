@@ -202,9 +202,9 @@
                 const emailOpened = parseInt(row['Email opened (MPP excluded)'] || '0');
                 const emailClicked = parseInt(row['Email clicked'] || '0');
                 
-                // Calculate percentages
-                const openRate = emailsSent > 0 ? (emailOpened / emailsSent) * 100 : 0;
-                const clickRate = emailsSent > 0 ? (emailClicked / emailsSent) * 100 : 0;
+                // Calculate percentages (ensure they are within reasonable bounds)
+                const openRate = emailsSent > 0 ? Math.min((emailOpened / emailsSent) * 100, 100) : 0;
+                const clickRate = emailsSent > 0 ? Math.min((emailClicked / emailsSent) * 100, 100) : 0;
                 
                 return {
                   name: row['Campaign'] || 'Unnamed Campaign',
@@ -213,8 +213,9 @@
                   emailClicked,
                   openRate,
                   clickRate,
-                  bounceRate: parseFloat(row['Email bounce rate'] || '0'),
-                  unsubscribeRate: parseFloat(row['Email unsubscribe rate'] || '0')
+                  bounceRate: Math.min(parseFloat(row['Email bounce rate'] || '0'), 100),
+                  unsubscribeRate: Math.min(parseFloat(row['Email unsubscribe rate'] || '0'), 100),
+                  url: `mailto:?subject=${encodeURIComponent(row['Campaign'] || 'Email Campaign')}`
                 };
               });
               
@@ -226,11 +227,16 @@
               const totalClicked = campaigns.reduce((sum, campaign) => sum + campaign.emailClicked, 0);
               
               metrics.totalSubscribers = totalSent;
-              metrics.unopenedRate = totalSent > 0 ? ((totalSent - totalOpened) / totalSent) * 100 : 0;
-              metrics.openedNoClickRate = totalSent > 0 ? ((totalOpened - totalClicked) / totalSent) * 100 : 0;
-              metrics.averageOpenRate = campaigns.length > 0 
+              metrics.unopenedRate = totalSent > 0 ? Math.min(((totalSent - totalOpened) / totalSent) * 100, 100) : 0;
+              metrics.openedNoClickRate = totalSent > 0 ? Math.min(((totalOpened - totalClicked) / totalSent) * 100, 100) : 0;
+              
+              // Calculate average open rate (make sure it's reasonable)
+              let avgOpenRate = campaigns.length > 0 
                 ? campaigns.reduce((sum, campaign) => sum + campaign.openRate, 0) / campaigns.length 
                 : 0;
+              
+              // Ensure average open rate is between 0-100%
+              metrics.averageOpenRate = Math.min(Math.max(avgOpenRate, 0), 100);
               
               // Sort campaigns by open rate and click rate
               metrics.topCampaigns.byOpenRate = [...campaigns]
@@ -293,16 +299,23 @@
             
             if (fbPostsFile) {
               // Process posts
-              metrics.facebook.posts = fbPostsFile.data.map(row => ({
-                id: row['Post ID'] || '',
-                title: row['Title'] || '',
-                description: row['Description'] || '',
-                reach: parseInt(row['Reach'] || 0),
-                reactions: parseInt(row['Reactions'] || 0),
-                comments: parseInt(row['Comments'] || 0),
-                shares: parseInt(row['Shares'] || 0),
-                date: row['Date'] || ''
-              }));
+              metrics.facebook.posts = fbPostsFile.data.map(row => {
+                // Extract URL from data if available, or create a placeholder
+                const permalink = row['Permalink'] || '';
+                const postUrl = permalink || `https://facebook.com/post/${row['Post ID'] || 'unknown'}`;
+                
+                return {
+                  id: row['Post ID'] || '',
+                  title: row['Title'] || '',
+                  description: row['Description'] || '',
+                  reach: parseInt(row['Reach'] || 0),
+                  reactions: parseInt(row['Reactions'] || 0),
+                  comments: parseInt(row['Comments'] || 0),
+                  shares: parseInt(row['Shares'] || 0),
+                  date: row['Date'] || '',
+                  url: postUrl
+                };
+              });
               
               // Get top posts by reach
               metrics.facebook.topPosts = [...metrics.facebook.posts]
@@ -339,16 +352,24 @@
             
             if (igPostsFile) {
               // Process posts
-              metrics.instagram.posts = igPostsFile.data.map(row => ({
-                id: row['Post ID'] || '',
-                username: row['Account username'] || '',
-                description: row['Description'] || '',
-                reach: parseFloat(row['Reach'] || 0),
-                likes: parseInt(row['Likes'] || 0),
-                comments: parseInt(row['Comments'] || 0),
-                saves: parseInt(row['Saves'] || 0),
-                date: row['Date'] || ''
-              }));
+              metrics.instagram.posts = igPostsFile.data.map(row => {
+                // Extract URL from permalink or generate one
+                const permalink = row['Permalink'] || '';
+                const username = row['Account username'] || 'instagram';
+                const postUrl = permalink || `https://instagram.com/${username}/p/${row['Post ID'] || 'unknown'}`;
+                
+                return {
+                  id: row['Post ID'] || '',
+                  username: row['Account username'] || '',
+                  description: row['Description'] || '',
+                  reach: parseFloat(row['Reach'] || 0),
+                  likes: parseInt(row['Likes'] || 0),
+                  comments: parseInt(row['Comments'] || 0),
+                  saves: parseInt(row['Saves'] || 0),
+                  date: row['Date'] || '',
+                  url: postUrl
+                };
+              });
               
               // Get top posts by reach
               metrics.instagram.topPosts = [...metrics.instagram.posts]
@@ -478,8 +499,10 @@
                   if (!campaigns[campaign]) {
                     campaigns[campaign] = {
                       name: campaign,
+                      source: row['Manual source / medium'] || '',
                       sessions: 0,
-                      events: 0
+                      events: 0,
+                      url: `https://analytics.google.com/analytics/web/?authuser=0#/report/acquisition-campaign-list/` // This is a placeholder URL
                     };
                   }
                   
@@ -512,7 +535,8 @@
                       path,
                       title,
                       views: 0,
-                      users: 0
+                      users: 0,
+                      url: path.startsWith('/') ? `https://your-website.com${path}` : `https://your-website.com/${path}`
                     };
                   }
                   
@@ -549,7 +573,7 @@
             if (ageFile) {
               metrics.ageData = ageFile.data.map(row => ({
                 age: row['Viewer age'] || 'Unknown',
-                percentage: parseFloat(row['Views (%)'] || 0)
+                percentage: Math.min(parseFloat(row['Views (%)'] || 0), 100)
               }));
             }
             
@@ -558,7 +582,7 @@
             if (genderFile) {
               metrics.genderData = genderFile.data.map(row => ({
                 gender: row['Viewer gender'] || 'Unknown',
-                percentage: parseFloat(row['Views (%)'] || 0)
+                percentage: Math.min(parseFloat(row['Views (%)'] || 0), 100)
               }));
             }
             
@@ -579,14 +603,29 @@
             const contentFile = files.find(file => file.name === 'YouTube_Content.csv');
             if (contentFile) {
               metrics.contentData = contentFile.data
-                .map(row => ({
-                  title: row['Video title'] || 'Untitled',
-                  views: parseInt(row['Views'] || 0),
-                  likes: parseInt(row['Likes'] || 0),
-                  comments: parseInt(row['Comments added'] || 0),
-                  shares: parseInt(row['Shares'] || 0),
-                  watchHours: parseFloat(row['Watch time (hours)'] || 0)
-                }))
+                .map(row => {
+                  // Create URL from content info if available
+                  let videoId = '';
+                  // Try to extract video ID from any source
+                  if (row['Content']) {
+                    const match = row['Content'].match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+                    if (match) videoId = match[1];
+                  }
+                  
+                  const videoUrl = videoId ? 
+                    `https://youtube.com/watch?v=${videoId}` : 
+                    `https://youtube.com/results?search_query=${encodeURIComponent(row['Video title'] || '')}`;
+                  
+                  return {
+                    title: row['Video title'] || 'Untitled',
+                    views: parseInt(row['Views'] || 0),
+                    likes: parseInt(row['Likes'] || 0),
+                    comments: parseInt(row['Comments added'] || 0),
+                    shares: parseInt(row['Shares'] || 0),
+                    watchHours: parseFloat(row['Watch time (hours)'] || 0),
+                    url: videoUrl
+                  };
+                })
                 .sort((a, b) => b.views - a.views)
                 .slice(0, 10);
             }
@@ -755,7 +794,11 @@
                         <tbody className="bg-white divide-y divide-gray-200">
                           {metrics.topCampaigns.byOpenRate.map((campaign, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">{campaign.name}</td>
+                              <td className="px-6 py-4 text-sm text-gray-900">
+                                <a href={campaign.url} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
+                                  {campaign.name}
+                                </a>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.emailsSent.toLocaleString()}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.openRate.toFixed(1)}%</td>
                             </tr>
@@ -779,7 +822,11 @@
                         <tbody className="bg-white divide-y divide-gray-200">
                           {metrics.topCampaigns.byClickRate.map((campaign, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">{campaign.name}</td>
+                              <td className="px-6 py-4 text-sm text-gray-900">
+                                <a href={campaign.url} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
+                                  {campaign.name}
+                                </a>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.emailsSent.toLocaleString()}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.clickRate.toFixed(1)}%</td>
                             </tr>
@@ -939,14 +986,16 @@
                         <tbody className="bg-white divide-y divide-gray-200">
                           {fbData.topPosts.map((post, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                                 {post.description || post.title || 'Untitled Post'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reactions.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.comments.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.shares.toLocaleString()}</td>
-                            </tr>
+                              </a>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reactions.toLocaleString()}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.comments.toLocaleString()}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.shares.toLocaleString()}</td>
+                          </tr>
                           ))}
                         </tbody>
                       </table>
@@ -1007,7 +1056,9 @@
                           {igData.topPosts.map((post, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                               <td className="px-6 py-4 text-sm text-gray-900">
-                                {post.description || 'Untitled Post'}
+                                <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
+                                  {post.description || 'Untitled Post'}
+                                </a>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.likes.toLocaleString()}</td>
@@ -1148,7 +1199,9 @@
                         {metrics.pages.map((page, index) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                              {page.title || page.path}
+                              <a href={page.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                {page.title || page.path}
+                              </a>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{page.views.toLocaleString()}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{page.users.toLocaleString()}</td>
@@ -1384,7 +1437,11 @@
                         <tbody className="bg-white divide-y divide-gray-200">
                           {metrics.contentData.map((video, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">{video.title}</td>
+                              <td className="px-6 py-4 text-sm text-gray-900">
+                                <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
+                                  {video.title}
+                                </a>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.views.toLocaleString()}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.watchHours.toFixed(1)}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.likes.toLocaleString()}</td>
