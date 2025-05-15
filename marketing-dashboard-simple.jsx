@@ -1,81 +1,7 @@
-// Define hooks at the top - make sure to use React.useState for compatibility
-// with older React versions and with how the JSX is transpiled
+// Simple version of the Marketing Dashboard with minimal functionality
 const MarketingDashboard = () => {
-  // State for active dashboard
+  // Use React.useState to ensure compatibility
   const [activeDashboard, setActiveDashboard] = React.useState('overview');
-  
-  // Simple navigation component
-  const Navigation = () => {
-    return (
-      <div className="bg-gray-800 text-white shadow">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap">
-            <div className="w-full">
-              <nav className="flex">
-                <button 
-                  className={`px-4 py-4 hover:bg-gray-700 ${activeDashboard === 'overview' ? 'bg-gray-700 font-medium' : ''}`}
-                  onClick={() => setActiveDashboard('overview')}
-                >
-                  Overview
-                </button>
-                <button 
-                  className={`px-4 py-4 hover:bg-gray-700 ${activeDashboard === 'web' ? 'bg-gray-700 font-medium' : ''}`}
-                  onClick={() => setActiveDashboard('web')}
-                >
-                  Web Analytics
-                </button>
-                <button 
-                  className={`px-4 py-4 hover:bg-gray-700 ${activeDashboard === 'social' ? 'bg-gray-700 font-medium' : ''}`}
-                  onClick={() => setActiveDashboard('social')}
-                >
-                  Social Media
-                </button>
-                <button 
-                  className={`px-4 py-4 hover:bg-gray-700 ${activeDashboard === 'email' ? 'bg-gray-700 font-medium' : ''}`}
-                  onClick={() => setActiveDashboard('email')}
-                >
-                  Email Campaigns
-                </button>
-                <button 
-                  className={`px-4 py-4 hover:bg-gray-700 ${activeDashboard === 'youtube' ? 'bg-gray-700 font-medium' : ''}`}
-                  onClick={() => setActiveDashboard('youtube')}
-                >
-                  YouTube
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  // Header component
-  const Header = () => {
-    return (
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Marketing Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            Comprehensive view of web, social, email, and video performance
-          </p>
-        </div>
-      </header>
-    );
-  };
-  
-  // Footer component
-  const Footer = () => {
-    return (
-      <footer className="bg-white shadow-inner mt-8 py-4">
-        <div className="container mx-auto px-4">
-          <p className="text-gray-600 text-center">
-            &copy; {new Date().getFullYear()} Marketing Analytics Dashboard
-          </p>
-        </div>
-      </footer>
-    );
-  };
   
   // Overview dashboard - shows a summary of all platforms
   const OverviewDashboard = () => {
@@ -163,29 +89,84 @@ const MarketingDashboard = () => {
     );
   };
   
+  // Placeholder for other dashboards
+  const PlaceholderDashboard = ({ title }) => (
+    <div className="container mx-auto px-4 py-8 text-center">
+      <div className="bg-white rounded-lg shadow-md p-8">
+        <h2 className="text-2xl font-bold mb-4">{title}</h2>
+        <p className="text-gray-600 mb-6">
+          This dashboard is available but not loaded yet. Please use the main navigation to return to overview.
+        </p>
+        <button 
+          className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
+          onClick={() => setActiveDashboard('overview')}
+        >
+          Return to Overview
+        </button>
+      </div>
+    </div>
+  );
+  
+  // Simplified header component
+  const Header = () => (
+    <header className="bg-white shadow">
+      <div className="container mx-auto px-4 py-6">
+        <h1 className="text-3xl font-bold text-gray-900">Marketing Analytics Dashboard</h1>
+      </div>
+    </header>
+  );
+  
+  // Simplified navigation component
+  const Navigation = () => (
+    <nav className="bg-gray-800 text-white shadow">
+      <div className="container mx-auto px-4">
+        <div className="flex overflow-x-auto">
+          <button 
+            className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'overview' ? 'bg-gray-700 font-medium' : ''}`}
+            onClick={() => setActiveDashboard('overview')}
+          >
+            Overview
+          </button>
+          <button 
+            className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'web' ? 'bg-gray-700 font-medium' : ''}`}
+            onClick={() => setActiveDashboard('web')}
+          >
+            Web Analytics
+          </button>
+          <button 
+            className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'social' ? 'bg-gray-700 font-medium' : ''}`}
+            onClick={() => setActiveDashboard('social')}
+          >
+            Social Media
+          </button>
+          <button 
+            className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'email' ? 'bg-gray-700 font-medium' : ''}`}
+            onClick={() => setActiveDashboard('email')}
+          >
+            Email Campaigns
+          </button>
+          <button 
+            className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'youtube' ? 'bg-gray-700 font-medium' : ''}`}
+            onClick={() => setActiveDashboard('youtube')}
+          >
+            YouTube
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+  
   // Render the appropriate dashboard based on active selection
   const renderDashboard = () => {
     switch (activeDashboard) {
       case 'web':
-        // Get the WebDashboard component from window object
-        const WebDashboard = window.WebDashboard?.default;
-        return WebDashboard ? <WebDashboard /> : <div>Web dashboard is loading...</div>;
-        
+        return <PlaceholderDashboard title="Web Analytics Dashboard" />;
       case 'social':
-        // Get the SocialDashboard component from window object
-        const SocialDashboard = window.SocialDashboard?.default;
-        return SocialDashboard ? <SocialDashboard /> : <div>Social dashboard is loading...</div>;
-        
+        return <PlaceholderDashboard title="Social Media Dashboard" />;
       case 'email':
-        // Get the EmailDashboard component from window object
-        const EmailDashboard = window.EmailDashboard?.default;
-        return EmailDashboard ? <EmailDashboard /> : <div>Email dashboard is loading...</div>;
-        
+        return <PlaceholderDashboard title="Email Campaigns Dashboard" />;
       case 'youtube':
-        // Get the YouTubeDashboard component from window object
-        const YouTubeDashboard = window.YouTubeDashboard?.default;
-        return YouTubeDashboard ? <YouTubeDashboard /> : <div>YouTube dashboard is loading...</div>;
-        
+        return <PlaceholderDashboard title="YouTube Analytics Dashboard" />;
       case 'overview':
       default:
         return <OverviewDashboard />;
@@ -199,7 +180,13 @@ const MarketingDashboard = () => {
       <main className="flex-grow">
         {renderDashboard()}
       </main>
-      <Footer />
+      <footer className="bg-white shadow-inner mt-8 py-4">
+        <div className="container mx-auto px-4">
+          <p className="text-gray-600 text-center">
+            &copy; {new Date().getFullYear()} Marketing Analytics Dashboard
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };

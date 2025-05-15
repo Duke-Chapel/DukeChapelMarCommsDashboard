@@ -8,18 +8,15 @@
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
     
-    <!-- React and ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <!-- React and ReactDOM - IMPORTANT: Use development version for better error messages -->
+    <script crossorigin src="https://unpkg.com/react@16.14.0/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@16.14.0/umd/react-dom.development.js"></script>
     
     <!-- PropTypes - Required by Recharts -->
-    <script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.js"></script>
+    <script crossorigin src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
     
-    <!-- Recharts Dependencies -->
-    <script src="https://unpkg.com/d3-array@3.2.0/dist/d3-array.js"></script>
-    <script src="https://unpkg.com/d3-scale@4.0.2/dist/d3-scale.js"></script>
-    <script src="https://unpkg.com/d3-shape@3.1.0/dist/d3-shape.js"></script>
-    <script src="https://unpkg.com/recharts@2.1.16/umd/Recharts.js"></script>
+    <!-- Load Recharts directly -->
+    <script src="https://unpkg.com/recharts@2.0.9/umd/Recharts.min.js"></script>
     
     <!-- Papa Parse for CSV handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -30,33 +27,7 @@
     <!-- Tailwind CSS - For development only -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Extract Recharts components to make them globally available -->
-    <script>
-        window.onload = function() {
-            // Make Recharts components globally available
-            if (typeof Recharts !== 'undefined') {
-                try {
-                    window.LineChart = Recharts.LineChart;
-                    window.BarChart = Recharts.BarChart;
-                    window.PieChart = Recharts.PieChart;
-                    window.Line = Recharts.Line;
-                    window.Bar = Recharts.Bar;
-                    window.Pie = Recharts.Pie;
-                    window.Cell = Recharts.Cell;
-                    window.XAxis = Recharts.XAxis;
-                    window.YAxis = Recharts.YAxis;
-                    window.CartesianGrid = Recharts.CartesianGrid;
-                    window.Tooltip = Recharts.Tooltip;
-                    window.Legend = Recharts.Legend;
-                    window.ResponsiveContainer = Recharts.ResponsiveContainer;
-                    console.log("Recharts components extracted successfully");
-                } catch (e) {
-                    console.error("Error setting up Recharts components:", e);
-                }
-            } else {
-                console.error("Recharts library not loaded properly!");
-            }
-        }
+    <!-- No more Recharts extraction script - moved to dashboard-loader.js -->
     </script>
 </head>
 <body class="bg-gray-100">
@@ -75,55 +46,18 @@
     </div>
 
     <!-- Load all dashboard components -->
-    <script type="text/babel" src="email-dashboard.jsx"></script>
-    <script type="text/babel" src="social-dashboard.jsx"></script>
-    <script type="text/babel" src="youtube-dashboard.jsx"></script>
-    <script type="text/babel" src="web-dashboard.jsx"></script>
+    <script type="text/babel" src="marketing-dashboard-simple.jsx"></script>
     
     <!-- Load all bridge files -->
-    <script type="text/babel" src="email-dashboard-bridge.jsx"></script>
-    <script type="text/babel" src="social-dashboard-bridge.jsx"></script>
-    <script type="text/babel" src="youtube-dashboard-bridge.jsx"></script>
-    <script type="text/babel" src="web-dashboard-bridge.jsx"></script>
-    
-    <!-- Load the main dashboard component -->
-    <script type="text/babel" src="marketing-dashboard.jsx"></script>
     <script type="text/babel" src="marketing-dashboard-bridge.jsx"></script>
     
     <!-- Initialize the app -->
     <script type="text/babel">
-        // Wait for everything to be fully loaded
-        window.onload = function() {
-            // Give extra time for all components to be processed by Babel
-            setTimeout(() => {
-                try {
-                    // Render the main dashboard
-                    const MarketingDashboard = window.MarketingDashboard?.default;
-                    
-                    if (MarketingDashboard) {
-                        ReactDOM.render(
-                            <MarketingDashboard />,
-                            document.getElementById('root')
-                        );
-                        console.log("Dashboard rendered successfully");
-                    } else {
-                        throw new Error("Marketing Dashboard component not found");
-                    }
-                } catch (error) {
-                    console.error("Error rendering dashboard:", error);
-                    document.getElementById('root').innerHTML = `
-                        <div class="p-8 text-center">
-                            <h1 class="text-2xl font-bold text-red-600 mb-4">Dashboard Error</h1>
-                            <p class="mb-4">${error.message}</p>
-                            <details class="text-left bg-gray-100 p-4 rounded">
-                                <summary class="cursor-pointer mb-2">Technical Details</summary>
-                                <pre class="whitespace-pre-wrap text-xs">${error.stack}</pre>
-                            </details>
-                        </div>
-                    `;
-                }
-            }, 1000); // Increased timeout for Babel processing
-        };
+        // Simple stub to keep babel happy - actual initialization is in dashboard-loader.js
+        console.log("Babel preprocessor running on initialization stub");
     </script>
+    
+    <!-- Load the dashboard loader (not processed by Babel) -->
+    <script src="dashboard-loader.js"></script>
 </body>
 </html>

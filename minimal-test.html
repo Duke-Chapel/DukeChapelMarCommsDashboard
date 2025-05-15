@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Dashboard - Minimal Test</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@16.14.0/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@16.14.0/umd/react-dom.development.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root">
+        <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+            <div class="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+                <h1 class="text-2xl font-bold mb-4">Marketing Dashboard - Minimal Test</h1>
+                <p class="mb-6 text-gray-600">Loading the dashboard...</p>
+                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline minimal dashboard component -->
+    <script type="text/babel">
+        // Define a very simple dashboard
+        const MinimalDashboard = () => {
+            return (
+                <div className="min-h-screen bg-gray-100 p-8">
+                    <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+                        <h1 className="text-2xl font-bold mb-4">Marketing Dashboard</h1>
+                        <p className="text-gray-600 mb-6">
+                            This is a minimal version of the marketing dashboard to test React rendering.
+                        </p>
+                        
+                        <div className="bg-green-100 border border-green-200 rounded p-4 mb-6">
+                            <p className="text-green-800 font-medium">
+                                ✅ React is working properly!
+                            </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="bg-blue-50 p-4 rounded border border-blue-100">
+                                <h2 className="text-lg font-semibold mb-2">Web Analytics</h2>
+                                <p>View website performance metrics</p>
+                            </div>
+                            <div className="bg-purple-50 p-4 rounded border border-purple-100">
+                                <h2 className="text-lg font-semibold mb-2">Email Campaigns</h2>
+                                <p>Track email open rates and clicks</p>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-pink-50 p-4 rounded border border-pink-100">
+                                <h2 className="text-lg font-semibold mb-2">Social Media</h2>
+                                <p>Monitor social engagement metrics</p>
+                            </div>
+                            <div className="bg-red-50 p-4 rounded border border-red-100">
+                                <h2 className="text-lg font-semibold mb-2">YouTube</h2>
+                                <p>Analyze video performance</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Wait for DOM content to be loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM content loaded, rendering dashboard...');
+            
+            // Give a small delay to ensure Babel processing is complete
+            setTimeout(function() {
+                try {
+                    ReactDOM.render(
+                        <MinimalDashboard />,
+                        document.getElementById('root')
+                    );
+                    console.log('Dashboard rendered successfully');
+                } catch (error) {
+                    console.error('Error rendering dashboard:', error);
+                    document.getElementById('root').innerHTML = `
+                        <div class="p-8 text-center">
+                            <h1 class="text-2xl font-bold text-red-600 mb-4">Dashboard Error</h1>
+                            <p class="mb-4">${error.message}</p>
+                            <details class="text-left bg-gray-100 p-4 rounded">
+                                <summary class="cursor-pointer mb-2">Technical Details</summary>
+                                <pre class="whitespace-pre-wrap text-xs">${error.stack}</pre>
+                            </details>
+                        </div>
+                    `;
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
