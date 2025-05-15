@@ -20,6 +20,28 @@
     
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
+    
+    <!-- Extract Recharts components to make them globally available -->
+    <script>
+        // Make Recharts components globally available
+        if (typeof Recharts !== 'undefined') {
+            window.LineChart = Recharts.LineChart;
+            window.BarChart = Recharts.BarChart;
+            window.PieChart = Recharts.PieChart;
+            window.Line = Recharts.Line;
+            window.Bar = Recharts.Bar;
+            window.Pie = Recharts.Pie;
+            window.Cell = Recharts.Cell;
+            window.XAxis = Recharts.XAxis;
+            window.YAxis = Recharts.YAxis;
+            window.CartesianGrid = Recharts.CartesianGrid;
+            window.Tooltip = Recharts.Tooltip;
+            window.Legend = Recharts.Legend;
+            window.ResponsiveContainer = Recharts.ResponsiveContainer;
+        } else {
+            console.error("Recharts library not loaded properly!");
+        }
+    </script>
 </head>
 <body class="bg-gray-100">
     <div id="root">
@@ -36,27 +58,22 @@
         </div>
     </div>
 
-    <!-- Load individual dashboard components -->
+    <!-- First load the dashboard components -->
     <script type="text/babel" src="email-dashboard.jsx"></script>
+    <script type="text/babel" src="social-dashboard.jsx"></script>
+    <script type="text/babel" src="youtube-dashboard.jsx"></script>
+    <script type="text/babel" src="web-dashboard.jsx"></script>
     
-    <!-- Load bridge files that make ES modules available on window object -->
+    <!-- Then load the bridge files that make them available on the window object -->
     <script type="text/babel" src="social-dashboard-bridge.jsx"></script>
     <script type="text/babel" src="youtube-dashboard-bridge.jsx"></script>
     <script type="text/babel" src="web-dashboard-bridge.jsx"></script>
     
-    <!-- Load the main dashboard component -->
+    <!-- Last, load the main dashboard and initialize it -->
     <script type="text/babel" src="marketing-dashboard.jsx"></script>
     
     <!-- Initialize the app -->
     <script type="text/babel">
-        // Extract the components from Recharts
-        const {
-            LineChart, BarChart, PieChart,
-            Line, Bar, Pie, Cell,
-            XAxis, YAxis, CartesianGrid,
-            Tooltip, Legend, ResponsiveContainer
-        } = Recharts;
-
         // Wait for all dashboard components to load
         document.addEventListener('DOMContentLoaded', () => {
             // Render the main dashboard
@@ -64,10 +81,24 @@
                 default: () => <div>Loading Marketing Dashboard...</div> 
             };
             
-            ReactDOM.render(
-                <MarketingDashboard />,
-                document.getElementById('root')
-            );
+            try {
+                ReactDOM.render(
+                    <MarketingDashboard />,
+                    document.getElementById('root')
+                );
+            } catch (error) {
+                console.error("Error rendering dashboard:", error);
+                document.getElementById('root').innerHTML = `
+                    <div class="p-8 text-center">
+                        <h1 class="text-2xl font-bold text-red-600 mb-4">Dashboard Error</h1>
+                        <p class="mb-4">${error.message}</p>
+                        <details class="text-left bg-gray-100 p-4 rounded">
+                            <summary class="cursor-pointer mb-2">Technical Details</summary>
+                            <pre class="whitespace-pre-wrap text-xs">${error.stack}</pre>
+                        </details>
+                    </div>
+                `;
+            }
         });
     </script>
 </body>

@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  LineChart, BarChart, PieChart, 
-  Line, Bar, Pie, Cell, 
-  XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import Papa from 'papaparse';
+// In browser environment, we're using globals instead of imports
+// React and ReactDOM are loaded from CDN
+// Recharts components are made available globally via the script in index.html
+// PapaParse is available globally as Papa
 
+const { useState, useEffect } = React;
+
+// Define component on global scope for browser usage
 const WebDashboard = () => {
   // State for data and UI
   const [webData, setWebData] = useState({
@@ -804,4 +803,5 @@ const WebDashboard = () => {
   );
 };
 
-export default WebDashboard;
+// No export in browser environment - this will be referenced directly
+// The bridge file will make it available on the window object

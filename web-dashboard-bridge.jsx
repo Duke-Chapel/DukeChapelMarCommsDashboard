@@ -1,4 +1,14 @@
-// This is a bridge file to make the ESM-style components available on the window object
-// for compatibility with the existing HTML files
-import WebDashboard from './web-dashboard.jsx';
-window.WebDashboard = { default: WebDashboard };
+// This is a browser-compatible bridge file that attaches the component to the window object
+// File: web-dashboard-bridge.jsx
+
+// NOTE: We need to define WebDashboard component directly in this file
+// since browser-based imports won't work with the standard ES6 module syntax
+(function() {
+  // We'll assume web-dashboard.jsx has been loaded and its exported function is available
+  // The component will be manually loaded in the HTML before this script
+  
+  // Create a reference to the component on the window object
+  window.WebDashboard = { 
+    default: WebDashboard 
+  };
+})();
