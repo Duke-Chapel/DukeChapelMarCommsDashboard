@@ -1,11 +1,10 @@
-// In browser environment, we're using globals instead of imports
-// React and ReactDOM are loaded from CDN and available globally
-// This is the main dashboard that will combine all other dashboards
+// Define hooks at the top
+const { useState, useEffect } = React;
 
 // Define component on global scope for browser usage
 const MarketingDashboard = () => {
   // State for active dashboard
-  const [activeDashboard, setActiveDashboard] = React.useState('overview');
+  const [activeDashboard, setActiveDashboard] = useState('overview');
   
   // Simple navigation component
   const Navigation = () => {

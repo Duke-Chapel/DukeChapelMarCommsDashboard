@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Test Page</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- PropTypes - Required by Recharts -->
+    <script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.js"></script>
+    
+    <!-- Recharts Dependencies -->
+    <script src="https://unpkg.com/d3-array@3.2.0/dist/d3-array.js"></script>
+    <script src="https://unpkg.com/d3-scale@4.0.2/dist/d3-scale.js"></script>
+    <script src="https://unpkg.com/d3-shape@3.1.0/dist/d3-shape.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.16/umd/Recharts.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
+    
+    <!-- Tailwind CSS - For development only -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Extract Recharts components -->
+    <script>
+        window.onload = function() {
+            // Debug: Log what's loaded
+            console.log("React version:", React.version);
+            console.log("PropTypes loaded:", typeof PropTypes !== 'undefined');
+            console.log("Recharts loaded:", typeof Recharts !== 'undefined');
+            
+            // Make Recharts components globally available
+            if (typeof Recharts !== 'undefined') {
+                try {
+                    window.LineChart = Recharts.LineChart;
+                    window.BarChart = Recharts.BarChart;
+                    window.PieChart = Recharts.PieChart;
+                    window.Line = Recharts.Line;
+                    window.Bar = Recharts.Bar;
+                    window.Pie = Recharts.Pie;
+                    window.Cell = Recharts.Cell;
+                    window.XAxis = Recharts.XAxis;
+                    window.YAxis = Recharts.YAxis;
+                    window.CartesianGrid = Recharts.CartesianGrid;
+                    window.Tooltip = Recharts.Tooltip;
+                    window.Legend = Recharts.Legend;
+                    window.ResponsiveContainer = Recharts.ResponsiveContainer;
+                    console.log("Recharts components extracted successfully:", Object.keys(Recharts));
+                } catch (e) {
+                    console.error("Error setting up Recharts components:", e);
+                }
+            } else {
+                console.error("Recharts library not loaded properly!");
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div id="root">
+        <div class="flex justify-center items-center h-screen">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+    </div>
+    
+    <script type="text/babel">
+        // Simple test component
+        const { useState } = React;
+        
+        const TestComponent = () => {
+            const [count, setCount] = useState(0);
+            
+            // Test data for Recharts
+            const data = [
+                { name: 'Page A', uv: 400, pv: 2400, amt: 2400 },
+                { name: 'Page B', uv: 300, pv: 1398, amt: 2210 },
+                { name: 'Page C', uv: 200, pv: 9800, amt: 2290 },
+                { name: 'Page D', uv: 278, pv: 3908, amt: 2000 },
+                { name: 'Page E', uv: 189, pv: 4800, amt: 2181 }
+            ];
+            
+            return (
+                <div className="container mx-auto px-4 py-8">
+                    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                        <h1 className="text-2xl font-bold mb-4">React Test Page</h1>
+                        <p className="mb-6">Testing React and Recharts setup.</p>
+                        
+                        <div className="mb-6">
+                            <button 
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                                onClick={() => setCount(count + 1)}
+                            >
+                                Clicked {count} times
+                            </button>
+                        </div>
+                        
+                        <div className="mb-6">
+                            <h2 className="text-xl font-semibold mb-4">React State Test</h2>
+                            <p>Click the button above to test React state management.</p>
+                        </div>
+                        
+                        <div className="mb-6">
+                            <h2 className="text-xl font-semibold mb-4">Recharts Test</h2>
+                            {window.LineChart ? (
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={data}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Legend />
+                                            <Line type="monotone" dataKey="pv" stroke="#8884d8" />
+                                            <Line type="monotone" dataKey="uv" stroke="#82ca9d" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="text-red-500">
+                                    Recharts components not available. Check console for errors.
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="bg-yellow-50 p-4 rounded">
+                            <h2 className="text-xl font-semibold mb-2">Debug Information</h2>
+                            <ul className="list-disc pl-5">
+                                <li>React version: {React.version}</li>
+                                <li>PropTypes loaded: {typeof PropTypes !== 'undefined' ? 'Yes' : 'No'}</li>
+                                <li>Recharts loaded: {typeof Recharts !== 'undefined' ? 'Yes' : 'No'}</li>
+                                <li>Recharts components extracted: {window.LineChart ? 'Yes' : 'No'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Wait for everything to be fully loaded
+        window.onload = function() {
+            // Give extra time for all components to be processed by Babel
+            setTimeout(() => {
+                try {
+                    ReactDOM.render(
+                        <TestComponent />,
+                        document.getElementById('root')
+                    );
+                    console.log("Test component rendered successfully");
+                } catch (error) {
+                    console.error("Error rendering test component:", error);
+                    document.getElementById('root').innerHTML = `
+                        <div class="p-8 text-center">
+                            <h1 class="text-2xl font-bold text-red-600 mb-4">Test Error</h1>
+                            <p class="mb-4">${error.message}</p>
+                            <details class="text-left bg-gray-100 p-4 rounded">
+                                <summary class="cursor-pointer mb-2">Technical Details</summary>
+                                <pre class="whitespace-pre-wrap text-xs">${error.stack}</pre>
+                            </details>
+                        </div>
+                    `;
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

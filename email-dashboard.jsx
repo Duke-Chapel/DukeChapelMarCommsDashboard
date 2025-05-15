@@ -1,7 +1,10 @@
+// Define hooks at the top
+const { useState, useEffect } = React;
+
 // Define component on global scope for browser usage
 const EmailDashboard = () => {
   // State for data and UI
-  const [emailData, setEmailData] = React.useState({
+  const [emailData, setEmailData] = useState({
     campaigns: [],
     subscribers: {
       total: 0,
@@ -9,9 +12,9 @@ const EmailDashboard = () => {
       openedNoClick: 0
     }
   });
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [dateRange, setDateRange] = React.useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     endDate: new Date(),
     comparisonEnabled: false,
