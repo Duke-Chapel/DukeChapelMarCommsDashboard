@@ -202,9 +202,9 @@
 
           // Process campaigns
           const campaigns = campaignData.map(row => {
-            const emailsSent = parseInt(row['Emails sent'] || '0');
-            const emailOpened = parseInt(row['Email opened (MPP excluded)'] || '0');
-            const emailClicked = parseInt(row['Email clicked'] || '0');
+            const emailsSent = parseInt((row['Emails sent'] || '0').replace(/,/g, ''));
+            const emailOpened = parseInt((row['Email opened (MPP excluded)'] || '0').replace(/,/g, ''));
+            const emailClicked = parseInt((row['Email clicked'] || '0').replace(/,/g, ''));
 
             // Calculate percentages (ensure they are within reasonable bounds)
             const openRate = emailsSent > 0 ? Math.min((emailOpened / emailsSent) * 100, 100) : 0;
