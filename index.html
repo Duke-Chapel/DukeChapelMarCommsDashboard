@@ -849,11 +849,11 @@
               <h3 className="text-lg font-semibold mb-4">Subscriber Engagement</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg bg-gray-50">
-                  <h4 className="text-lg font-medium text-center mb-2">Active Clickers</h4>
-                  <div className="text-4xl font-bold text-center text-green-700">
-                    {metrics.clickRate.toFixed(1)}%
+                  <h4 className="text-lg font-medium text-center mb-2">Never Opened</h4>
+                  <div className="text-4xl font-bold text-center text-gray-700">
+                    {metrics.unopenedRate.toFixed(1)}%
                   </div>
-                  <p className="text-sm text-center text-gray-500 mt-2">of your subscribers actively engage with content</p>
+                  <p className="text-sm text-center text-gray-500 mt-2">of your subscribers have never opened an email</p>
                 </div>
 
                 <div className="p-4 border rounded-lg bg-gray-50">
@@ -867,7 +867,7 @@
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <h4 className="text-lg font-medium text-center mb-2">Active Clickers</h4>
                   <div className="text-4xl font-bold text-center text-green-700">
-                    {(100 - metrics.unopenedRate - metrics.openedNoClickRate).toFixed(1)}%
+                    {metrics.clickRate.toFixed(1)}%
                   </div>
                   <p className="text-sm text-center text-gray-500 mt-2">of your subscribers actively engage with content</p>
                 </div>
