@@ -230,6 +230,9 @@
               metrics.unopenedRate = totalSent > 0 ? Math.min(((totalSent - totalOpened) / totalSent) * 100, 100) : 0;
               metrics.openedNoClickRate = totalSent > 0 ? Math.min(((totalOpened - totalClicked) / totalSent) * 100, 100) : 0;
               
+              // Calculate overall click rate
+              metrics.clickRate = totalSent > 0 ? (totalClicked / totalSent) * 100 : 0;
+              
               // Calculate average open rate (make sure it's reasonable)
               let avgOpenRate = campaigns.length > 0 
                 ? campaigns.reduce((sum, campaign) => sum + campaign.openRate, 0) / campaigns.length 
@@ -985,7 +988,7 @@
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {fbData.topPosts.map((post, index) => (
-                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                                 {post.description || post.title || 'Untitled Post'}
@@ -1315,6 +1318,11 @@
                   </div>
                   
                   <div className="bg-white rounded-lg shadow-md p-4">
+                    <div className="text-gray-500 text-sm font-medium">Watch Time (hours)</div>
+                    <div className="text-2xl font-bold mt-2">{metrics.totalWatch.toLocaleString()}</div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-md p-4">
                     <div className="text-gray-500 text-sm font-medium">Subscriber Views</div>
                     <div className="text-2xl font-bold mt-2">
                       {metrics.totalViews > 0 
@@ -1324,72 +1332,12 @@
                   </div>
                   
                   <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Non-Subscriber Views</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.totalViews > 0 
-                        ? ((metrics.notSubscribedViews / metrics.totalViews) * 100).toFixed(1) + '%'
-                        : '0.0%'}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
                     <div className="text-gray-500 text-sm font-medium">Top Country</div>
                     <div className="text-2xl font-bold mt-2">
-                      {metrics.geographyData.length > 0 
-                        ? metrics.geographyData[0].country 
-                        : 'N/A'}
+                      {metrics.geographyData.length > 0 ? metrics.geographyData[0].country : 'N/A'}
                     </div>
                   </div>
                 </div>
-                
-                {/* Demographics */}
-                {metrics.ageData.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <h3 className="text-lg font-semibold mb-4">Age Demographics</h3>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Group</th>
-                              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {metrics.ageData.map((age, index) => (
-                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-6 py-4 text-sm text-gray-900">{age.age}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{age.percentage.toFixed(1)}%</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <h3 className="text-lg font-semibold mb-4">Gender Demographics</h3>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {metrics.genderData.map((gender, index) => (
-                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-6 py-4 text-sm text-gray-900">{gender.gender}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{gender.percentage.toFixed(1)}%</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 
                 {/* Subscriber vs Non-Subscriber */}
                 {metrics.subscriberData.length > 0 && (
@@ -1517,7 +1465,7 @@
                       <h3 className="text-lg font-semibold text-red-800 mb-3">YouTube Performance</h3>
                       <p className="text-sm text-gray-600">
                         {dashboardData.youtube.hasData ? 
-                          `${dashboardData.youtube.metrics.totalViews.toLocaleString()} views, ${(dashboardData.youtube.metrics.subscribedViews / dashboardData.youtube.metrics.totalViews * 100).toFixed(1)}% from subscribers` :
+                          `${dashboardData.youtube.metrics.totalViews.toLocaleString()} views, ${dashboardData.youtube.metrics.totalViews > 0 ? (dashboardData.youtube.metrics.subscribedViews / dashboardData.youtube.metrics.totalViews * 100).toFixed(1) : 0}% from subscribers` :
                           'Upload YouTube_*.csv files to analyze video performance'}
                       </p>
                       <button 
