@@ -1,1658 +1,1660 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marketing Analytics Dashboard</title>
-    
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
-    
-    <!-- React and ReactDOM - IMPORTANT: Use development version for better error messages -->
-    <script crossorigin src="https://unpkg.com/react@16.14.0/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@16.14.0/umd/react-dom.development.js"></script>
-    
-    <!-- Recharts is not required for the basic dashboard functionality -->
-    
-    <!-- Papa Parse for CSV handling -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
-    
-    <!-- Tailwind CSS - For development only -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- No more Recharts extraction script - moved to dashboard-loader.js -->
-    </script>
-</head>
-<body class="bg-gray-100">
-    <div id="root">
-        <!-- Loading state while React loads -->
-        <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-            <div class="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
-                <h1 class="text-2xl font-bold mb-4">Marketing Analytics Dashboard</h1>
-                <p class="mb-6 text-gray-600">Loading the dashboard components...</p>
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                <p class="mt-6 text-sm text-gray-500">
-                    The dashboard will appear momentarily. If it doesn't load, please check your browser console for any errors.
-                </p>
-            </div>
-        </div>
-    </div>
 
-    <!-- Inline marketing dashboard component -->
-    <script type="text/babel">
-        // Simple version of the Marketing Dashboard with file handling functionality
-        const MarketingDashboard = () => {
-          // Use React.useState to ensure compatibility
-          const [activeDashboard, setActiveDashboard] = React.useState('overview');
-          const [dashboardData, setDashboardData] = React.useState({
-            web: { files: [], metrics: {}, hasData: false },
-            social: { files: [], metrics: {}, hasData: false },
-            email: { files: [], metrics: {}, hasData: false }, 
-            youtube: { files: [], metrics: {}, hasData: false }
-          });
-          
-          // File upload handler
-          const handleFileUpload = (event) => {
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
-            
-            console.log(`Processing ${files.length} files...`);
-            
-            // Track processed files by category
-            const processedFiles = {
-              web: [],
-              social: [],
-              email: [],
-              youtube: []
-            };
-            
-            // Process each file
-            Array.from(files).forEach(file => {
-              // Skip non-CSV files
-              if (!file.type.includes('csv') && !file.name.endsWith('.csv')) {
-                console.log(`Skipping non-CSV file: ${file.name}`);
-                return;
-              }
-              
-              // Determine file category by prefix
-              let category = '';
-              if (file.name.startsWith('GA_')) {
-                category = 'web';
-              } else if (file.name.startsWith('FB_') || file.name.startsWith('IG_')) {
-                category = 'social';
-              } else if (file.name.startsWith('Email_')) {
-                category = 'email';
-              } else if (file.name.startsWith('YouTube_')) {
-                category = 'youtube';
-              } else {
-                console.log(`Unknown file category: ${file.name}`);
-                return;
-              }
-              
-              // Create reader for each file
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                try {
-                  // Parse CSV using Papa Parse
-                  if (typeof Papa !== 'undefined') {
-                    Papa.parse(e.target.result, {
-                      header: true,
-                      skipEmptyLines: true,
-                      complete: (results) => {
-                        console.log(`Parsed ${file.name} with ${results.data.length} rows`);
-                        
-                        // Add file data to processed files
-                        processedFiles[category].push({
-                          name: file.name,
-                          data: results.data,
-                          fields: results.meta.fields
-                        });
-                        
-                        // Update dashboard data when all files are processed
-                        updateDashboardData(category, processedFiles[category]);
-                      },
-                      error: (error) => {
-                        console.error(`Error parsing ${file.name}:`, error);
-                      }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marketing Analytics Dashboard</title>
+
+  <!-- Favicon -->
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+
+  <!-- React and ReactDOM - IMPORTANT: Use development version for better error messages -->
+  <script crossorigin src="https://unpkg.com/react@16.14.0/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@16.14.0/umd/react-dom.development.js"></script>
+
+  <!-- Recharts is not required for the basic dashboard functionality -->
+
+  <!-- Papa Parse for CSV handling -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
+
+  <!-- Tailwind CSS - For development only -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- No more Recharts extraction script - moved to dashboard-loader.js -->
+  </script>
+</head>
+
+<body class="bg-gray-100">
+  <div id="root">
+    <!-- Loading state while React loads -->
+    <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div class="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+        <h1 class="text-2xl font-bold mb-4">Marketing Analytics Dashboard</h1>
+        <p class="mb-6 text-gray-600">Loading the dashboard components...</p>
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+        <p class="mt-6 text-sm text-gray-500">
+          The dashboard will appear momentarily. If it doesn't load, please check your browser console for any errors.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline marketing dashboard component -->
+  <script type="text/babel">
+    // Simple version of the Marketing Dashboard with file handling functionality
+    const MarketingDashboard = () => {
+      // Use React.useState to ensure compatibility
+      const [activeDashboard, setActiveDashboard] = React.useState('overview');
+      const [dashboardData, setDashboardData] = React.useState({
+        web: { files: [], metrics: {}, hasData: false },
+        social: { files: [], metrics: {}, hasData: false },
+        email: { files: [], metrics: {}, hasData: false },
+        youtube: { files: [], metrics: {}, hasData: false }
+      });
+
+      // File upload handler
+      const handleFileUpload = (event) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        console.log(`Processing ${files.length} files...`);
+
+        // Track processed files by category
+        const processedFiles = {
+          web: [],
+          social: [],
+          email: [],
+          youtube: []
+        };
+
+        // Process each file
+        Array.from(files).forEach(file => {
+          // Skip non-CSV files
+          if (!file.type.includes('csv') && !file.name.endsWith('.csv')) {
+            console.log(`Skipping non-CSV file: ${file.name}`);
+            return;
+          }
+
+          // Determine file category by prefix
+          let category = '';
+          if (file.name.startsWith('GA_')) {
+            category = 'web';
+          } else if (file.name.startsWith('FB_') || file.name.startsWith('IG_')) {
+            category = 'social';
+          } else if (file.name.startsWith('Email_')) {
+            category = 'email';
+          } else if (file.name.startsWith('YouTube_')) {
+            category = 'youtube';
+          } else {
+            console.log(`Unknown file category: ${file.name}`);
+            return;
+          }
+
+          // Create reader for each file
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              // Parse CSV using Papa Parse
+              if (typeof Papa !== 'undefined') {
+                Papa.parse(e.target.result, {
+                  header: true,
+                  skipEmptyLines: true,
+                  complete: (results) => {
+                    console.log(`Parsed ${file.name} with ${results.data.length} rows`);
+
+                    // Add file data to processed files
+                    processedFiles[category].push({
+                      name: file.name,
+                      data: results.data,
+                      fields: results.meta.fields
                     });
-                  } else {
-                    console.error('Papa Parse not available for CSV parsing');
-                    alert('Papa Parse library is not loaded. CSV parsing is not available.');
+
+                    // Update dashboard data when all files are processed
+                    updateDashboardData(category, processedFiles[category]);
+                  },
+                  error: (error) => {
+                    console.error(`Error parsing ${file.name}:`, error);
                   }
-                } catch (error) {
-                  console.error(`Error processing ${file.name}:`, error);
-                }
-              };
-              
-              reader.onerror = () => {
-                console.error(`Error reading ${file.name}`);
-              };
-              
-              reader.readAsText(file);
-            });
-          };
-          
-          // Update dashboard data with processed files
-          const updateDashboardData = (category, files) => {
-            if (files.length === 0) return;
-            
-            console.log(`Updating ${category} dashboard with ${files.length} files`);
-            
-            // Extract metrics based on category
-            let metrics = {};
-            
-            switch(category) {
-              case 'email':
-                metrics = processEmailMetrics(files);
-                break;
-              case 'social':
-                metrics = processSocialMetrics(files);
-                break;
-              case 'web':
-                metrics = processWebMetrics(files);
-                break;
-              case 'youtube':
-                metrics = processYoutubeMetrics(files);
-                break;
-              default:
-                console.log(`No processor for category: ${category}`);
-            }
-            
-            // Update dashboard data state
-            setDashboardData(prevData => ({
-              ...prevData,
-              [category]: {
-                files,
-                metrics,
-                hasData: true
+                });
+              } else {
+                console.error('Papa Parse not available for CSV parsing');
+                alert('Papa Parse library is not loaded. CSV parsing is not available.');
               }
-            }));
-            
-            // Switch to relevant dashboard after upload if not already there
-            if (activeDashboard === 'overview') {
-              setActiveDashboard(category);
+            } catch (error) {
+              console.error(`Error processing ${file.name}:`, error);
             }
           };
-          
-          // Process Email CSV data
-          const processEmailMetrics = (files) => {
-            const metrics = {
-              campaigns: [],
-              topCampaigns: {
-                byOpenRate: [],
-                byClickRate: []
-              },
-              totalSubscribers: 0,
-              unopenedRate: 0,
-              openedNoClickRate: 0,
-              averageOpenRate: 0
+
+          reader.onerror = () => {
+            console.error(`Error reading ${file.name}`);
+          };
+
+          reader.readAsText(file);
+        });
+      };
+
+      // Update dashboard data with processed files
+      const updateDashboardData = (category, files) => {
+        if (files.length === 0) return;
+
+        console.log(`Updating ${category} dashboard with ${files.length} files`);
+
+        // Extract metrics based on category
+        let metrics = {};
+
+        switch (category) {
+          case 'email':
+            metrics = processEmailMetrics(files);
+            break;
+          case 'social':
+            metrics = processSocialMetrics(files);
+            break;
+          case 'web':
+            metrics = processWebMetrics(files);
+            break;
+          case 'youtube':
+            metrics = processYoutubeMetrics(files);
+            break;
+          default:
+            console.log(`No processor for category: ${category}`);
+        }
+
+        // Update dashboard data state
+        setDashboardData(prevData => ({
+          ...prevData,
+          [category]: {
+            files,
+            metrics,
+            hasData: true
+          }
+        }));
+
+        // Switch to relevant dashboard after upload if not already there
+        if (activeDashboard === 'overview') {
+          setActiveDashboard(category);
+        }
+      };
+
+      // Process Email CSV data
+      const processEmailMetrics = (files) => {
+        const metrics = {
+          campaigns: [],
+          topCampaigns: {
+            byOpenRate: [],
+            byClickRate: []
+          },
+          totalSubscribers: 0,
+          unopenedRate: 0,
+          openedNoClickRate: 0,
+          averageOpenRate: 0,
+          clickRate: 0
+        };
+
+        // Find campaign performance file
+        const campaignFile = files.find(file => file.name === 'Email_Campaign_Performance.csv');
+        if (campaignFile) {
+          const campaignData = campaignFile.data;
+
+          // Process campaigns
+          const campaigns = campaignData.map(row => {
+            const emailsSent = parseInt(row['Emails sent'] || '0');
+            const emailOpened = parseInt(row['Email opened (MPP excluded)'] || '0');
+            const emailClicked = parseInt(row['Email clicked'] || '0');
+
+            // Calculate percentages (ensure they are within reasonable bounds)
+            const openRate = emailsSent > 0 ? Math.min((emailOpened / emailsSent) * 100, 100) : 0;
+            const clickRate = emailsSent > 0 ? Math.min((emailClicked / emailsSent) * 100, 100) : 0;
+
+            return {
+              name: row['Campaign'] || 'Unnamed Campaign',
+              emailsSent,
+              emailOpened,
+              emailClicked,
+              openRate,
+              clickRate,
+              bounceRate: Math.min(parseFloat(row['Email bounce rate'] || '0'), 100),
+              unsubscribeRate: Math.min(parseFloat(row['Email unsubscribe rate'] || '0'), 100),
+              url: `mailto:?subject=${encodeURIComponent(row['Campaign'] || 'Email Campaign')}`
             };
-            
-            // Find campaign performance file
-            const campaignFile = files.find(file => file.name === 'Email_Campaign_Performance.csv');
-            if (campaignFile) {
-              const campaignData = campaignFile.data;
-              
-              // Process campaigns
-              const campaigns = campaignData.map(row => {
-                const emailsSent = parseInt(row['Emails sent'] || '0');
-                const emailOpened = parseInt(row['Email opened (MPP excluded)'] || '0');
-                const emailClicked = parseInt(row['Email clicked'] || '0');
-                
-                // Calculate percentages (ensure they are within reasonable bounds)
-                const openRate = emailsSent > 0 ? Math.min((emailOpened / emailsSent) * 100, 100) : 0;
-                const clickRate = emailsSent > 0 ? Math.min((emailClicked / emailsSent) * 100, 100) : 0;
-                
-                return {
-                  name: row['Campaign'] || 'Unnamed Campaign',
-                  emailsSent,
-                  emailOpened,
-                  emailClicked,
-                  openRate,
-                  clickRate,
-                  bounceRate: Math.min(parseFloat(row['Email bounce rate'] || '0'), 100),
-                  unsubscribeRate: Math.min(parseFloat(row['Email unsubscribe rate'] || '0'), 100),
-                  url: `mailto:?subject=${encodeURIComponent(row['Campaign'] || 'Email Campaign')}`
-                };
-              });
-              
-              metrics.campaigns = campaigns;
-              
-              // Calculate aggregate metrics
-              const totalSent = campaigns.reduce((sum, campaign) => sum + campaign.emailsSent, 0);
-              const totalOpened = campaigns.reduce((sum, campaign) => sum + campaign.emailOpened, 0);
-              const totalClicked = campaigns.reduce((sum, campaign) => sum + campaign.emailClicked, 0);
-              
-              metrics.totalSubscribers = totalSent;
-              metrics.unopenedRate = totalSent > 0 ? Math.min(((totalSent - totalOpened) / totalSent) * 100, 100) : 0;
-              metrics.openedNoClickRate = totalSent > 0 ? Math.min(((totalOpened - totalClicked) / totalSent) * 100, 100) : 0;
-              
-              // Calculate overall click rate
-              metrics.clickRate = totalSent > 0 ? (totalClicked / totalSent) * 100 : 0;
-              
-              // Calculate average open rate (make sure it's reasonable)
-              let avgOpenRate = campaigns.length > 0 
-                ? campaigns.reduce((sum, campaign) => sum + campaign.openRate, 0) / campaigns.length 
-                : 0;
-              
-              // Ensure average open rate is between 0-100%
-              metrics.averageOpenRate = Math.min(Math.max(avgOpenRate, 0), 100);
-              
-              // Sort campaigns by open rate and click rate
-              metrics.topCampaigns.byOpenRate = [...campaigns]
-                .sort((a, b) => b.openRate - a.openRate)
-                .slice(0, 5);
-                
-              metrics.topCampaigns.byClickRate = [...campaigns]
-                .sort((a, b) => b.clickRate - a.clickRate)
-                .slice(0, 5);
-            }
-            
-            return metrics;
-          };
-          
-          // Process Social CSV data
-          const processSocialMetrics = (files) => {
-            const metrics = {
-              facebook: {
-                followers: 0,
-                reach: 0,
-                interactions: 0,
-                posts: [],
-                topPosts: []
-              },
-              instagram: {
-                followers: 0,
-                reach: 0,
-                interactions: 0,
-                posts: [],
-                topPosts: []
+          });
+
+          metrics.campaigns = campaigns;
+
+          // Calculate aggregate metrics
+          const totalSent = campaigns.reduce((sum, campaign) => sum + campaign.emailsSent, 0);
+          const totalOpened = campaigns.reduce((sum, campaign) => sum + campaign.emailOpened, 0);
+          const totalClicked = campaigns.reduce((sum, campaign) => sum + campaign.emailClicked, 0);
+
+          metrics.totalSubscribers = totalSent;
+          metrics.unopenedRate = totalSent > 0 ? Math.min(((totalSent - totalOpened) / totalSent) * 100, 100) : 0;
+          metrics.openedNoClickRate = totalOpened > 0 ? Math.min(((totalOpened - totalClicked) / totalOpened) * 100, 100) : 0;
+
+          // Calculate overall click rate
+          metrics.clickRate = totalSent > 0 ? (totalClicked / totalSent) * 100 : 0;
+
+          // Calculate average open rate (make sure it's reasonable)
+          let avgOpenRate = campaigns.length > 0
+            ? campaigns.reduce((sum, campaign) => sum + campaign.openRate, 0) / campaigns.length
+            : 0;
+
+          // Ensure average open rate is between 0-100%
+          metrics.averageOpenRate = Math.min(Math.max(avgOpenRate, 0), 100);
+
+          // Sort campaigns by open rate and click rate
+          metrics.topCampaigns.byOpenRate = [...campaigns]
+            .sort((a, b) => b.openRate - a.openRate)
+            .slice(0, 5);
+
+          metrics.topCampaigns.byClickRate = [...campaigns]
+            .sort((a, b) => b.clickRate - a.clickRate)
+            .slice(0, 5);
+        }
+
+        return metrics;
+      };
+
+      // Process Social CSV data
+      const processSocialMetrics = (files) => {
+        const metrics = {
+          facebook: {
+            followers: 0,
+            reach: 0,
+            interactions: 0,
+            posts: [],
+            topPosts: []
+          },
+          instagram: {
+            followers: 0,
+            reach: 0,
+            interactions: 0,
+            posts: [],
+            topPosts: []
+          }
+        };
+
+        // Process Facebook files
+        const fbFollowsFile = files.find(file => file.name === 'FB_Follows.csv');
+        const fbInteractionsFile = files.find(file => file.name === 'FB_Interactions.csv');
+        const fbReachFile = files.find(file => file.name === 'FB_Reach.csv');
+        const fbPostsFile = files.find(file => file.name === 'FB_Posts.csv');
+
+        if (fbFollowsFile) {
+          // Get latest follower count
+          const followerData = fbFollowsFile.data
+            .filter(row => row.Primary)
+            .map(row => parseInt(row.Primary || '0'));
+
+          metrics.facebook.followers = Math.max(...followerData, 0);
+        }
+
+        if (fbInteractionsFile) {
+          // Sum interactions
+          metrics.facebook.interactions = fbInteractionsFile.data
+            .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
+        }
+
+        if (fbReachFile) {
+          // Sum reach
+          metrics.facebook.reach = fbReachFile.data
+            .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
+        }
+
+        if (fbPostsFile) {
+          // Process posts
+          metrics.facebook.posts = fbPostsFile.data.map(row => {
+            // Extract URL from data if available, or create a placeholder
+            const permalink = row['Permalink'] || '';
+            const postUrl = permalink || `https://facebook.com/post/${row['Post ID'] || 'unknown'}`;
+
+            return {
+              id: row['Post ID'] || '',
+              title: row['Title'] || '',
+              description: row['Description'] || '',
+              reach: parseInt(row['Reach'] || 0),
+              reactions: parseInt(row['Reactions'] || 0),
+              comments: parseInt(row['Comments'] || 0),
+              shares: parseInt(row['Shares'] || 0),
+              date: row['Date'] || '',
+              url: postUrl
+            };
+          });
+
+          // Get top posts by reach
+          metrics.facebook.topPosts = [...metrics.facebook.posts]
+            .sort((a, b) => b.reach - a.reach)
+            .slice(0, 5);
+        }
+
+        // Process Instagram files
+        const igFollowsFile = files.find(file => file.name === 'IG_Follows.csv');
+        const igInteractionsFile = files.find(file => file.name === 'IG_Interactions.csv');
+        const igReachFile = files.find(file => file.name === 'IG_Reach.csv');
+        const igPostsFile = files.find(file => file.name === 'IG_Posts.csv');
+
+        if (igFollowsFile) {
+          // Get latest follower count
+          const followerData = igFollowsFile.data
+            .filter(row => row.Primary)
+            .map(row => parseInt(row.Primary || '0'));
+
+          metrics.instagram.followers = Math.max(...followerData, 0);
+        }
+
+        if (igInteractionsFile) {
+          // Sum interactions
+          metrics.instagram.interactions = igInteractionsFile.data
+            .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
+        }
+
+        if (igReachFile) {
+          // Sum reach
+          metrics.instagram.reach = igReachFile.data
+            .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
+        }
+
+        if (igPostsFile) {
+          // Process posts
+          metrics.instagram.posts = igPostsFile.data.map(row => {
+            // Extract URL from permalink or generate one
+            const permalink = row['Permalink'] || '';
+            const username = row['Account username'] || 'instagram';
+            const postUrl = permalink || `https://instagram.com/${username}/p/${row['Post ID'] || 'unknown'}`;
+
+            return {
+              id: row['Post ID'] || '',
+              username: row['Account username'] || '',
+              description: row['Description'] || '',
+              reach: parseFloat(row['Reach'] || 0),
+              likes: parseInt(row['Likes'] || 0),
+              comments: parseInt(row['Comments'] || 0),
+              saves: parseInt(row['Saves'] || 0),
+              date: row['Date'] || '',
+              url: postUrl
+            };
+          });
+
+          // Get top posts by reach
+          metrics.instagram.topPosts = [...metrics.instagram.posts]
+            .sort((a, b) => b.reach - a.reach)
+            .slice(0, 5);
+        }
+
+        return metrics;
+      };
+
+      // Process Web Analytics CSV data
+      const processWebMetrics = (files) => {
+        const metrics = {
+          demographics: {
+            countries: [],
+            cities: [],
+            languages: []
+          },
+          traffic: {
+            sources: [],
+            campaigns: []
+          },
+          pages: [],
+          totalUsers: 0,
+          totalSessions: 0
+        };
+
+        // Process Demographics file
+        const demographicsFile = files.find(file => file.name === 'GA_Demographics.csv');
+        if (demographicsFile) {
+          const data = demographicsFile.data;
+
+          // Collect demographics data
+          const countries = {};
+          const cities = {};
+          const languages = {};
+
+          data.forEach(row => {
+            // Process countries
+            const country = row['Country'];
+            if (country && country !== '(not set)') {
+              if (!countries[country]) {
+                countries[country] = { name: country, users: 0 };
               }
-            };
-            
-            // Process Facebook files
-            const fbFollowsFile = files.find(file => file.name === 'FB_Follows.csv');
-            const fbInteractionsFile = files.find(file => file.name === 'FB_Interactions.csv');
-            const fbReachFile = files.find(file => file.name === 'FB_Reach.csv');
-            const fbPostsFile = files.find(file => file.name === 'FB_Posts.csv');
-            
-            if (fbFollowsFile) {
-              // Get latest follower count
-              const followerData = fbFollowsFile.data
-                .filter(row => row.Primary)
-                .map(row => parseInt(row.Primary || '0'));
-              
-              metrics.facebook.followers = Math.max(...followerData, 0);
+              countries[country].users += parseInt(row['Total users'] || 0);
             }
-            
-            if (fbInteractionsFile) {
-              // Sum interactions
-              metrics.facebook.interactions = fbInteractionsFile.data
-                .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
+
+            // Process cities
+            const city = row['City'];
+            if (city && city !== '(not set)') {
+              if (!cities[city]) {
+                cities[city] = { name: city, users: 0 };
+              }
+              cities[city].users += parseInt(row['Total users'] || 0);
             }
-            
-            if (fbReachFile) {
-              // Sum reach
-              metrics.facebook.reach = fbReachFile.data
-                .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
+
+            // Process languages
+            const language = row['Language'];
+            if (language && language !== '(not set)') {
+              if (!languages[language]) {
+                languages[language] = { name: language, users: 0 };
+              }
+              languages[language].users += parseInt(row['Total users'] || 0);
             }
-            
-            if (fbPostsFile) {
-              // Process posts
-              metrics.facebook.posts = fbPostsFile.data.map(row => {
-                // Extract URL from data if available, or create a placeholder
-                const permalink = row['Permalink'] || '';
-                const postUrl = permalink || `https://facebook.com/post/${row['Post ID'] || 'unknown'}`;
-                
-                return {
-                  id: row['Post ID'] || '',
-                  title: row['Title'] || '',
-                  description: row['Description'] || '',
-                  reach: parseInt(row['Reach'] || 0),
-                  reactions: parseInt(row['Reactions'] || 0),
-                  comments: parseInt(row['Comments'] || 0),
-                  shares: parseInt(row['Shares'] || 0),
-                  date: row['Date'] || '',
-                  url: postUrl
+          });
+
+          // Convert to arrays and sort by users
+          metrics.demographics.countries = Object.values(countries)
+            .sort((a, b) => b.users - a.users)
+            .slice(0, 10);
+
+          metrics.demographics.cities = Object.values(cities)
+            .sort((a, b) => b.users - a.users)
+            .slice(0, 10);
+
+          metrics.demographics.languages = Object.values(languages)
+            .sort((a, b) => b.users - a.users)
+            .slice(0, 10);
+
+          // Calculate total metrics
+          metrics.totalUsers = data.reduce((sum, row) => sum + parseInt(row['Total users'] || 0), 0);
+        }
+
+        // Process Traffic Acquisition file
+        const trafficFile = files.find(file => file.name === 'GA_Traffic_Acquisition.csv');
+        if (trafficFile) {
+          const data = trafficFile.data;
+
+          // Collect traffic sources
+          const sources = {};
+
+          data.forEach(row => {
+            const channel = row['Session primary channel group (Default Channel Group)'];
+            if (channel && channel !== '(not set)') {
+              if (!sources[channel]) {
+                sources[channel] = {
+                  name: channel,
+                  sessions: 0,
+                  engagedSessions: 0
                 };
-              });
-              
-              // Get top posts by reach
-              metrics.facebook.topPosts = [...metrics.facebook.posts]
-                .sort((a, b) => b.reach - a.reach)
-                .slice(0, 5);
+              }
+
+              sources[channel].sessions += parseInt(row['Sessions'] || 0);
+              sources[channel].engagedSessions += parseInt(row['Engaged sessions'] || 0);
             }
-            
-            // Process Instagram files
-            const igFollowsFile = files.find(file => file.name === 'IG_Follows.csv');
-            const igInteractionsFile = files.find(file => file.name === 'IG_Interactions.csv');
-            const igReachFile = files.find(file => file.name === 'IG_Reach.csv');
-            const igPostsFile = files.find(file => file.name === 'IG_Posts.csv');
-            
-            if (igFollowsFile) {
-              // Get latest follower count
-              const followerData = igFollowsFile.data
-                .filter(row => row.Primary)
-                .map(row => parseInt(row.Primary || '0'));
-              
-              metrics.instagram.followers = Math.max(...followerData, 0);
-            }
-            
-            if (igInteractionsFile) {
-              // Sum interactions
-              metrics.instagram.interactions = igInteractionsFile.data
-                .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
-            }
-            
-            if (igReachFile) {
-              // Sum reach
-              metrics.instagram.reach = igReachFile.data
-                .reduce((sum, row) => sum + parseInt(row.Primary || '0'), 0);
-            }
-            
-            if (igPostsFile) {
-              // Process posts
-              metrics.instagram.posts = igPostsFile.data.map(row => {
-                // Extract URL from permalink or generate one
-                const permalink = row['Permalink'] || '';
-                const username = row['Account username'] || 'instagram';
-                const postUrl = permalink || `https://instagram.com/${username}/p/${row['Post ID'] || 'unknown'}`;
-                
-                return {
-                  id: row['Post ID'] || '',
-                  username: row['Account username'] || '',
-                  description: row['Description'] || '',
-                  reach: parseFloat(row['Reach'] || 0),
-                  likes: parseInt(row['Likes'] || 0),
-                  comments: parseInt(row['Comments'] || 0),
-                  saves: parseInt(row['Saves'] || 0),
-                  date: row['Date'] || '',
-                  url: postUrl
+          });
+
+          // Convert to array and sort by sessions
+          metrics.traffic.sources = Object.values(sources)
+            .sort((a, b) => b.sessions - a.sessions);
+
+          // Calculate total sessions
+          metrics.totalSessions = data.reduce((sum, row) => sum + parseInt(row['Sessions'] || 0), 0);
+        }
+
+        // Process UTM Campaigns file
+        const utmFile = files.find(file => file.name === 'GA_UTMs.csv');
+        if (utmFile) {
+          const data = utmFile.data;
+
+          // Collect campaign data
+          const campaigns = {};
+
+          data.forEach(row => {
+            const campaign = row['Manual campaign name'];
+            if (campaign && campaign !== '(not set)' && campaign !== 'not set') {
+              if (!campaigns[campaign]) {
+                campaigns[campaign] = {
+                  name: campaign,
+                  source: row['Manual source / medium'] || '',
+                  sessions: 0,
+                  events: 0,
+                  url: `https://analytics.google.com/analytics/web/?authuser=0#/report/acquisition-campaign-list/` // This is a placeholder URL
                 };
-              });
-              
-              // Get top posts by reach
-              metrics.instagram.topPosts = [...metrics.instagram.posts]
-                .sort((a, b) => b.reach - a.reach)
-                .slice(0, 5);
+              }
+
+              campaigns[campaign].sessions += parseInt(row['Sessions'] || 0);
+              campaigns[campaign].events += parseInt(row['Key events'] || 0);
             }
-            
-            return metrics;
-          };
-          
-          // Process Web Analytics CSV data
-          const processWebMetrics = (files) => {
-            const metrics = {
-              demographics: {
-                countries: [],
-                cities: [],
-                languages: []
-              },
-              traffic: {
-                sources: [],
-                campaigns: []
-              },
-              pages: [],
-              totalUsers: 0,
-              totalSessions: 0
-            };
-            
-            // Process Demographics file
-            const demographicsFile = files.find(file => file.name === 'GA_Demographics.csv');
-            if (demographicsFile) {
-              const data = demographicsFile.data;
-              
-              // Collect demographics data
-              const countries = {};
-              const cities = {};
-              const languages = {};
-              
-              data.forEach(row => {
-                // Process countries
-                const country = row['Country'];
-                if (country && country !== '(not set)') {
-                  if (!countries[country]) {
-                    countries[country] = { name: country, users: 0 };
-                  }
-                  countries[country].users += parseInt(row['Total users'] || 0);
-                }
-                
-                // Process cities
-                const city = row['City'];
-                if (city && city !== '(not set)') {
-                  if (!cities[city]) {
-                    cities[city] = { name: city, users: 0 };
-                  }
-                  cities[city].users += parseInt(row['Total users'] || 0);
-                }
-                
-                // Process languages
-                const language = row['Language'];
-                if (language && language !== '(not set)') {
-                  if (!languages[language]) {
-                    languages[language] = { name: language, users: 0 };
-                  }
-                  languages[language].users += parseInt(row['Total users'] || 0);
-                }
-              });
-              
-              // Convert to arrays and sort by users
-              metrics.demographics.countries = Object.values(countries)
-                .sort((a, b) => b.users - a.users)
-                .slice(0, 10);
-              
-              metrics.demographics.cities = Object.values(cities)
-                .sort((a, b) => b.users - a.users)
-                .slice(0, 10);
-              
-              metrics.demographics.languages = Object.values(languages)
-                .sort((a, b) => b.users - a.users)
-                .slice(0, 10);
-              
-              // Calculate total metrics
-              metrics.totalUsers = data.reduce((sum, row) => sum + parseInt(row['Total users'] || 0), 0);
+          });
+
+          // Convert to array and sort by sessions
+          metrics.traffic.campaigns = Object.values(campaigns)
+            .sort((a, b) => b.sessions - a.sessions)
+            .slice(0, 10);
+        }
+
+        // Process Pages and Screens file
+        const pagesFile = files.find(file => file.name === 'GA_Pages_And_Screens.csv');
+        if (pagesFile) {
+          const data = pagesFile.data;
+
+          // Collect page data
+          const pages = {};
+
+          data.forEach(row => {
+            const path = row['Page path and screen class'];
+            const title = row['Page title and screen class'] || path;
+
+            if (path) {
+              if (!pages[path]) {
+                pages[path] = {
+                  path,
+                  title,
+                  views: 0,
+                  users: 0,
+                  url: path.startsWith('/') ? `https://your-website.com${path}` : `https://your-website.com/${path}`
+                };
+              }
+
+              pages[path].views += parseInt(row['Views'] || 0);
+              pages[path].users += parseInt(row['Active users'] || 0);
             }
-            
-            // Process Traffic Acquisition file
-            const trafficFile = files.find(file => file.name === 'GA_Traffic_Acquisition.csv');
-            if (trafficFile) {
-              const data = trafficFile.data;
-              
-              // Collect traffic sources
-              const sources = {};
-              
-              data.forEach(row => {
-                const channel = row['Session primary channel group (Default Channel Group)'];
-                if (channel && channel !== '(not set)') {
-                  if (!sources[channel]) {
-                    sources[channel] = {
-                      name: channel,
-                      sessions: 0,
-                      engagedSessions: 0
-                    };
-                  }
-                  
-                  sources[channel].sessions += parseInt(row['Sessions'] || 0);
-                  sources[channel].engagedSessions += parseInt(row['Engaged sessions'] || 0);
-                }
-              });
-              
-              // Convert to array and sort by sessions
-              metrics.traffic.sources = Object.values(sources)
-                .sort((a, b) => b.sessions - a.sessions);
-              
-              // Calculate total sessions
-              metrics.totalSessions = data.reduce((sum, row) => sum + parseInt(row['Sessions'] || 0), 0);
-            }
-            
-            // Process UTM Campaigns file
-            const utmFile = files.find(file => file.name === 'GA_UTMs.csv');
-            if (utmFile) {
-              const data = utmFile.data;
-              
-              // Collect campaign data
-              const campaigns = {};
-              
-              data.forEach(row => {
-                const campaign = row['Manual campaign name'];
-                if (campaign && campaign !== '(not set)' && campaign !== 'not set') {
-                  if (!campaigns[campaign]) {
-                    campaigns[campaign] = {
-                      name: campaign,
-                      source: row['Manual source / medium'] || '',
-                      sessions: 0,
-                      events: 0,
-                      url: `https://analytics.google.com/analytics/web/?authuser=0#/report/acquisition-campaign-list/` // This is a placeholder URL
-                    };
-                  }
-                  
-                  campaigns[campaign].sessions += parseInt(row['Sessions'] || 0);
-                  campaigns[campaign].events += parseInt(row['Key events'] || 0);
-                }
-              });
-              
-              // Convert to array and sort by sessions
-              metrics.traffic.campaigns = Object.values(campaigns)
-                .sort((a, b) => b.sessions - a.sessions)
-                .slice(0, 10);
-            }
-            
-            // Process Pages and Screens file
-            const pagesFile = files.find(file => file.name === 'GA_Pages_And_Screens.csv');
-            if (pagesFile) {
-              const data = pagesFile.data;
-              
-              // Collect page data
-              const pages = {};
-              
-              data.forEach(row => {
-                const path = row['Page path and screen class'];
-                const title = row['Page title and screen class'] || path;
-                
-                if (path) {
-                  if (!pages[path]) {
-                    pages[path] = {
-                      path,
-                      title,
-                      views: 0,
-                      users: 0,
-                      url: path.startsWith('/') ? `https://your-website.com${path}` : `https://your-website.com/${path}`
-                    };
-                  }
-                  
-                  pages[path].views += parseInt(row['Views'] || 0);
-                  pages[path].users += parseInt(row['Active users'] || 0);
-                }
-              });
-              
-              // Convert to array and sort by views
-              metrics.pages = Object.values(pages)
-                .sort((a, b) => b.views - a.views)
-                .slice(0, 10);
-            }
-            
-            return metrics;
-          };
-          
-          // Process YouTube CSV data
-          const processYoutubeMetrics = (files) => {
-            const metrics = {
-              ageData: [],
-              genderData: [],
-              geographyData: [],
-              contentData: [],
-              subscriberData: [],
-              totalViews: 0,
-              totalWatch: 0,
-              subscribedViews: 0,
-              notSubscribedViews: 0
-            };
-            
-            // Process Age data
-            const ageFile = files.find(file => file.name === 'YouTube_Age.csv');
-            if (ageFile) {
-              metrics.ageData = ageFile.data.map(row => ({
-                age: row['Viewer age'] || 'Unknown',
-                percentage: Math.min(parseFloat(row['Views (%)'] || 0), 100)
-              }));
-            }
-            
-            // Process Gender data
-            const genderFile = files.find(file => file.name === 'YouTube_Gender.csv');
-            if (genderFile) {
-              metrics.genderData = genderFile.data.map(row => ({
-                gender: row['Viewer gender'] || 'Unknown',
-                percentage: Math.min(parseFloat(row['Views (%)'] || 0), 100)
-              }));
-            }
-            
-            // Process Geography data
-            const geoFile = files.find(file => file.name === 'YouTube_Geography.csv');
-            if (geoFile) {
-              metrics.geographyData = geoFile.data
-                .map(row => ({
-                  country: row['Geography'] || 'Unknown',
-                  views: parseInt(row['Views'] || 0),
-                  watchHours: parseFloat(row['Watch time (hours)'] || 0)
-                }))
-                .sort((a, b) => b.views - a.views)
-                .slice(0, 10);
-            }
-            
-            // Process Content data
-            const contentFile = files.find(file => file.name === 'YouTube_Content.csv');
-            if (contentFile) {
-              metrics.contentData = contentFile.data
-                .map(row => {
-                  // Create URL from content info if available
-                  let videoId = '';
-                  // Try to extract video ID from any source
-                  if (row['Content']) {
-                    const match = row['Content'].match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-                    if (match) videoId = match[1];
-                  }
-                  
-                  const videoUrl = videoId ? 
-                    `https://youtube.com/watch?v=${videoId}` : 
-                    `https://youtube.com/results?search_query=${encodeURIComponent(row['Video title'] || '')}`;
-                  
-                  return {
-                    title: row['Video title'] || 'Untitled',
-                    views: parseInt(row['Views'] || 0),
-                    likes: parseInt(row['Likes'] || 0),
-                    comments: parseInt(row['Comments added'] || 0),
-                    shares: parseInt(row['Shares'] || 0),
-                    watchHours: parseFloat(row['Watch time (hours)'] || 0),
-                    url: videoUrl
-                  };
-                })
-                .sort((a, b) => b.views - a.views)
-                .slice(0, 10);
-            }
-            
-            // Process Subscription data
-            const subFile = files.find(file => file.name === 'YouTube_Subscription_Status.csv');
-            if (subFile) {
-              metrics.subscriberData = subFile.data.map(row => ({
-                status: row['Subscription status'] || 'Unknown',
+          });
+
+          // Convert to array and sort by views
+          metrics.pages = Object.values(pages)
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 10);
+        }
+
+        return metrics;
+      };
+
+      // Process YouTube CSV data
+      const processYoutubeMetrics = (files) => {
+        const metrics = {
+          ageData: [],
+          genderData: [],
+          geographyData: [],
+          contentData: [],
+          subscriberData: [],
+          totalViews: 0,
+          totalWatch: 0,
+          subscribedViews: 0,
+          notSubscribedViews: 0
+        };
+
+        // Process Age data
+        const ageFile = files.find(file => file.name === 'YouTube_Age.csv');
+        if (ageFile) {
+          metrics.ageData = ageFile.data.map(row => ({
+            age: row['Viewer age'] || 'Unknown',
+            percentage: Math.min(parseFloat(row['Views (%)'] || 0), 100)
+          }));
+        }
+
+        // Process Gender data
+        const genderFile = files.find(file => file.name === 'YouTube_Gender.csv');
+        if (genderFile) {
+          metrics.genderData = genderFile.data.map(row => ({
+            gender: row['Viewer gender'] || 'Unknown',
+            percentage: Math.min(parseFloat(row['Views (%)'] || 0), 100)
+          }));
+        }
+
+        // Process Geography data
+        const geoFile = files.find(file => file.name === 'YouTube_Geography.csv');
+        if (geoFile) {
+          metrics.geographyData = geoFile.data
+            .map(row => ({
+              country: row['Geography'] || 'Unknown',
+              views: parseInt(row['Views'] || 0),
+              watchHours: parseFloat(row['Watch time (hours)'] || 0)
+            }))
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 10);
+        }
+
+        // Process Content data
+        const contentFile = files.find(file => file.name === 'YouTube_Content.csv');
+        if (contentFile) {
+          metrics.contentData = contentFile.data
+            .map(row => {
+              // Create URL from content info if available
+              let videoId = '';
+              // Try to extract video ID from any source
+              if (row['Content']) {
+                const match = row['Content'].match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+                if (match) videoId = match[1];
+              }
+
+              const videoUrl = videoId ?
+                `https://youtube.com/watch?v=${videoId}` :
+                `https://youtube.com/results?search_query=${encodeURIComponent(row['Video title'] || '')}`;
+
+              return {
+                title: row['Video title'] || 'Untitled',
                 views: parseInt(row['Views'] || 0),
-                watchHours: parseFloat(row['Watch time (hours)'] || 0)
-              }));
-              
-              // Extract subscribtion metrics
-              const subscribedViews = metrics.subscriberData.find(item => 
-                item.status === 'Subscribed')?.views || 0;
-              
-              const notSubscribedViews = metrics.subscriberData.find(item => 
-                item.status === 'Not subscribed')?.views || 0;
-              
-              metrics.subscribedViews = subscribedViews;
-              metrics.notSubscribedViews = notSubscribedViews;
-              metrics.totalViews = subscribedViews + notSubscribedViews;
-            }
-            
-            return metrics;
-          };
-          
-          // FileUploader component
-          const FileUploader = ({ dashboardType }) => {
-            let fileTypes = '';
-            let description = '';
-            
-            switch(dashboardType) {
-              case 'web':
-                fileTypes = 'GA_*.csv';
-                description = 'Upload Google Analytics CSV files';
-                break;
-              case 'social':
-                fileTypes = 'FB_*.csv, IG_*.csv';
-                description = 'Upload Facebook and Instagram CSV files';
-                break;
-              case 'email':
-                fileTypes = 'Email_*.csv';
-                description = 'Upload Email Campaign CSV files';
-                break;
-              case 'youtube':
-                fileTypes = 'YouTube_*.csv';
-                description = 'Upload YouTube Analytics CSV files';
-                break;
-              default:
-                fileTypes = '*.csv';
-                description = 'Upload any CSV files';
-            }
-            
-            return (
-              <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                <h2 className="text-lg font-semibold mb-2">Upload Data</h2>
-                <p className="text-sm text-gray-600 mb-3">
-                  {description}
-                </p>
-                
-                <div className="flex items-center">
-                  <label className={`
-                    ${dashboardType === 'web' ? 'bg-blue-500 hover:bg-blue-600' : 
-                      dashboardType === 'social' ? 'bg-pink-500 hover:bg-pink-600' : 
-                      dashboardType === 'email' ? 'bg-purple-500 hover:bg-purple-600' : 
-                      dashboardType === 'youtube' ? 'bg-red-500 hover:bg-red-600' : 
-                      'bg-gray-500 hover:bg-gray-600'} 
+                likes: parseInt(row['Likes'] || 0),
+                comments: parseInt(row['Comments added'] || 0),
+                shares: parseInt(row['Shares'] || 0),
+                watchHours: parseFloat(row['Watch time (hours)'] || 0),
+                url: videoUrl
+              };
+            })
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 10);
+        }
+
+        // Process Subscription data
+        const subFile = files.find(file => file.name === 'YouTube_Subscription_Status.csv');
+        if (subFile) {
+          metrics.subscriberData = subFile.data.map(row => ({
+            status: row['Subscription status'] || 'Unknown',
+            views: parseInt(row['Views'] || 0),
+            watchHours: parseFloat(row['Watch time (hours)'] || 0)
+          }));
+
+          // Extract subscribtion metrics
+          const subscribedViews = metrics.subscriberData.find(item =>
+            item.status === 'Subscribed')?.views || 0;
+
+          const notSubscribedViews = metrics.subscriberData.find(item =>
+            item.status === 'Not subscribed')?.views || 0;
+
+          metrics.subscribedViews = subscribedViews;
+          metrics.notSubscribedViews = notSubscribedViews;
+          metrics.totalViews = subscribedViews + notSubscribedViews;
+        }
+
+        return metrics;
+      };
+
+      // FileUploader component
+      const FileUploader = ({ dashboardType }) => {
+        let fileTypes = '';
+        let description = '';
+
+        switch (dashboardType) {
+          case 'web':
+            fileTypes = 'GA_*.csv';
+            description = 'Upload Google Analytics CSV files';
+            break;
+          case 'social':
+            fileTypes = 'FB_*.csv, IG_*.csv';
+            description = 'Upload Facebook and Instagram CSV files';
+            break;
+          case 'email':
+            fileTypes = 'Email_*.csv';
+            description = 'Upload Email Campaign CSV files';
+            break;
+          case 'youtube':
+            fileTypes = 'YouTube_*.csv';
+            description = 'Upload YouTube Analytics CSV files';
+            break;
+          default:
+            fileTypes = '*.csv';
+            description = 'Upload any CSV files';
+        }
+
+        return (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h2 className="text-lg font-semibold mb-2">Upload Data</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              {description}
+            </p>
+
+            <div className="flex items-center">
+              <label className={`
+                    ${dashboardType === 'web' ? 'bg-blue-500 hover:bg-blue-600' :
+                  dashboardType === 'social' ? 'bg-pink-500 hover:bg-pink-600' :
+                    dashboardType === 'email' ? 'bg-purple-500 hover:bg-purple-600' :
+                      dashboardType === 'youtube' ? 'bg-red-500 hover:bg-red-600' :
+                        'bg-gray-500 hover:bg-gray-600'} 
                     text-white px-4 py-2 rounded cursor-pointer`}
-                  >
-                    <span>Choose Files</span>
-                    <input 
-                      type="file" 
-                      accept=".csv" 
-                      multiple
-                      className="hidden" 
-                      onChange={handleFileUpload}
-                    />
-                  </label>
-                  <span className="ml-3 text-sm text-gray-500">
-                    Select {fileTypes} files
-                  </span>
+              >
+                <span>Choose Files</span>
+                <input
+                  type="file"
+                  accept=".csv"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </label>
+              <span className="ml-3 text-sm text-gray-500">
+                Select {fileTypes} files
+              </span>
+            </div>
+          </div>
+        );
+      };
+
+      // Email Dashboard
+      const EmailDashboard = () => {
+        const data = dashboardData.email;
+
+        // If no data, show upload prompt
+        if (!data.hasData) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <h2 className="text-2xl font-bold mb-6">Email Campaign Dashboard</h2>
+              <FileUploader dashboardType="email" />
+
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <h3 className="text-lg font-semibold mb-2">No Email Campaign Data Available</h3>
+                <p className="text-gray-500">Upload email campaign CSV files to view the dashboard.</p>
+                <div className="mt-4 bg-purple-50 p-4 rounded border border-purple-100">
+                  <h4 className="font-medium text-purple-800 mb-2">Required files:</h4>
+                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
+                    <li>Email_Campaign_Performance.csv - Campaign metrics (opens, clicks, bounces)</li>
+                  </ul>
                 </div>
               </div>
-            );
-          };
-          
-          // Email Dashboard
-          const EmailDashboard = () => {
-            const data = dashboardData.email;
-            
-            // If no data, show upload prompt
-            if (!data.hasData) {
-              return (
-                <div className="container mx-auto px-4 py-8">
-                  <h2 className="text-2xl font-bold mb-6">Email Campaign Dashboard</h2>
-                  <FileUploader dashboardType="email" />
-                  
-                  <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                    <h3 className="text-lg font-semibold mb-2">No Email Campaign Data Available</h3>
-                    <p className="text-gray-500">Upload email campaign CSV files to view the dashboard.</p>
-                    <div className="mt-4 bg-purple-50 p-4 rounded border border-purple-100">
-                      <h4 className="font-medium text-purple-800 mb-2">Required files:</h4>
-                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
-                        <li>Email_Campaign_Performance.csv - Campaign metrics (opens, clicks, bounces)</li>
-                      </ul>
-                    </div>
-                  </div>
+            </div>
+          );
+        }
+
+        // With data, show dashboard
+        const metrics = data.metrics;
+
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <h2 className="text-2xl font-bold mb-6">Email Campaign Dashboard</h2>
+            <FileUploader dashboardType="email" />
+
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Total Subscribers</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.totalSubscribers.toLocaleString()}
                 </div>
-              );
-            }
-            
-            // With data, show dashboard
-            const metrics = data.metrics;
-            
-            return (
-              <div className="container mx-auto px-4 py-8">
-                <h2 className="text-2xl font-bold mb-6">Email Campaign Dashboard</h2>
-                <FileUploader dashboardType="email" />
-                
-                {/* Key Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Total Subscribers</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.totalSubscribers.toLocaleString()}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Average Open Rate</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.averageOpenRate.toFixed(1)}%
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Unopened Emails</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.unopenedRate.toFixed(1)}%
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Clicked Emails</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.clickRate.toFixed(1)}%
-                    </div>
-                  </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Average Open Rate</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.averageOpenRate.toFixed(1)}%
                 </div>
-                
-                {/* Top Campaigns */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <h3 className="text-lg font-semibold mb-4">Top Campaigns by Open Rate</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Open Rate</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {metrics.topCampaigns.byOpenRate.map((campaign, index) => (
-                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                <a href={campaign.url} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                                  {campaign.name}
-                                </a>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.emailsSent.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.openRate.toFixed(1)}%</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <h3 className="text-lg font-semibold mb-4">Top Campaigns by Click Rate</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Click Rate</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {metrics.topCampaigns.byClickRate.map((campaign, index) => (
-                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                <a href={campaign.url} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                                  {campaign.name}
-                                </a>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.emailsSent.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.clickRate.toFixed(1)}%</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Unopened Emails</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.unopenedRate.toFixed(1)}%
                 </div>
-                
-                {/* Subscriber Metrics */}
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Clicked Emails</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.clickRate.toFixed(1)}%
+                </div>
+              </div>
+            </div>
+
+            {/* Top Campaigns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <h3 className="text-lg font-semibold mb-4">Top Campaigns by Open Rate</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Open Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {metrics.topCampaigns.byOpenRate.map((campaign, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <a href={campaign.url} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
+                              {campaign.name}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.emailsSent.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.openRate.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <h3 className="text-lg font-semibold mb-4">Top Campaigns by Click Rate</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Click Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {metrics.topCampaigns.byClickRate.map((campaign, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <a href={campaign.url} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
+                              {campaign.name}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.emailsSent.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{campaign.clickRate.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscriber Metrics */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h3 className="text-lg font-semibold mb-4">Subscriber Engagement</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg bg-gray-50">
+                  <h4 className="text-lg font-medium text-center mb-2">Active Clickers</h4>
+                  <div className="text-4xl font-bold text-center text-green-700">
+                    {metrics.clickRate.toFixed(1)}%
+                  </div>
+                  <p className="text-sm text-center text-gray-500 mt-2">of your subscribers actively engage with content</p>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-gray-50">
+                  <h4 className="text-lg font-medium text-center mb-2">Opened but No Click</h4>
+                  <div className="text-4xl font-bold text-center text-gray-700">
+                    {metrics.openedNoClickRate.toFixed(1)}%
+                  </div>
+                  <p className="text-sm text-center text-gray-500 mt-2">of your subscribers open but don't click</p>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-gray-50">
+                  <h4 className="text-lg font-medium text-center mb-2">Active Clickers</h4>
+                  <div className="text-4xl font-bold text-center text-green-700">
+                    {(100 - metrics.unopenedRate - metrics.openedNoClickRate).toFixed(1)}%
+                  </div>
+                  <p className="text-sm text-center text-gray-500 mt-2">of your subscribers actively engage with content</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // Social Dashboard
+      const SocialDashboard = () => {
+        const data = dashboardData.social;
+        const [activeTab, setActiveTab] = React.useState('facebook');
+
+        // If no data, show upload prompt
+        if (!data.hasData) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <h2 className="text-2xl font-bold mb-6">Social Media Dashboard</h2>
+              <FileUploader dashboardType="social" />
+
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <h3 className="text-lg font-semibold mb-2">No Social Media Data Available</h3>
+                <p className="text-gray-500">Upload Facebook and Instagram CSV files to view the dashboard.</p>
+                <div className="mt-4 bg-pink-50 p-4 rounded border border-pink-100">
+                  <h4 className="font-medium text-pink-800 mb-2">Required files:</h4>
+                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
+                    <li>FB_Posts.csv - Facebook post data</li>
+                    <li>FB_Follows.csv - Facebook follower data</li>
+                    <li>FB_Reach.csv - Facebook reach metrics</li>
+                    <li>FB_Interactions.csv - Facebook engagement data</li>
+                    <li>IG_Posts.csv - Instagram post data</li>
+                    <li>IG_Follows.csv - Instagram follower data</li>
+                    <li>IG_Reach.csv - Instagram reach metrics</li>
+                    <li>IG_Interactions.csv - Instagram engagement data</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // With data, show dashboard
+        const metrics = data.metrics;
+
+        // Platform tab switcher
+        const renderTabs = () => (
+          <div className="bg-white rounded-lg shadow-md mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex">
+                <button
+                  className={`py-4 px-6 ${activeTab === 'facebook'
+                    ? 'border-b-2 border-blue-500 text-blue-600 font-medium'
+                    : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  onClick={() => setActiveTab('facebook')}
+                >
+                  Facebook
+                </button>
+                <button
+                  className={`py-4 px-6 ${activeTab === 'instagram'
+                    ? 'border-b-2 border-pink-500 text-pink-600 font-medium'
+                    : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  onClick={() => setActiveTab('instagram')}
+                >
+                  Instagram
+                </button>
+              </nav>
+            </div>
+          </div>
+        );
+
+        // Facebook dashboard content
+        const renderFacebookContent = () => {
+          const fbData = metrics.facebook;
+
+          return (
+            <>
+              {/* Page Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white rounded-lg shadow-md p-4">
-                  <h3 className="text-lg font-semibold mb-4">Subscriber Engagement</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 border rounded-lg bg-gray-50">
-                      <h4 className="text-lg font-medium text-center mb-2">Never Opened</h4>
-                      <div className="text-4xl font-bold text-center text-gray-700">
-                        {metrics.unopenedRate.toFixed(1)}%
-                      </div>
-                      <p className="text-sm text-center text-gray-500 mt-2">of your subscribers have never opened an email</p>
-                    </div>
-                    
-                    <div className="p-4 border rounded-lg bg-gray-50">
-                      <h4 className="text-lg font-medium text-center mb-2">Opened but No Click</h4>
-                      <div className="text-4xl font-bold text-center text-gray-700">
-                        {metrics.openedNoClickRate.toFixed(1)}%
-                      </div>
-                      <p className="text-sm text-center text-gray-500 mt-2">of your subscribers open but don't click</p>
-                    </div>
-                    
-                    <div className="p-4 border rounded-lg bg-gray-50">
-                      <h4 className="text-lg font-medium text-center mb-2">Active Clickers</h4>
-                      <div className="text-4xl font-bold text-center text-green-700">
-                        {(100 - metrics.unopenedRate - metrics.openedNoClickRate).toFixed(1)}%
-                      </div>
-                      <p className="text-sm text-center text-gray-500 mt-2">of your subscribers actively engage with content</p>
-                    </div>
+                  <div className="text-gray-500 text-sm font-medium">Total Followers</div>
+                  <div className="text-2xl font-bold mt-2">{fbData.followers.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Total Reach</div>
+                  <div className="text-2xl font-bold mt-2">{fbData.reach.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Total Interactions</div>
+                  <div className="text-2xl font-bold mt-2">{fbData.interactions.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Engagement Rate</div>
+                  <div className="text-2xl font-bold mt-2">
+                    {fbData.reach > 0
+                      ? ((fbData.interactions / fbData.reach) * 100).toFixed(1) + '%'
+                      : '0.0%'}
                   </div>
                 </div>
               </div>
-            );
-          };
-          
-          // Social Dashboard
-          const SocialDashboard = () => {
-            const data = dashboardData.social;
-            const [activeTab, setActiveTab] = React.useState('facebook');
-            
-            // If no data, show upload prompt
-            if (!data.hasData) {
-              return (
-                <div className="container mx-auto px-4 py-8">
-                  <h2 className="text-2xl font-bold mb-6">Social Media Dashboard</h2>
-                  <FileUploader dashboardType="social" />
-                  
-                  <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                    <h3 className="text-lg font-semibold mb-2">No Social Media Data Available</h3>
-                    <p className="text-gray-500">Upload Facebook and Instagram CSV files to view the dashboard.</p>
-                    <div className="mt-4 bg-pink-50 p-4 rounded border border-pink-100">
-                      <h4 className="font-medium text-pink-800 mb-2">Required files:</h4>
-                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
-                        <li>FB_Posts.csv - Facebook post data</li>
-                        <li>FB_Follows.csv - Facebook follower data</li>
-                        <li>FB_Reach.csv - Facebook reach metrics</li>
-                        <li>FB_Interactions.csv - Facebook engagement data</li>
-                        <li>IG_Posts.csv - Instagram post data</li>
-                        <li>IG_Follows.csv - Instagram follower data</li>
-                        <li>IG_Reach.csv - Instagram reach metrics</li>
-                        <li>IG_Interactions.csv - Instagram engagement data</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-            
-            // With data, show dashboard
-            const metrics = data.metrics;
-            
-            // Platform tab switcher
-            const renderTabs = () => (
-              <div className="bg-white rounded-lg shadow-md mb-6">
-                <div className="border-b border-gray-200">
-                  <nav className="-mb-px flex">
-                    <button
-                      className={`py-4 px-6 ${
-                        activeTab === 'facebook'
-                          ? 'border-b-2 border-blue-500 text-blue-600 font-medium'
-                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                      onClick={() => setActiveTab('facebook')}
-                    >
-                      Facebook
-                    </button>
-                    <button
-                      className={`py-4 px-6 ${
-                        activeTab === 'instagram'
-                          ? 'border-b-2 border-pink-500 text-pink-600 font-medium'
-                          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                      onClick={() => setActiveTab('instagram')}
-                    >
-                      Instagram
-                    </button>
-                  </nav>
+
+              {/* Top Posts */}
+              <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+                <h3 className="text-lg font-semibold mb-4">Top Posts by Reach</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Description</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reactions</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {fbData.topPosts.map((post, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              {post.description || post.title || 'Untitled Post'}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reactions.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.comments.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.shares.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            );
-            
-            // Facebook dashboard content
-            const renderFacebookContent = () => {
-              const fbData = metrics.facebook;
-              
-              return (
-                <>
-                  {/* Page Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Total Followers</div>
-                      <div className="text-2xl font-bold mt-2">{fbData.followers.toLocaleString()}</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Total Reach</div>
-                      <div className="text-2xl font-bold mt-2">{fbData.reach.toLocaleString()}</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Total Interactions</div>
-                      <div className="text-2xl font-bold mt-2">{fbData.interactions.toLocaleString()}</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Engagement Rate</div>
-                      <div className="text-2xl font-bold mt-2">
-                        {fbData.reach > 0 
-                          ? ((fbData.interactions / fbData.reach) * 100).toFixed(1) + '%' 
-                          : '0.0%'}
-                      </div>
-                    </div>
+            </>
+          );
+        };
+
+        // Instagram dashboard content
+        const renderInstagramContent = () => {
+          const igData = metrics.instagram;
+
+          return (
+            <>
+              {/* Page Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Total Followers</div>
+                  <div className="text-2xl font-bold mt-2">{igData.followers.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Total Reach</div>
+                  <div className="text-2xl font-bold mt-2">{igData.reach.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Total Interactions</div>
+                  <div className="text-2xl font-bold mt-2">{igData.interactions.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-gray-500 text-sm font-medium">Engagement Rate</div>
+                  <div className="text-2xl font-bold mt-2">
+                    {igData.reach > 0
+                      ? ((igData.interactions / igData.reach) * 100).toFixed(1) + '%'
+                      : '0.0%'}
                   </div>
-                  
-                  {/* Top Posts */}
-                  <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                    <h3 className="text-lg font-semibold mb-4">Top Posts by Reach</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Description</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reactions</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {fbData.topPosts.map((post, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                {post.description || post.title || 'Untitled Post'}
-                              </a>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reactions.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.comments.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.shares.toLocaleString()}</td>
-                          </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              );
-            };
-            
-            // Instagram dashboard content
-            const renderInstagramContent = () => {
-              const igData = metrics.instagram;
-              
-              return (
-                <>
-                  {/* Page Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Total Followers</div>
-                      <div className="text-2xl font-bold mt-2">{igData.followers.toLocaleString()}</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Total Reach</div>
-                      <div className="text-2xl font-bold mt-2">{igData.reach.toLocaleString()}</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Total Interactions</div>
-                      <div className="text-2xl font-bold mt-2">{igData.interactions.toLocaleString()}</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                      <div className="text-gray-500 text-sm font-medium">Engagement Rate</div>
-                      <div className="text-2xl font-bold mt-2">
-                        {igData.reach > 0 
-                          ? ((igData.interactions / igData.reach) * 100).toFixed(1) + '%' 
-                          : '0.0%'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Top Posts */}
-                  <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                    <h3 className="text-lg font-semibold mb-4">Top Posts by Reach</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Description</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saves</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {igData.topPosts.map((post, index) => (
-                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
-                                  {post.description || 'Untitled Post'}
-                                </a>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.likes.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.comments.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.saves.toLocaleString()}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              );
-            };
-            
-            return (
-              <div className="container mx-auto px-4 py-8">
-                <h2 className="text-2xl font-bold mb-6">Social Media Dashboard</h2>
-                <FileUploader dashboardType="social" />
-                {renderTabs()}
-                {activeTab === 'facebook' ? renderFacebookContent() : renderInstagramContent()}
+                </div>
               </div>
-            );
-          };
-          
-          // Web Dashboard
-          const WebDashboard = () => {
-            const data = dashboardData.web;
-            
-            // If no data, show upload prompt
-            if (!data.hasData) {
-              return (
-                <div className="container mx-auto px-4 py-8">
-                  <h2 className="text-2xl font-bold mb-6">Web Analytics Dashboard</h2>
-                  <FileUploader dashboardType="web" />
-                  
-                  <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                    <h3 className="text-lg font-semibold mb-2">No Web Analytics Data Available</h3>
-                    <p className="text-gray-500">Upload Google Analytics CSV files to view the dashboard.</p>
-                    <div className="mt-4 bg-blue-50 p-4 rounded border border-blue-100">
-                      <h4 className="font-medium text-blue-800 mb-2">Required files:</h4>
-                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
-                        <li>GA_Demographics.csv - User demographics and location data</li>
-                        <li>GA_Traffic_Acquisition.csv - Traffic source information</li>
-                        <li>GA_Pages_And_Screens.csv - Page view and engagement metrics</li>
-                        <li>GA_UTMs.csv - Campaign performance data</li>
-                      </ul>
-                    </div>
-                  </div>
+
+              {/* Top Posts */}
+              <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+                <h3 className="text-lg font-semibold mb-4">Top Posts by Reach</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Description</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Saves</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {igData.topPosts.map((post, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
+                              {post.description || 'Untitled Post'}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.reach.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.likes.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.comments.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{post.saves.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              );
-            }
-            
-            // With data, show dashboard
-            const metrics = data.metrics;
-            
-            return (
-              <div className="container mx-auto px-4 py-8">
-                <h2 className="text-2xl font-bold mb-6">Web Analytics Dashboard</h2>
-                <FileUploader dashboardType="web" />
-                
-                {/* Top Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Total Users</div>
-                    <div className="text-2xl font-bold mt-2">{metrics.totalUsers.toLocaleString()}</div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Total Sessions</div>
-                    <div className="text-2xl font-bold mt-2">{metrics.totalSessions.toLocaleString()}</div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Pages per Session</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.totalSessions > 0 
-                        ? (metrics.pages.reduce((sum, page) => sum + page.views, 0) / metrics.totalSessions).toFixed(1) 
-                        : '0.0'}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Top Country</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.demographics.countries.length > 0 
-                        ? metrics.demographics.countries[0].name 
-                        : 'N/A'}
-                    </div>
-                  </div>
+              </div>
+            </>
+          );
+        };
+
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <h2 className="text-2xl font-bold mb-6">Social Media Dashboard</h2>
+            <FileUploader dashboardType="social" />
+            {renderTabs()}
+            {activeTab === 'facebook' ? renderFacebookContent() : renderInstagramContent()}
+          </div>
+        );
+      };
+
+      // Web Dashboard
+      const WebDashboard = () => {
+        const data = dashboardData.web;
+
+        // If no data, show upload prompt
+        if (!data.hasData) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <h2 className="text-2xl font-bold mb-6">Web Analytics Dashboard</h2>
+              <FileUploader dashboardType="web" />
+
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <h3 className="text-lg font-semibold mb-2">No Web Analytics Data Available</h3>
+                <p className="text-gray-500">Upload Google Analytics CSV files to view the dashboard.</p>
+                <div className="mt-4 bg-blue-50 p-4 rounded border border-blue-100">
+                  <h4 className="font-medium text-blue-800 mb-2">Required files:</h4>
+                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
+                    <li>GA_Demographics.csv - User demographics and location data</li>
+                    <li>GA_Traffic_Acquisition.csv - Traffic source information</li>
+                    <li>GA_Pages_And_Screens.csv - Page view and engagement metrics</li>
+                    <li>GA_UTMs.csv - Campaign performance data</li>
+                  </ul>
                 </div>
-                
-                {/* Traffic Sources */}
-                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                  <h3 className="text-lg font-semibold mb-4">Traffic Sources</h3>
+              </div>
+            </div>
+          );
+        }
+
+        // With data, show dashboard
+        const metrics = data.metrics;
+
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <h2 className="text-2xl font-bold mb-6">Web Analytics Dashboard</h2>
+            <FileUploader dashboardType="web" />
+
+            {/* Top Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Total Users</div>
+                <div className="text-2xl font-bold mt-2">{metrics.totalUsers.toLocaleString()}</div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Total Sessions</div>
+                <div className="text-2xl font-bold mt-2">{metrics.totalSessions.toLocaleString()}</div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Pages per Session</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.totalSessions > 0
+                    ? (metrics.pages.reduce((sum, page) => sum + page.views, 0) / metrics.totalSessions).toFixed(1)
+                    : '0.0'}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Top Country</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.demographics.countries.length > 0
+                    ? metrics.demographics.countries[0].name
+                    : 'N/A'}
+                </div>
+              </div>
+            </div>
+
+            {/* Traffic Sources */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Traffic Sources</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sessions</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Engaged Sessions</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {metrics.traffic.sources.map((source, index) => (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 text-sm text-gray-900">{source.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{source.sessions.toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{source.engagedSessions.toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                          {source.sessions > 0
+                            ? ((source.engagedSessions / source.sessions) * 100).toFixed(1) + '%'
+                            : '0.0%'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Top Pages */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Top Landing Pages</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views/User</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {metrics.pages.map((page, index) => (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                          <a href={page.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            {page.title || page.path}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{page.views.toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{page.users.toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                          {page.users > 0
+                            ? (page.views / page.users).toFixed(1)
+                            : '0.0'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Demographics */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h3 className="text-lg font-semibold mb-4">Demographics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-2">Top Countries</h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sessions</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Engaged Sessions</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Rate</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+                          <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {metrics.traffic.sources.map((source, index) => (
+                        {metrics.demographics.countries.slice(0, 5).map((country, index) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 text-sm text-gray-900">{source.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{source.sessions.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{source.engagedSessions.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                              {source.sessions > 0 
-                                ? ((source.engagedSessions / source.sessions) * 100).toFixed(1) + '%' 
-                                : '0.0%'}
-                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{country.name}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{country.users.toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 </div>
-                
-                {/* Top Pages */}
-                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                  <h3 className="text-lg font-semibold mb-4">Top Landing Pages</h3>
+
+                <div>
+                  <h4 className="font-medium mb-2">Top Languages</h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views/User</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Language</th>
+                          <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {metrics.pages.map((page, index) => (
+                        {metrics.demographics.languages.slice(0, 5).map((language, index) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                              <a href={page.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                {page.title || page.path}
-                              </a>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{page.views.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{page.users.toLocaleString()}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                              {page.users > 0 
-                                ? (page.views / page.users).toFixed(1)
-                                : '0.0'}
-                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{language.name}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{language.users.toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 </div>
-                
-                {/* Demographics */}
-                <div className="bg-white rounded-lg shadow-md p-4">
-                  <h3 className="text-lg font-semibold mb-4">Demographics</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-medium mb-2">Top Countries</h4>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
-                              <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {metrics.demographics.countries.slice(0, 5).map((country, index) => (
-                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-4 py-2 text-sm text-gray-900">{country.name}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{country.users.toLocaleString()}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium mb-2">Top Languages</h4>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Language</th>
-                              <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {metrics.demographics.languages.slice(0, 5).map((language, index) => (
-                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-4 py-2 text-sm text-gray-900">{language.name}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">{language.users.toLocaleString()}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // YouTube Dashboard
+      const YoutubeDashboard = () => {
+        const data = dashboardData.youtube;
+
+        // If no data, show upload prompt
+        if (!data.hasData) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <h2 className="text-2xl font-bold mb-6">YouTube Analytics Dashboard</h2>
+              <FileUploader dashboardType="youtube" />
+
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <h3 className="text-lg font-semibold mb-2">No YouTube Analytics Data Available</h3>
+                <p className="text-gray-500">Upload YouTube CSV files to view the dashboard.</p>
+                <div className="mt-4 bg-red-50 p-4 rounded border border-red-100">
+                  <h4 className="font-medium text-red-800 mb-2">Required files:</h4>
+                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
+                    <li>YouTube_Age.csv - Age demographics of your viewers</li>
+                    <li>YouTube_Gender.csv - Gender demographics of your viewers</li>
+                    <li>YouTube_Geography.csv - Geographic distribution of viewers</li>
+                    <li>YouTube_Subscription_Status.csv - Subscriber vs. non-subscriber metrics</li>
+                    <li>YouTube_Content.csv - Performance data for your videos</li>
+                  </ul>
                 </div>
               </div>
-            );
-          };
-          
-          // YouTube Dashboard
-          const YoutubeDashboard = () => {
-            const data = dashboardData.youtube;
-            
-            // If no data, show upload prompt
-            if (!data.hasData) {
-              return (
-                <div className="container mx-auto px-4 py-8">
-                  <h2 className="text-2xl font-bold mb-6">YouTube Analytics Dashboard</h2>
-                  <FileUploader dashboardType="youtube" />
-                  
-                  <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                    <h3 className="text-lg font-semibold mb-2">No YouTube Analytics Data Available</h3>
-                    <p className="text-gray-500">Upload YouTube CSV files to view the dashboard.</p>
-                    <div className="mt-4 bg-red-50 p-4 rounded border border-red-100">
-                      <h4 className="font-medium text-red-800 mb-2">Required files:</h4>
-                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
-                        <li>YouTube_Age.csv - Age demographics of your viewers</li>
-                        <li>YouTube_Gender.csv - Gender demographics of your viewers</li>
-                        <li>YouTube_Geography.csv - Geographic distribution of viewers</li>
-                        <li>YouTube_Subscription_Status.csv - Subscriber vs. non-subscriber metrics</li>
-                        <li>YouTube_Content.csv - Performance data for your videos</li>
-                      </ul>
-                    </div>
-                  </div>
+            </div>
+          );
+        }
+
+        // With data, show dashboard
+        const metrics = data.metrics;
+
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <h2 className="text-2xl font-bold mb-6">YouTube Analytics Dashboard</h2>
+            <FileUploader dashboardType="youtube" />
+
+            {/* Top Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Total Views</div>
+                <div className="text-2xl font-bold mt-2">{metrics.totalViews.toLocaleString()}</div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Watch Time (hours)</div>
+                <div className="text-2xl font-bold mt-2">{metrics.totalWatch.toLocaleString()}</div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Subscriber Views</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.totalViews > 0
+                    ? ((metrics.subscribedViews / metrics.totalViews) * 100).toFixed(1) + '%'
+                    : '0.0%'}
                 </div>
-              );
-            }
-            
-            // With data, show dashboard
-            const metrics = data.metrics;
-            
-            return (
-              <div className="container mx-auto px-4 py-8">
-                <h2 className="text-2xl font-bold mb-6">YouTube Analytics Dashboard</h2>
-                <FileUploader dashboardType="youtube" />
-                
-                {/* Top Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Total Views</div>
-                    <div className="text-2xl font-bold mt-2">{metrics.totalViews.toLocaleString()}</div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Watch Time (hours)</div>
-                    <div className="text-2xl font-bold mt-2">{metrics.totalWatch.toLocaleString()}</div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Subscriber Views</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.totalViews > 0 
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="text-gray-500 text-sm font-medium">Top Country</div>
+                <div className="text-2xl font-bold mt-2">
+                  {metrics.geographyData.length > 0 ? metrics.geographyData[0].country : 'N/A'}
+                </div>
+              </div>
+            </div>
+
+            {/* Subscriber vs Non-Subscriber */}
+            {metrics.subscriberData.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+                <h3 className="text-lg font-semibold mb-4">Subscriber vs. Non-Subscriber Views</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border rounded-lg bg-gray-50">
+                    <h4 className="text-lg font-medium text-center mb-2">Subscribers</h4>
+                    <div className="text-4xl font-bold text-center text-gray-700">
+                      {metrics.totalViews > 0
                         ? ((metrics.subscribedViews / metrics.totalViews) * 100).toFixed(1) + '%'
                         : '0.0%'}
                     </div>
+                    <p className="text-sm text-center text-gray-500 mt-2">of views come from subscribers</p>
                   </div>
-                  
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <div className="text-gray-500 text-sm font-medium">Top Country</div>
-                    <div className="text-2xl font-bold mt-2">
-                      {metrics.geographyData.length > 0 ? metrics.geographyData[0].country : 'N/A'}
+
+                  <div className="p-4 border rounded-lg bg-gray-50">
+                    <h4 className="text-lg font-medium text-center mb-2">Non-Subscribers</h4>
+                    <div className="text-4xl font-bold text-center text-gray-700">
+                      {metrics.totalViews > 0
+                        ? ((metrics.notSubscribedViews / metrics.totalViews) * 100).toFixed(1) + '%'
+                        : '0.0%'}
                     </div>
+                    <p className="text-sm text-center text-gray-500 mt-2">of views come from non-subscribers</p>
                   </div>
                 </div>
-                
-                {/* Subscriber vs Non-Subscriber */}
-                {metrics.subscriberData.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                    <h3 className="text-lg font-semibold mb-4">Subscriber vs. Non-Subscriber Views</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 border rounded-lg bg-gray-50">
-                        <h4 className="text-lg font-medium text-center mb-2">Subscribers</h4>
-                        <div className="text-4xl font-bold text-center text-gray-700">
-                          {metrics.totalViews > 0 
-                            ? ((metrics.subscribedViews / metrics.totalViews) * 100).toFixed(1) + '%'
-                            : '0.0%'}
-                        </div>
-                        <p className="text-sm text-center text-gray-500 mt-2">of views come from subscribers</p>
-                      </div>
-                      
-                      <div className="p-4 border rounded-lg bg-gray-50">
-                        <h4 className="text-lg font-medium text-center mb-2">Non-Subscribers</h4>
-                        <div className="text-4xl font-bold text-center text-gray-700">
-                          {metrics.totalViews > 0 
-                            ? ((metrics.notSubscribedViews / metrics.totalViews) * 100).toFixed(1) + '%'
-                            : '0.0%'}
-                        </div>
-                        <p className="text-sm text-center text-gray-500 mt-2">of views come from non-subscribers</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Top Videos */}
-                {metrics.contentData.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <h3 className="text-lg font-semibold mb-4">Top Performing Videos</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Title</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Watch Hours</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {metrics.contentData.map((video, index) => (
-                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
-                                  {video.title}
-                                </a>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.views.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.watchHours.toFixed(1)}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.likes.toLocaleString()}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.comments.toLocaleString()}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </div>
-            );
-          };
-          
-          // Overview dashboard - shows a summary of all platforms
-          const OverviewDashboard = () => {
-            return (
-              <div className="container mx-auto px-4 py-8">
-                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                  <h2 className="text-2xl font-bold mb-4">Quick Analytics Overview</h2>
-                  <p className="text-gray-600 mb-4">
-                    Welcome to the Marketing Analytics Dashboard. This tool provides a comprehensive view of your marketing performance across multiple channels.
+            )}
+
+            {/* Top Videos */}
+            {metrics.contentData.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <h3 className="text-lg font-semibold mb-4">Top Performing Videos</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Title</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Watch Hours</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Likes</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {metrics.contentData.map((video, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
+                              {video.title}
+                            </a>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.views.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.watchHours.toFixed(1)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.likes.toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{video.comments.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // Overview dashboard - shows a summary of all platforms
+      const OverviewDashboard = () => {
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-2xl font-bold mb-4">Quick Analytics Overview</h2>
+              <p className="text-gray-600 mb-4">
+                Welcome to the Marketing Analytics Dashboard. This tool provides a comprehensive view of your marketing performance across multiple channels.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3">Web Analytics</h3>
+                  <p className="text-sm text-gray-600">
+                    {dashboardData.web.hasData ?
+                      `${dashboardData.web.metrics.totalUsers.toLocaleString()} users from ${dashboardData.web.metrics.demographics.countries.length} countries` :
+                      'Upload GA_*.csv files to analyze website performance'}
                   </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                    <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-                      <h3 className="text-lg font-semibold text-blue-800 mb-3">Web Analytics</h3>
-                      <p className="text-sm text-gray-600">
-                        {dashboardData.web.hasData ? 
-                          `${dashboardData.web.metrics.totalUsers.toLocaleString()} users from ${dashboardData.web.metrics.demographics.countries.length} countries` :
-                          'Upload GA_*.csv files to analyze website performance'}
-                      </p>
-                      <button 
-                        className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
-                        onClick={() => setActiveDashboard('web')}
-                      >
-                        View Dashboard
-                      </button>
-                    </div>
-                    
-                    <div className="bg-pink-50 p-6 rounded-lg border border-pink-100">
-                      <h3 className="text-lg font-semibold text-pink-800 mb-3">Social Media</h3>
-                      <p className="text-sm text-gray-600">
-                        {dashboardData.social.hasData ? 
-                          `${dashboardData.social.metrics.facebook.followers.toLocaleString()} FB followers, ${dashboardData.social.metrics.instagram.followers.toLocaleString()} IG followers` :
-                          'Upload FB_*.csv and IG_*.csv files to track social engagement'}
-                      </p>
-                      <button 
-                        className="mt-4 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded text-sm"
-                        onClick={() => setActiveDashboard('social')}
-                      >
-                        View Dashboard
-                      </button>
-                    </div>
-                    
-                    <div className="bg-purple-50 p-6 rounded-lg border border-purple-100">
-                      <h3 className="text-lg font-semibold text-purple-800 mb-3">Email Campaigns</h3>
-                      <p className="text-sm text-gray-600">
-                        {dashboardData.email.hasData ? 
-                          `${dashboardData.email.metrics.campaigns.length} campaigns, ${dashboardData.email.metrics.averageOpenRate.toFixed(1)}% avg. open rate` :
-                          'Upload Email_*.csv files to analyze email performance'}
-                      </p>
-                      <button 
-                        className="mt-4 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded text-sm"
-                        onClick={() => setActiveDashboard('email')}
-                      >
-                        View Dashboard
-                      </button>
-                    </div>
-                    
-                    <div className="bg-red-50 p-6 rounded-lg border border-red-100">
-                      <h3 className="text-lg font-semibold text-red-800 mb-3">YouTube Performance</h3>
-                      <p className="text-sm text-gray-600">
-                        {dashboardData.youtube.hasData ? 
-                          `${dashboardData.youtube.metrics.totalViews.toLocaleString()} views, ${dashboardData.youtube.metrics.totalViews > 0 ? (dashboardData.youtube.metrics.subscribedViews / dashboardData.youtube.metrics.totalViews * 100).toFixed(1) : 0}% from subscribers` :
-                          'Upload YouTube_*.csv files to analyze video performance'}
-                      </p>
-                      <button 
-                        className="mt-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm"
-                        onClick={() => setActiveDashboard('youtube')}
-                      >
-                        View Dashboard
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-2xl font-bold mb-4">Getting Started</h2>
-                  <div className="text-gray-600">
-                    <p className="mb-4">
-                      To use this dashboard, follow these steps:
-                    </p>
-                    <ol className="list-decimal pl-5 space-y-2 mb-4">
-                      <li>Download analytics data from each platform (Google Analytics, Facebook, Instagram, Email Provider, YouTube)</li>
-                      <li>Upload the CSV files to each respective dashboard using the "Upload Data" button</li>
-                      <li>Use date range selector to analyze specific time periods (coming soon)</li>
-                      <li>Enable comparison feature to compare with previous periods (coming soon)</li>
-                    </ol>
-                    <p className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded">
-                      <strong>Note:</strong> This dashboard runs entirely in your browser. Your data is never sent to any server.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          };
-          
-          // Render the appropriate dashboard based on active selection
-          const renderDashboard = () => {
-            switch (activeDashboard) {
-              case 'web':
-                return <WebDashboard />;
-              case 'social':
-                return <SocialDashboard />;
-              case 'email':
-                return <EmailDashboard />;
-              case 'youtube':
-                return <YoutubeDashboard />;
-              case 'overview':
-              default:
-                return <OverviewDashboard />;
-            }
-          };
-          
-          // Simplified header component
-          const Header = () => (
-            <header className="bg-white shadow">
-              <div className="container mx-auto px-4 py-6">
-                <h1 className="text-3xl font-bold text-gray-900">Marketing Analytics Dashboard</h1>
-              </div>
-            </header>
-          );
-          
-          // Simplified navigation component
-          const Navigation = () => (
-            <nav className="bg-gray-800 text-white shadow">
-              <div className="container mx-auto px-4">
-                <div className="flex overflow-x-auto">
-                  <button 
-                    className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'overview' ? 'bg-gray-700 font-medium' : ''}`}
-                    onClick={() => setActiveDashboard('overview')}
-                  >
-                    Overview
-                  </button>
-                  <button 
-                    className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'web' ? 'bg-gray-700 font-medium' : ''}`}
+                  <button
+                    className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
                     onClick={() => setActiveDashboard('web')}
                   >
-                    Web Analytics
+                    View Dashboard
                   </button>
-                  <button 
-                    className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'social' ? 'bg-gray-700 font-medium' : ''}`}
+                </div>
+
+                <div className="bg-pink-50 p-6 rounded-lg border border-pink-100">
+                  <h3 className="text-lg font-semibold text-pink-800 mb-3">Social Media</h3>
+                  <p className="text-sm text-gray-600">
+                    {dashboardData.social.hasData ?
+                      `${dashboardData.social.metrics.facebook.followers.toLocaleString()} FB followers, ${dashboardData.social.metrics.instagram.followers.toLocaleString()} IG followers` :
+                      'Upload FB_*.csv and IG_*.csv files to track social engagement'}
+                  </p>
+                  <button
+                    className="mt-4 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded text-sm"
                     onClick={() => setActiveDashboard('social')}
                   >
-                    Social Media
+                    View Dashboard
                   </button>
-                  <button 
-                    className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'email' ? 'bg-gray-700 font-medium' : ''}`}
+                </div>
+
+                <div className="bg-purple-50 p-6 rounded-lg border border-purple-100">
+                  <h3 className="text-lg font-semibold text-purple-800 mb-3">Email Campaigns</h3>
+                  <p className="text-sm text-gray-600">
+                    {dashboardData.email.hasData ?
+                      `${dashboardData.email.metrics.campaigns.length} campaigns, ${dashboardData.email.metrics.averageOpenRate.toFixed(1)}% avg. open rate` :
+                      'Upload Email_*.csv files to analyze email performance'}
+                  </p>
+                  <button
+                    className="mt-4 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded text-sm"
                     onClick={() => setActiveDashboard('email')}
                   >
-                    Email Campaigns
+                    View Dashboard
                   </button>
-                  <button 
-                    className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'youtube' ? 'bg-gray-700 font-medium' : ''}`}
+                </div>
+
+                <div className="bg-red-50 p-6 rounded-lg border border-red-100">
+                  <h3 className="text-lg font-semibold text-red-800 mb-3">YouTube Performance</h3>
+                  <p className="text-sm text-gray-600">
+                    {dashboardData.youtube.hasData ?
+                      `${dashboardData.youtube.metrics.totalViews.toLocaleString()} views, ${dashboardData.youtube.metrics.totalViews > 0 ? (dashboardData.youtube.metrics.subscribedViews / dashboardData.youtube.metrics.totalViews * 100).toFixed(1) : 0}% from subscribers` :
+                      'Upload YouTube_*.csv files to analyze video performance'}
+                  </p>
+                  <button
+                    className="mt-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm"
                     onClick={() => setActiveDashboard('youtube')}
                   >
-                    YouTube
+                    View Dashboard
                   </button>
                 </div>
               </div>
-            </nav>
-          );
-          
-          return (
-            <div className="min-h-screen bg-gray-100 flex flex-col">
-              <Header />
-              <Navigation />
-              <main className="flex-grow">
-                {renderDashboard()}
-              </main>
-              <footer className="bg-white shadow-inner mt-8 py-4">
-                <div className="container mx-auto px-4">
-                  <p className="text-gray-600 text-center">
-                    &copy; {new Date().getFullYear()} Marketing Analytics Dashboard
-                  </p>
-                </div>
-              </footer>
             </div>
-          );
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-2xl font-bold mb-4">Getting Started</h2>
+              <div className="text-gray-600">
+                <p className="mb-4">
+                  To use this dashboard, follow these steps:
+                </p>
+                <ol className="list-decimal pl-5 space-y-2 mb-4">
+                  <li>Download analytics data from each platform (Google Analytics, Facebook, Instagram, Email Provider, YouTube)</li>
+                  <li>Upload the CSV files to each respective dashboard using the "Upload Data" button</li>
+                  <li>Use date range selector to analyze specific time periods (coming soon)</li>
+                  <li>Enable comparison feature to compare with previous periods (coming soon)</li>
+                </ol>
+                <p className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded">
+                  <strong>Note:</strong> This dashboard runs entirely in your browser. Your data is never sent to any server.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // Render the appropriate dashboard based on active selection
+      const renderDashboard = () => {
+        switch (activeDashboard) {
+          case 'web':
+            return <WebDashboard />;
+          case 'social':
+            return <SocialDashboard />;
+          case 'email':
+            return <EmailDashboard />;
+          case 'youtube':
+            return <YoutubeDashboard />;
+          case 'overview':
+          default:
+            return <OverviewDashboard />;
+        }
+      };
+
+      // Simplified header component
+      const Header = () => (
+        <header className="bg-white shadow">
+          <div className="container mx-auto px-4 py-6">
+            <h1 className="text-3xl font-bold text-gray-900">Marketing Analytics Dashboard</h1>
+          </div>
+        </header>
+      );
+
+      // Simplified navigation component
+      const Navigation = () => (
+        <nav className="bg-gray-800 text-white shadow">
+          <div className="container mx-auto px-4">
+            <div className="flex overflow-x-auto">
+              <button
+                className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'overview' ? 'bg-gray-700 font-medium' : ''}`}
+                onClick={() => setActiveDashboard('overview')}
+              >
+                Overview
+              </button>
+              <button
+                className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'web' ? 'bg-gray-700 font-medium' : ''}`}
+                onClick={() => setActiveDashboard('web')}
+              >
+                Web Analytics
+              </button>
+              <button
+                className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'social' ? 'bg-gray-700 font-medium' : ''}`}
+                onClick={() => setActiveDashboard('social')}
+              >
+                Social Media
+              </button>
+              <button
+                className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'email' ? 'bg-gray-700 font-medium' : ''}`}
+                onClick={() => setActiveDashboard('email')}
+              >
+                Email Campaigns
+              </button>
+              <button
+                className={`px-4 py-4 whitespace-nowrap hover:bg-gray-700 ${activeDashboard === 'youtube' ? 'bg-gray-700 font-medium' : ''}`}
+                onClick={() => setActiveDashboard('youtube')}
+              >
+                YouTube
+              </button>
+            </div>
+          </div>
+        </nav>
+      );
+
+      return (
+        <div className="min-h-screen bg-gray-100 flex flex-col">
+          <Header />
+          <Navigation />
+          <main className="flex-grow">
+            {renderDashboard()}
+          </main>
+          <footer className="bg-white shadow-inner mt-8 py-4">
+            <div className="container mx-auto px-4">
+              <p className="text-gray-600 text-center">
+                &copy; {new Date().getFullYear()} Marketing Analytics Dashboard
+              </p>
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    // This bridge attaches the marketing dashboard component to the window object
+    (function () {
+      console.log("Marketing Dashboard Bridge: Running");
+
+      // Create a reference to the component on the window object
+      if (typeof MarketingDashboard === 'function') {
+        console.log("Marketing Dashboard Bridge: Component found");
+        window.MarketingDashboard = {
+          default: MarketingDashboard
         };
-        
-        // This bridge attaches the marketing dashboard component to the window object
-        (function() {
-          console.log("Marketing Dashboard Bridge: Running");
-          
-          // Create a reference to the component on the window object
-          if (typeof MarketingDashboard === 'function') {
-            console.log("Marketing Dashboard Bridge: Component found");
-            window.MarketingDashboard = { 
-              default: MarketingDashboard 
-            };
-            console.log("Marketing Dashboard Bridge: Component attached to window");
+        console.log("Marketing Dashboard Bridge: Component attached to window");
+      } else {
+        console.error("Marketing Dashboard Bridge: Component not found");
+      }
+    })();
+  </script>
+
+  <!-- Initialize the app -->
+  <script type="text/babel">
+    // Simple stub to keep babel happy - actual initialization is below
+    console.log("Babel preprocessor running on initialization stub");
+  </script>
+
+  <!-- Loader script (inline instead of external file) -->
+  <script>
+    // This script handles loading all necessary components in the correct order
+    (function () {
+      // Configure debug mode
+      const DEBUG = true;
+
+      // Helper function for logging
+      function log(message) {
+        if (DEBUG) {
+          console.log(`[Loader] ${message}`);
+        }
+      }
+
+      // Helper function for logging errors
+      function logError(message, error) {
+        console.error(`[Loader Error] ${message}`, error);
+      }
+
+      // Check if a library is loaded
+      function isLibraryLoaded(libraryName, globalVar) {
+        const loaded = typeof window[globalVar] !== 'undefined';
+        log(`${libraryName} loaded: ${loaded}`);
+        return loaded;
+      }
+
+      // Render the marketing dashboard
+      function renderDashboard() {
+        log("Attempting to render Marketing Dashboard");
+        try {
+          const MarketingDashboard = window.MarketingDashboard?.default;
+
+          if (MarketingDashboard) {
+            log("MarketingDashboard component found, rendering...");
+            ReactDOM.render(
+              React.createElement(MarketingDashboard, null),
+              document.getElementById('root')
+            );
+            log("Dashboard rendered successfully");
+            window.dashboardRendered = true;
+            return true;
           } else {
-            console.error("Marketing Dashboard Bridge: Component not found");
+            throw new Error("Marketing Dashboard component not found");
           }
-        })();
-    </script>
-    
-    <!-- Initialize the app -->
-    <script type="text/babel">
-        // Simple stub to keep babel happy - actual initialization is below
-        console.log("Babel preprocessor running on initialization stub");
-    </script>
-    
-    <!-- Loader script (inline instead of external file) -->
-    <script>
-        // This script handles loading all necessary components in the correct order
-        (function() {
-          // Configure debug mode
-          const DEBUG = true;
-          
-          // Helper function for logging
-          function log(message) {
-            if (DEBUG) {
-              console.log(`[Loader] ${message}`);
-            }
-          }
-          
-          // Helper function for logging errors
-          function logError(message, error) {
-            console.error(`[Loader Error] ${message}`, error);
-          }
-          
-          // Check if a library is loaded
-          function isLibraryLoaded(libraryName, globalVar) {
-            const loaded = typeof window[globalVar] !== 'undefined';
-            log(`${libraryName} loaded: ${loaded}`);
-            return loaded;
-          }
-          
-          // Render the marketing dashboard
-          function renderDashboard() {
-            log("Attempting to render Marketing Dashboard");
-            try {
-              const MarketingDashboard = window.MarketingDashboard?.default;
-              
-              if (MarketingDashboard) {
-                log("MarketingDashboard component found, rendering...");
-                ReactDOM.render(
-                  React.createElement(MarketingDashboard, null),
-                  document.getElementById('root')
-                );
-                log("Dashboard rendered successfully");
-                window.dashboardRendered = true;
-                return true;
-              } else {
-                throw new Error("Marketing Dashboard component not found");
-              }
-            } catch (error) {
-              logError("Error rendering dashboard:", error);
-              document.getElementById('root').innerHTML = `
+        } catch (error) {
+          logError("Error rendering dashboard:", error);
+          document.getElementById('root').innerHTML = `
                 <div class="p-8 text-center">
                   <h1 class="text-2xl font-bold text-red-600 mb-4">Dashboard Error</h1>
                   <p class="mb-4">${error.message}</p>
@@ -1662,56 +1664,56 @@
                   </details>
                 </div>
               `;
-              return false;
-            }
-          }
-          
-          // Check prerequisites
-          function checkPrerequisites() {
-            let criticalComponentsLoaded = true;
-            
-            // Check React (critical)
-            const reactLoaded = isLibraryLoaded("React", "React");
-            criticalComponentsLoaded = criticalComponentsLoaded && reactLoaded;
-            
-            // Check ReactDOM (critical)
-            const reactDOMLoaded = isLibraryLoaded("ReactDOM", "ReactDOM");
-            criticalComponentsLoaded = criticalComponentsLoaded && reactDOMLoaded;
-            
-            // Check Recharts (optional for basic dashboard)
-            isLibraryLoaded("Recharts", "Recharts");
-            
-            // Check Papa Parse (optional for basic dashboard)
-            isLibraryLoaded("Papa Parse", "Papa");
-            
-            return criticalComponentsLoaded;
-          }
-          
-          // Main initialization function
-          function init() {
-            log("Starting dashboard initialization");
-            
-            // Step 1: Check prerequisites
-            const prerequisitesLoaded = checkPrerequisites();
-            if (!prerequisitesLoaded) {
-              logError("Critical components are not loaded. Check console for details.");
-              return;
-            }
-            
-            // Step 2: Wait for all dashboard components to be loaded by Babel
-            log("Waiting for dashboard components to be loaded by Babel...");
-            setTimeout(() => {
-              // Step 3: Check if dashboard components are available
-              log("Checking dashboard components availability...");
-              const isDashboardAvailable = typeof window.MarketingDashboard !== 'undefined';
-              log(`MarketingDashboard available: ${isDashboardAvailable}`);
-              
-              if (isDashboardAvailable) {
-                // Step 4: Render the dashboard
-                renderDashboard();
-              } else {
-                logError("Dashboard components not found after waiting.");
-                document.getElementById('root').innerHTML = `
+          return false;
+        }
+      }
+
+      // Check prerequisites
+      function checkPrerequisites() {
+        let criticalComponentsLoaded = true;
+
+        // Check React (critical)
+        const reactLoaded = isLibraryLoaded("React", "React");
+        criticalComponentsLoaded = criticalComponentsLoaded && reactLoaded;
+
+        // Check ReactDOM (critical)
+        const reactDOMLoaded = isLibraryLoaded("ReactDOM", "ReactDOM");
+        criticalComponentsLoaded = criticalComponentsLoaded && reactDOMLoaded;
+
+        // Check Recharts (optional for basic dashboard)
+        isLibraryLoaded("Recharts", "Recharts");
+
+        // Check Papa Parse (optional for basic dashboard)
+        isLibraryLoaded("Papa Parse", "Papa");
+
+        return criticalComponentsLoaded;
+      }
+
+      // Main initialization function
+      function init() {
+        log("Starting dashboard initialization");
+
+        // Step 1: Check prerequisites
+        const prerequisitesLoaded = checkPrerequisites();
+        if (!prerequisitesLoaded) {
+          logError("Critical components are not loaded. Check console for details.");
+          return;
+        }
+
+        // Step 2: Wait for all dashboard components to be loaded by Babel
+        log("Waiting for dashboard components to be loaded by Babel...");
+        setTimeout(() => {
+          // Step 3: Check if dashboard components are available
+          log("Checking dashboard components availability...");
+          const isDashboardAvailable = typeof window.MarketingDashboard !== 'undefined';
+          log(`MarketingDashboard available: ${isDashboardAvailable}`);
+
+          if (isDashboardAvailable) {
+            // Step 4: Render the dashboard
+            renderDashboard();
+          } else {
+            logError("Dashboard components not found after waiting.");
+            document.getElementById('root').innerHTML = `
                   <div class="p-8 text-center">
                     <h1 class="text-2xl font-bold text-red-600 mb-4">Loading Error</h1>
                     <p class="mb-4">The dashboard components could not be loaded.</p>
@@ -1725,17 +1727,18 @@
                     </div>
                   </div>
                 `;
-              }
-            }, 1000); // Timeout for Babel processing
           }
-          
-          // Set up initialization when the window is fully loaded
-          if (document.readyState === 'complete') {
-            init();
-          } else {
-            window.addEventListener('load', init);
-          }
-        })();
-    </script>
+        }, 1000); // Timeout for Babel processing
+      }
+
+      // Set up initialization when the window is fully loaded
+      if (document.readyState === 'complete') {
+        init();
+      } else {
+        window.addEventListener('load', init);
+      }
+    })();
+  </script>
 </body>
+
 </html>
