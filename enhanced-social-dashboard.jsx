@@ -970,5 +970,5 @@ const SocialDashboard = () => {
   );
 };
 
-// No export in browser environment - this will be referenced directly
-// The bridge file will make it available on the window object
+// Make the component available globally for the bridge file
+window.SocialDashboard = SocialDashboard;
