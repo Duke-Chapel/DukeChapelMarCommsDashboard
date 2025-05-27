@@ -3,89 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Analytics Dashboard</title>
+    <title>Marketing Analytics Dashboards</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React and ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.development.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.min.js"></script>
-    
-    <!-- Recharts -->
-    <script src="https://unpkg.com/recharts@2.5.0/umd/Recharts.js"></script>
-    
-    <!-- Papa Parse for CSV handling -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
-    
-    <!-- Extract Recharts components to make them globally available -->
-    <script>
-        // Make Recharts components globally available
-        if (typeof Recharts !== 'undefined') {
-            window.LineChart = Recharts.LineChart;
-            window.BarChart = Recharts.BarChart;
-            window.PieChart = Recharts.PieChart;
-            window.Line = Recharts.Line;
-            window.Bar = Recharts.Bar;
-            window.Pie = Recharts.Pie;
-            window.Cell = Recharts.Cell;
-            window.XAxis = Recharts.XAxis;
-            window.YAxis = Recharts.YAxis;
-            window.CartesianGrid = Recharts.CartesianGrid;
-            window.Tooltip = Recharts.Tooltip;
-            window.Legend = Recharts.Legend;
-            window.ResponsiveContainer = Recharts.ResponsiveContainer;
-        } else {
-            console.error("Recharts library not loaded properly!");
-        }
-    </script>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
 </head>
-<body class="bg-gray-100">
-    <div id="root">
-        <!-- React app will be rendered here -->
-        <div class="flex justify-center items-center h-screen">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500"></div>
-        </div>
-    </div>
-
-    <!-- First load the dashboard component -->
-    <script type="text/babel" src="enhanced-youtube-dashboard.jsx"></script>
-    
-    <!-- Then load the bridge file that makes it available on the window object -->
-    <script type="text/babel" src="enhanced-youtube-dashboard-bridge.jsx"></script>
-    
-    <!-- Initialize the app -->
-    <script type="text/babel">
-        // Wait for DOM to be ready
-        document.addEventListener('DOMContentLoaded', () => {
-            // Import the YouTubeDashboard component
-            const { default: YouTubeDashboard } = window.YouTubeDashboard || { 
-                default: () => <div>Loading YouTube Dashboard...</div> 
-            };
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">Marketing Analytics Dashboards</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                Interactive dashboards for your marketing analytics with data persistence. Upload your CSV files once and access your data anytime.
+            </p>
+        </header>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Social Media Dashboard Card -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
+                <div class="h-16 bg-gradient-to-r from-blue-500 to-pink-500"></div>
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold mb-2">Social Media Dashboard</h2>
+                    <p class="text-gray-600 mb-4">
+                        Facebook and Instagram analytics with follower growth, engagement metrics, and top performing posts.
+                    </p>
+                    <a href="enhanced-social-dashboard.html" class="inline-block bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
+                        Open Dashboard
+                    </a>
+                </div>
+            </div>
             
-            try {
-                // Render our app
-                ReactDOM.render(
-                    <YouTubeDashboard />,
-                    document.getElementById('root')
-                );
-            } catch (error) {
-                console.error("Error rendering dashboard:", error);
-                document.getElementById('root').innerHTML = `
-                    <div class="p-8 text-center">
-                        <h1 class="text-2xl font-bold text-red-600 mb-4">Dashboard Error</h1>
-                        <p class="mb-4">${error.message}</p>
-                        <details class="text-left bg-gray-100 p-4 rounded">
-                            <summary class="cursor-pointer mb-2">Technical Details</summary>
-                            <pre class="whitespace-pre-wrap text-xs">${error.stack}</pre>
-                        </details>
-                    </div>
-                `;
-            }
-        });
-    </script>
+            <!-- Web Analytics Dashboard Card -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
+                <div class="h-16 bg-gradient-to-r from-blue-600 to-blue-400"></div>
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold mb-2">Web Analytics Dashboard</h2>
+                    <p class="text-gray-600 mb-4">
+                        Google Analytics data with traffic sources, user demographics, top pages, and campaign performance.
+                    </p>
+                    <a href="enhanced-web-dashboard.html" class="inline-block bg-gradient-to-r from-blue-600 to-blue-400 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
+                        Open Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Email Dashboard Card -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
+                <div class="h-16 bg-gradient-to-r from-purple-600 to-purple-400"></div>
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold mb-2">Email Campaign Dashboard</h2>
+                    <p class="text-gray-600 mb-4">
+                        Email campaign analytics with open rates, click rates, subscriber metrics, and engagement data.
+                    </p>
+                    <a href="enhanced-email-dashboard.html" class="inline-block bg-gradient-to-r from-purple-600 to-purple-400 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
+                        Open Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- YouTube Dashboard Card -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
+                <div class="h-16 bg-gradient-to-r from-red-600 to-red-400"></div>
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold mb-2">YouTube Analytics Dashboard</h2>
+                    <p class="text-gray-600 mb-4">
+                        YouTube channel analytics with audience demographics, subscription status, and top performing videos.
+                    </p>
+                    <a href="enhanced-youtube-dashboard.html" class="inline-block bg-gradient-to-r from-red-600 to-red-400 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
+                        Open Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-12 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Features</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-medium text-lg mb-2">Data Persistence</h3>
+                    <p class="text-gray-600">
+                        All uploaded data is saved in your browser's local storage, available whenever you return.
+                    </p>
+                </div>
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-medium text-lg mb-2">Period Comparison</h3>
+                    <p class="text-gray-600">
+                        Compare metrics across different time periods to track performance.
+                    </p>
+                </div>
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-medium text-lg mb-2">Export/Import</h3>
+                    <p class="text-gray-600">
+                        Share dashboard data with team members via downloadable JSON files.
+                    </p>
+                </div>
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-medium text-lg mb-2">GitHub Pages Ready</h3>
+                    <p class="text-gray-600">
+                        Deploy to GitHub Pages for easy access by your entire team.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-12 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Getting Started</h2>
+            <ol class="list-decimal pl-6 space-y-3">
+                <li>
+                    <p class="text-gray-700">Select one of the dashboards above to open it</p>
+                </li>
+                <li>
+                    <p class="text-gray-700">Use the "Choose Files" button to upload your CSV data files</p>
+                </li>
+                <li>
+                    <p class="text-gray-700">Explore your data with interactive visualizations</p>
+                </li>
+                <li>
+                    <p class="text-gray-700">Your data will be automatically saved for future sessions</p>
+                </li>
+                <li>
+                    <p class="text-gray-700">Use the Data Management section to export or import dashboard data</p>
+                </li>
+            </ol>
+        </div>
+        
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p>© 2025 Marketing Analytics Dashboard</p>
+            <p class="mt-2">All data is processed locally in your browser. No data is sent to any server.</p>
+        </footer>
+    </div>
 </body>
 </html>
