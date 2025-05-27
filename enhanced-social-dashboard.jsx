@@ -65,10 +65,10 @@ const SocialDashboard = () => {
   // Show notification
   const showNotification = (message, type = 'info') => {
     setNotification({ show: true, message, type });
-    // Auto-hide notification after 3 seconds
+    // Auto-hide notification after 4 seconds
     setTimeout(() => {
       setNotification({ show: false, message: '', type: '' });
-    }, 3000);
+    }, 4000);
   };
 
   // Format numbers for display
@@ -629,7 +629,7 @@ const SocialDashboard = () => {
     );
   };
 
-  // Render Facebook Content
+  // Render Facebook content
   const renderFacebookContent = () => {
     const fbData = socialData.facebook;
     
@@ -733,11 +733,35 @@ const SocialDashboard = () => {
             </div>
           </div>
         )}
+        
+        {/* Post Engagement Distribution */}
+        {topPosts.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-lg font-semibold mb-4">Content Engagement</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topPosts.slice(0, 5)}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="description" tickFormatter={(value) => value.substring(0, 10) + '...'} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="reactions" fill="#4299e1" name="Reactions" />
+                  <Bar dataKey="comments" fill="#f687b3" name="Comments" />
+                  <Bar dataKey="shares" fill="#9f7aea" name="Shares" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
       </>
     );
   };
 
-  // Render Instagram Content
+  // Render Instagram content
   const renderInstagramContent = () => {
     const igData = socialData.instagram;
     
