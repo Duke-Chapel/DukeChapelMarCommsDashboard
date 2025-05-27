@@ -23,13 +23,6 @@ const SocialDashboard = () => {
     comparisonEndDate: new Date(new Date().setMonth(new Date().getMonth() - 1))
   });
   
-  // Google Drive integration state
-  const [dataSource, setDataSource] = useState('upload'); // 'upload' or 'gdrive'
-  const [showGDriveConfig, setShowGDriveConfig] = useState(false);
-  const [gdriveConfig, setGDriveConfig] = useState(null);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(null);
-  
   // Add notification state for user feedback
   const [notification, setNotification] = useState({ 
     show: false, 
@@ -51,18 +44,6 @@ const SocialDashboard = () => {
           showNotification('Data loaded from local storage', 'success');
         }
       }
-      
-      // Load Google Drive configuration
-      if (window.dashboardConfigManager) {
-        const config = window.dashboardConfigManager.loadDashboardConfig('social');
-        setGDriveConfig(config);
-        
-        // Check if we should auto-load from Google Drive
-        if (config && config.lastUpdated && Object.values(config.files).some(url => url.trim() !== '')) {
-          setDataSource('gdrive');
-          loadFromGoogleDrive(config);
-        }
-      }
     } catch (error) {
       console.error('Error loading data from localStorage:', error);
       showNotification('Error loading saved data', 'error');
@@ -81,18 +62,6 @@ const SocialDashboard = () => {
     }
   }, [socialData]);
 
-  // Auto-refresh effect
-  useEffect(() => {
-    if (autoRefresh && dataSource === 'gdrive' && gdriveConfig) {
-      const interval = (gdriveConfig.refreshInterval || 5) * 60 * 1000; // Convert to milliseconds
-      const intervalId = setInterval(() => {
-        loadFromGoogleDrive(gdriveConfig);
-      }, interval);
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [autoRefresh, dataSource, gdriveConfig]);
-
   // Show notification
   const showNotification = (message, type = 'info') => {
     setNotification({ show: true, message, type });
@@ -100,85 +69,6 @@ const SocialDashboard = () => {
     setTimeout(() => {
       setNotification({ show: false, message: '', type: '' });
     }, 4000);
-  };
-
-  // Load data from Google Drive
-  const loadFromGoogleDrive = async (config) => {
-    if (!config || !window.googleDriveUtils) {
-      showNotification('Google Drive utilities not available', 'error');
-      return;
-    }
-
-    setIsLoading(true);
-    showNotification('Loading data from Google Drive...', 'info');
-
-    try {
-      const fileTypes = ['Posts', 'Follows', 'Reach', 'Views', 'Interactions'];
-      const platforms = ['FB', 'IG'];
-      
-      for (const platform of platforms) {
-        for (const fileType of fileTypes) {
-          const fileName = `${platform}_${fileType}.csv`;
-          const fileUrl = config.files[fileName];
-          
-          if (fileUrl && fileUrl.trim() !== '') {
-            try {
-              const csvData = await window.googleDriveUtils.fetchGoogleDriveCSV(fileUrl);
-              
-              // Parse CSV data
-              Papa.parse(csvData, {
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                  if (platform === 'FB') {
-                    processFacebookData(fileType, results.data);
-                  } else if (platform === 'IG') {
-                    processInstagramData(fileType, results.data);
-                  }
-                },
-                error: (error) => {
-                  console.error(`Error parsing ${fileName}:`, error);
-                  showNotification(`Error parsing ${fileName}`, 'error');
-                }
-              });
-            } catch (error) {
-              console.error(`Error loading ${fileName}:`, error);
-              showNotification(`Error loading ${fileName}`, 'error');
-            }
-          }
-        }
-      }
-      
-      setLastRefresh(new Date());
-      showNotification('Data loaded successfully from Google Drive!', 'success');
-      
-    } catch (error) {
-      console.error('Error loading from Google Drive:', error);
-      showNotification('Error loading from Google Drive', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Google Drive configuration update
-  const handleGDriveConfigUpdate = (newConfig) => {
-    setGDriveConfig(newConfig);
-  };
-
-  // Handle Google Drive configuration save
-  const handleGDriveConfigSave = (config) => {
-    setGDriveConfig(config);
-    showNotification('Google Drive configuration saved!', 'success');
-    
-    // Auto-load data if configuration is complete
-    if (Object.values(config.files).some(url => url.trim() !== '')) {
-      loadFromGoogleDrive(config);
-    }
-  };
-
-  // Handle Google Drive configuration test
-  const handleGDriveConfigTest = (config) => {
-    loadFromGoogleDrive(config);
   };
 
   // Format numbers for display
@@ -199,7 +89,7 @@ const SocialDashboard = () => {
     return value;
   };
 
-  // Handle file upload (original functionality)
+  // Handle file upload
   const handleFileUpload = (event) => {
     const files = event.target.files;
     
@@ -534,7 +424,7 @@ const SocialDashboard = () => {
     );
   };
 
-  // Date Range Selector Component - enhanced with period comparison
+  // Date Range Selector Component
   const DateRangeSelector = () => {
     // Format date for input fields
     const formatDateForInput = (date) => {
@@ -702,78 +592,6 @@ const SocialDashboard = () => {
     );
   };
 
-  // Data Source Selector Component
-  const DataSourceSelector = () => {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-        <h2 className="text-lg font-semibold mb-2">Data Source</h2>
-        <div className="flex items-center space-x-4 mb-4">
-          <label className="flex items-center">
-            <input
-              type="radio"
-              name="dataSource"
-              value="upload"
-              checked={dataSource === 'upload'}
-              onChange={(e) => setDataSource(e.target.value)}
-              className="mr-2"
-            />
-            File Upload
-          </label>
-          <label className="flex items-center">
-            <input
-              type="radio"
-              name="dataSource"
-              value="gdrive"
-              checked={dataSource === 'gdrive'}
-              onChange={(e) => setDataSource(e.target.value)}
-              className="mr-2"
-            />
-            Google Drive
-          </label>
-        </div>
-        
-        {dataSource === 'gdrive' && (
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <button
-                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                onClick={() => setShowGDriveConfig(!showGDriveConfig)}
-              >
-                {showGDriveConfig ? 'Hide Configuration' : 'Configure Google Drive'}
-              </button>
-              
-              {gdriveConfig && Object.values(gdriveConfig.files).some(url => url.trim() !== '') && (
-                <button
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
-                  onClick={() => loadFromGoogleDrive(gdriveConfig)}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Loading...' : 'Refresh Data'}
-                </button>
-              )}
-              
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={autoRefresh}
-                  onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">Auto-refresh</span>
-              </label>
-            </div>
-            
-            {lastRefresh && (
-              <p className="text-xs text-gray-500">
-                Last refreshed: {lastRefresh.toLocaleString()}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // Data Management Component
   const DataManagement = () => {
     return (
@@ -811,9 +629,6 @@ const SocialDashboard = () => {
     );
   };
 
-  // Rest of the dashboard components remain the same...
-  // [Previous renderFacebookContent, renderInstagramContent functions remain unchanged]
-
   const renderFacebookContent = () => {
     const fbData = socialData.facebook;
     
@@ -821,9 +636,116 @@ const SocialDashboard = () => {
       return (
         <div className="bg-white rounded-lg shadow-md p-6 text-center">
           <h3 className="text-lg font-semibold mb-2">No Facebook Data Available</h3>
-          <p className="text-gray-500">Upload Facebook CSV files or configure Google Drive to view the dashboard.</p>
+          <p className="text-gray-500">Upload Facebook CSV files to view the dashboard.</p>
           <div className="mt-4 bg-blue-50 p-4 rounded border border-blue-100">
             <h4 className="font-medium text-blue-800 mb-2">Required files:</h4>
+            <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
+              <li>FB_Posts.csv - Post data with reach, reactions, comments, shares</li>
+              <li>FB_Follows.csv - Follower growth data</li>
+              <li>FB_Reach.csv - Reach metrics over time</li>
+              <li>FB_Views.csv - Views metrics</li>
+              <li>FB_Interactions.csv - Engagement interactions</li>
+            </ul>
+          </div>
+        </div>
+      );
+    }
+    
+    // Page metrics
+    const pageMetrics = [
+      { title: 'Total Followers', value: fbData.pageMetrics.followers },
+      { title: 'Total Reach', value: fbData.pageMetrics.reach },
+      { title: 'Profile Views', value: fbData.pageMetrics.views },
+      { title: 'Engagement Rate', value: fbData.pageMetrics.engagement, type: 'percent' }
+    ];
+    
+    // Get top posts if available
+    const topPosts = fbData.posts && fbData.posts.length > 0 
+      ? [...fbData.posts].sort((a, b) => b.reach - a.reach).slice(0, 5)
+      : [];
+      
+    return (
+      <>
+        {/* Page Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {pageMetrics.map((metric, index) => (
+            <KpiCard 
+              key={index}
+              title={metric.title}
+              value={metric.value}
+              type={metric.type || 'number'}
+            />
+          ))}
+        </div>
+        
+        {/* Follower Growth Chart */}
+        {fbData.followerGrowth && fbData.followerGrowth.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Follower Growth</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={fbData.followerGrowth}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => formatNumber(value)} />
+                  <Legend />
+                  <Line type="monotone" dataKey="followers" stroke="#4299e1" activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+        
+        {/* Top Posts */}
+        {topPosts.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Top Posts by Reach</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Description</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reactions</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {topPosts.map((post, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {post.description || post.title || 'Untitled Post'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.reach)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.reactions)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.comments)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.shares)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderInstagramContent = () => {
+    const igData = socialData.instagram;
+    
+    if (!igData) {
+      return (
+        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+          <h3 className="text-lg font-semibold mb-2">No Instagram Data Available</h3>
+          <p className="text-gray-500">Upload Instagram CSV files to view the dashboard.</p>
+          <div className="mt-4 bg-pink-50 p-4 rounded border border-pink-100">
+            <h4 className="font-medium text-pink-800 mb-2">Required files:</h4>
             <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 text-left">
               <li>IG_Posts.csv - Post data with reach, likes, comments, shares</li>
               <li>IG_Follows.csv - Follower growth data</li>
@@ -949,51 +871,35 @@ const SocialDashboard = () => {
     <div className="p-4 bg-gray-100 min-h-screen">
       <h1 className="text-2xl font-bold mb-4">Social Media Dashboard</h1>
       
-      {/* Data Source Selector */}
-      <DataSourceSelector />
-      
-      {/* Google Drive Configuration */}
-      {dataSource === 'gdrive' && showGDriveConfig && window.DashboardConfigComponent && (
-        <window.DashboardConfigComponent
-          dashboardType="social"
-          onConfigUpdate={handleGDriveConfigUpdate}
-          onConfigSave={handleGDriveConfigSave}
-          onConfigTest={handleGDriveConfigTest}
-          isVisible={showGDriveConfig}
-        />
-      )}
-      
-      {/* File Upload - only show if upload mode */}
-      {dataSource === 'upload' && (
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h2 className="text-lg font-semibold mb-2">Upload Data</h2>
-          <p className="text-sm text-gray-600 mb-3">
-            Upload your social media CSV files to see your analytics.
-          </p>
-          
-          <div className="flex items-center">
-            <label className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
-              <span>Choose Files</span>
-              <input 
-                type="file" 
-                accept=".csv" 
-                multiple
-                className="hidden" 
-                onChange={handleFileUpload}
-              />
-            </label>
-            <span className="ml-3 text-sm text-gray-500">
-              {isLoading ? 'Processing...' : 'Select FB_*.csv and IG_*.csv files'}
-            </span>
-          </div>
-          
-          {error && (
-            <div className="mt-3 text-red-500 text-sm">
-              {error}
-            </div>
-          )}
+      {/* File Upload */}
+      <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+        <h2 className="text-lg font-semibold mb-2">Upload Data</h2>
+        <p className="text-sm text-gray-600 mb-3">
+          Upload your social media CSV files to see your analytics.
+        </p>
+        
+        <div className="flex items-center">
+          <label className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+            <span>Choose Files</span>
+            <input 
+              type="file" 
+              accept=".csv" 
+              multiple
+              className="hidden" 
+              onChange={handleFileUpload}
+            />
+          </label>
+          <span className="ml-3 text-sm text-gray-500">
+            {isLoading ? 'Processing...' : 'Select FB_*.csv and IG_*.csv files'}
+          </span>
         </div>
-      )}
+        
+        {error && (
+          <div className="mt-3 text-red-500 text-sm">
+            {error}
+          </div>
+        )}
+      </div>
       
       {/* Data Management Section */}
       <DataManagement />
@@ -1037,113 +943,3 @@ const SocialDashboard = () => {
     </div>
   );
 };
-
-// No export in browser environment - this will be referenced directly
-// The bridge file will make it available on the window object-5 text-sm text-gray-700 space-y-1 text-left">
-              <li>FB_Posts.csv - Post data with reach, reactions, comments, shares</li>
-              <li>FB_Follows.csv - Follower growth data</li>
-              <li>FB_Reach.csv - Reach metrics over time</li>
-              <li>FB_Views.csv - Views metrics</li>
-              <li>FB_Interactions.csv - Engagement interactions</li>
-            </ul>
-          </div>
-        </div>
-      );
-    }
-    
-    // Page metrics
-    const pageMetrics = [
-      { title: 'Total Followers', value: fbData.pageMetrics.followers },
-      { title: 'Total Reach', value: fbData.pageMetrics.reach },
-      { title: 'Profile Views', value: fbData.pageMetrics.views },
-      { title: 'Engagement Rate', value: fbData.pageMetrics.engagement, type: 'percent' }
-    ];
-    
-    // Get top posts if available
-    const topPosts = fbData.posts && fbData.posts.length > 0 
-      ? [...fbData.posts].sort((a, b) => b.reach - a.reach).slice(0, 5)
-      : [];
-      
-    return (
-      <>
-        {/* Page Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {pageMetrics.map((metric, index) => (
-            <KpiCard 
-              key={index}
-              title={metric.title}
-              value={metric.value}
-              type={metric.type || 'number'}
-            />
-          ))}
-        </div>
-        
-        {/* Follower Growth Chart */}
-        {fbData.followerGrowth && fbData.followerGrowth.length > 0 && (
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Follower Growth</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={fbData.followerGrowth}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => formatNumber(value)} />
-                  <Legend />
-                  <Line type="monotone" dataKey="followers" stroke="#4299e1" activeDot={{ r: 8 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-        
-        {/* Top Posts */}
-        {topPosts.length > 0 && (
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Top Posts by Reach</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Post Description</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Reactions</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Shares</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {topPosts.map((post, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {post.description || post.title || 'Untitled Post'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.reach)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.reactions)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.comments)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(post.shares)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  };
-
-  const renderInstagramContent = () => {
-    const igData = socialData.instagram;
-    
-    if (!igData) {
-      return (
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h3 className="text-lg font-semibold mb-2">No Instagram Data Available</h3>
-          <p className="text-gray-500">Upload Instagram CSV files or configure Google Drive to view the dashboard.</p>
-          <div className="mt-4 bg-pink-50 p-4 rounded border border-pink-100">
-            <h4 className="font-medium text-pink-800 mb-2">Required files:</h4>
-            <ul className="list-disc pl
