@@ -111,6 +111,15 @@
         </div>
     </div>
 
+    <!-- Load Google Drive utilities -->
+    <script src="google-drive-utils.js"></script>
+    
+    <!-- Load dashboard configuration manager -->
+    <script src="dashboard-config-manager.js"></script>
+    
+    <!-- Load dashboard configuration component -->
+    <script type="text/babel" src="dashboard-config-component.js"></script>
+    
     <!-- First load the dashboard component -->
     <script type="text/babel" src="enhanced-youtube-dashboard.jsx"></script>
     
@@ -140,7 +149,6 @@
                         <p class="mb-4">${error.message}</p>
                         <details class="text-left bg-gray-100 p-4 rounded">
                             <summary class="cursor-pointer mb-2">Technical Details</summary>
-                            <pre class="whitespace-pre-wrap text-xs">${error.stack}</pre>
                         </details>
                     </div>
                 `;
