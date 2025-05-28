@@ -296,6 +296,10 @@
                 <input type="date" id="endDate">
             </div>
             <div class="control-group">
+                <label>Quick Select</label>
+                <button class="upload-btn" onclick="selectFullRange()" style="padding: 8px 16px; font-size: 0.9rem;">Full Range</button>
+            </div>
+            <div class="control-group">
                 <label>Compare With</label>
                 <select id="compareType">
                     <option value="none">No Comparison</option>
@@ -304,6 +308,7 @@
                 </select>
             </div>
             <button class="upload-btn" onclick="updateDashboard()">Update Dashboard</button>
+            <div id="dateRangeInfo" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></div>
         </div>
         
         <div id="dashboard"></div>
@@ -349,7 +354,32 @@
             if (Object.keys(uploadedFiles).length > 0) {
                 document.getElementById('controls').style.display = 'flex';
                 setDefaultDates();
+                setupDateValidation();
             }
+        }
+        
+        function setupDateValidation() {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            
+            // Auto-update dashboard when dates change
+            startDateInput.addEventListener('change', () => {
+                if (startDateInput.value && endDateInput.value) {
+                    if (new Date(startDateInput.value) > new Date(endDateInput.value)) {
+                        endDateInput.value = startDateInput.value;
+                    }
+                    updateDashboard();
+                }
+            });
+            
+            endDateInput.addEventListener('change', () => {
+                if (startDateInput.value && endDateInput.value) {
+                    if (new Date(endDateInput.value) < new Date(startDateInput.value)) {
+                        startDateInput.value = endDateInput.value;
+                    }
+                    updateDashboard();
+                }
+            });
         }
         
         function displayFile(fileName) {
@@ -374,25 +404,156 @@
         }
         
         function setDefaultDates() {
-            const today = new Date();
-            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+            const dateRange = getDataDateRange();
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
             
-            document.getElementById('endDate').value = today.toISOString().split('T')[0];
-            document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+            if (dateRange.min && dateRange.max) {
+                // Set the input bounds based on actual data
+                startDateInput.min = dateRange.min.toISOString().split('T')[0];
+                startDateInput.max = dateRange.max.toISOString().split('T')[0];
+                endDateInput.min = dateRange.min.toISOString().split('T')[0];
+                endDateInput.max = dateRange.max.toISOString().split('T')[0];
+                
+                // Display available date range to user
+                const minDateStr = dateRange.min.toLocaleDateString();
+                const maxDateStr = dateRange.max.toLocaleDateString();
+                dateRangeInfo.innerHTML = `📅 Data available from ${minDateStr} to ${maxDateStr}`;
+                
+                // Set default values to last 30 days or full range if less than 30 days
+                const daysDiff = (dateRange.max - dateRange.min) / (1000 * 60 * 60 * 24);
+                if (daysDiff <= 30) {
+                    // If data spans 30 days or less, show full range
+                    startDateInput.value = dateRange.min.toISOString().split('T')[0];
+                    endDateInput.value = dateRange.max.toISOString().split('T')[0];
+                } else {
+                    // Show last 30 days
+                    const thirtyDaysAgo = new Date(dateRange.max.getTime() - (30 * 24 * 60 * 60 * 1000));
+                    startDateInput.value = Math.max(thirtyDaysAgo, dateRange.min).toISOString().split('T')[0];
+                    endDateInput.value = dateRange.max.toISOString().split('T')[0];
+                }
+            } else {
+                // Fallback to current date if no date data found
+                const today = new Date();
+                const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+                
+                endDateInput.value = today.toISOString().split('T')[0];
+                startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+                dateRangeInfo.innerHTML = `⚠️ No date data found in files - using current date`;
+            }
+        }
+        
+        function getDataDateRange() {
+            let minDate = null;
+            let maxDate = null;
+            
+            // Check Google Analytics data (YYYYMMDDHH format)
+            ['GA_Demographics.csv', 'GA_Traffic_Acquisition.csv', 'GA_Pages_And_Screens.csv', 'GA_UTMs.csv'].forEach(fileName => {
+                if (processedData[fileName]) {
+                    processedData[fileName].forEach(row => {
+                        const dateField = row['Date + hour (YYYYMMDDHH)'];
+                        if (dateField) {
+                            const date = parseDate(dateField);
+                            if (!isNaN(date.getTime())) {
+                                if (!minDate || date < minDate) minDate = date;
+                                if (!maxDate || date > maxDate) maxDate = date;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Check Social Media data (ISO date format)
+            ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Link_clicks.csv', 'FB_Views.csv', 'FB_Visits.csv',
+             'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv', 'IG_Link_clicks.csv', 'IG_Views.csv', 'IG_Visits.csv'].forEach(fileName => {
+                if (processedData[fileName]) {
+                    processedData[fileName].forEach(row => {
+                        if (row.Date) {
+                            const date = new Date(row.Date);
+                            if (!isNaN(date.getTime())) {
+                                if (!minDate || date < minDate) minDate = date;
+                                if (!maxDate || date > maxDate) maxDate = date;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Check Instagram Posts (Publish time)
+            if (processedData['IG_Posts.csv']) {
+                processedData['IG_Posts.csv'].forEach(row => {
+                    if (row['Publish time']) {
+                        const date = new Date(row['Publish time']);
+                        if (!isNaN(date.getTime())) {
+                            if (!minDate || date < minDate) minDate = date;
+                            if (!maxDate || date > maxDate) maxDate = date;
+                        }
+                    }
+                });
+            }
+            
+            // Check YouTube Content (Video publish time)
+            if (processedData['YouTube_Content.csv']) {
+                processedData['YouTube_Content.csv'].forEach(row => {
+                    if (row['Video publish time']) {
+                        const date = new Date(row['Video publish time']);
+                        if (!isNaN(date.getTime())) {
+                            if (!minDate || date < minDate) minDate = date;
+                            if (!maxDate || date > maxDate) maxDate = date;
+                        }
+                    }
+                });
+            }
+            
+            // Check Facebook Videos (Date field)
+            if (processedData['FB_Videos.csv']) {
+                processedData['FB_Videos.csv'].forEach(row => {
+                    if (row.Date) {
+                        const date = new Date(row.Date);
+                        if (!isNaN(date.getTime())) {
+                            if (!minDate || date < minDate) minDate = date;
+                            if (!maxDate || date > maxDate) maxDate = date;
+                        }
+                    }
+                });
+            }
+            
+            return { min: minDate, max: maxDate };
+        }
+        
+        function selectFullRange() {
+            const dateRange = getDataDateRange();
+            if (dateRange.min && dateRange.max) {
+                document.getElementById('startDate').value = dateRange.min.toISOString().split('T')[0];
+                document.getElementById('endDate').value = dateRange.max.toISOString().split('T')[0];
+                updateDashboard();
+            }
         }
         
         function parsePercentage(str) {
-            if (typeof str === 'string' && str.includes('%')) {
-                return parseFloat(str.replace('%', ''));
+            if (str === null || str === undefined || str === '') return 0;
+            if (typeof str === 'number') return isNaN(str) ? 0 : str;
+            if (typeof str === 'string') {
+                const cleaned = str.replace(/[%,\s]/g, '');
+                if (cleaned === '') return 0;
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
             }
-            return parseFloat(str) || 0;
+            return 0;
         }
         
         function parseNumber(str) {
+            if (str === null || str === undefined || str === '') return 0;
+            if (typeof str === 'number') return isNaN(str) ? 0 : str;
             if (typeof str === 'string') {
-                return parseFloat(str.replace(/,/g, ''));
+                // Remove commas, spaces, and handle empty strings
+                const cleaned = str.replace(/[,\s]/g, '');
+                if (cleaned === '') return 0;
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
             }
-            return parseFloat(str) || 0;
+            return 0;
         }
         
         function parseDate(dateStr) {
@@ -473,7 +634,7 @@
                 
                 // Country breakdown
                 const countryData = demographics.reduce((acc, row) => {
-                    acc[row.Country] = (acc[row.Country] || 0) + (row.Sessions || 0);
+                    acc[row.Country] = (acc[row.Country] || 0) + parseNumber(row.Sessions);
                     return acc;
                 }, {});
                 
@@ -484,10 +645,10 @@
                 const metricsGrid = document.createElement('div');
                 metricsGrid.className = 'metric-grid';
                 
-                const totalUsers = demographics.reduce((sum, row) => sum + (row['Total users'] || 0), 0);
-                const totalSessions = demographics.reduce((sum, row) => sum + (row.Sessions || 0), 0);
+                const totalUsers = demographics.reduce((sum, row) => sum + parseNumber(row['Total users']), 0);
+                const totalSessions = demographics.reduce((sum, row) => sum + parseNumber(row.Sessions), 0);
                 const avgEngagement = demographics.length > 0 ? 
-                    demographics.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0) / demographics.length : 0;
+                    demographics.reduce((sum, row) => sum + parseNumber(row['Engagement rate']), 0) / demographics.length : 0;
                 
                 metricsGrid.innerHTML = `
                     <div class="metric">
@@ -538,7 +699,7 @@
                 
                 const channelData = traffic.reduce((acc, row) => {
                     const channel = row['Session primary channel group (Default Channel Group)'] || 'Unknown';
-                    acc[channel] = (acc[channel] || 0) + (row.Sessions || 0);
+                    acc[channel] = (acc[channel] || 0) + parseNumber(row.Sessions);
                     return acc;
                 }, {});
                 
@@ -592,8 +753,8 @@
                     if (!acc[path]) {
                         acc[path] = { views: 0, users: 0 };
                     }
-                    acc[path].views += row.Views || 0;
-                    acc[path].users += row['Active users'] || 0;
+                    acc[path].views += parseNumber(row.Views);
+                    acc[path].users += parseNumber(row['Active users']);
                     return acc;
                 }, {});
                 
@@ -639,7 +800,7 @@
                     if (startDate && endDate) {
                         reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
                     }
-                    fbReach = reachData.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                    fbReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
                 }
                 
                 if (processedData['FB_Interactions.csv']) {
@@ -647,7 +808,7 @@
                     if (startDate && endDate) {
                         interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
                     }
-                    fbInteractions = interactionData.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                    fbInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
                 }
                 
                 if (processedData['FB_Follows.csv']) {
@@ -655,7 +816,7 @@
                     if (startDate && endDate) {
                         followData = filterDataByDate(followData, 'Date', startDate, endDate);
                     }
-                    fbFollows = followData.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                    fbFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
                 }
                 
                 metricsGrid.innerHTML = `
@@ -697,8 +858,8 @@
                 const card = createCard('Top Instagram Posts');
                 
                 const topPosts = posts
-                    .filter(post => post.Reach && post.Reach > 0)
-                    .sort((a, b) => (b.Reach || 0) - (a.Reach || 0))
+                    .filter(post => parseNumber(post.Reach) > 0)
+                    .sort((a, b) => parseNumber(b.Reach) - parseNumber(a.Reach))
                     .slice(0, 5);
                 
                 const tableContainer = document.createElement('div');
@@ -744,7 +905,7 @@
             
             const totalSent = emailData.reduce((sum, row) => sum + parseNumber(row['Emails sent']), 0);
             const totalOpened = emailData.reduce((sum, row) => sum + parseNumber(row['Email opened (MPP excluded)']), 0);
-            const totalClicked = emailData.reduce((sum, row) => sum + (row['Email clicked'] || 0), 0);
+            const totalClicked = emailData.reduce((sum, row) => sum + parseNumber(row['Email clicked']), 0);
             const avgOpenRate = emailData.length > 0 ? 
                 emailData.reduce((sum, row) => sum + parsePercentage(row['Email open rate (MPP excluded)']), 0) / emailData.length : 0;
             const avgClickRate = emailData.length > 0 ? 
@@ -856,11 +1017,11 @@
                 const metricsGrid = document.createElement('div');
                 metricsGrid.className = 'metric-grid';
                 
-                const totalViews = content.reduce((sum, row) => sum + (row.Views || 0), 0);
-                const totalWatchTime = content.reduce((sum, row) => sum + (row['Watch time (hours)'] || 0), 0);
-                const totalSubscribers = content.reduce((sum, row) => sum + (row.Subscribers || 0), 0);
+                const totalViews = content.reduce((sum, row) => sum + parseNumber(row.Views), 0);
+                const totalWatchTime = content.reduce((sum, row) => sum + parseNumber(row['Watch time (hours)']), 0);
+                const totalSubscribers = content.reduce((sum, row) => sum + parseNumber(row.Subscribers), 0);
                 const avgCTR = content.length > 0 ? 
-                    content.reduce((sum, row) => sum + (row['Impressions click-through rate (%)'] || 0), 0) / content.length : 0;
+                    content.reduce((sum, row) => sum + parseNumber(row['Impressions click-through rate (%)']), 0) / content.length : 0;
                 
                 metricsGrid.innerHTML = `
                     <div class="metric">
@@ -887,7 +1048,7 @@
                 // Top Videos
                 const topVideosCard = createCard('Top 5 Videos by Views');
                 const topVideos = content
-                    .sort((a, b) => (b.Views || 0) - (a.Views || 0))
+                    .sort((a, b) => parseNumber(b.Views) - parseNumber(a.Views))
                     .slice(0, 5);
                 
                 const videoTableContainer = document.createElement('div');
@@ -1008,8 +1169,21 @@
         function updateDashboard() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
             
             if (startDate && endDate) {
+                // Update the info display to show current selection
+                const startDateObj = new Date(startDate);
+                const endDateObj = new Date(endDate);
+                const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1;
+                
+                const dataRange = getDataDateRange();
+                let rangeText = `📅 Showing ${daysDiff} days: ${startDateObj.toLocaleDateString()} - ${endDateObj.toLocaleDateString()}`;
+                if (dataRange.min && dataRange.max) {
+                    rangeText += ` (Data available: ${dataRange.min.toLocaleDateString()} - ${dataRange.max.toLocaleDateString()})`;
+                }
+                dateRangeInfo.innerHTML = rangeText;
+                
                 generateDashboard(startDate, endDate);
             } else {
                 generateDashboard();
