@@ -335,39 +335,6 @@
             font-weight: 600;
         }
         
-        .success-badge {
-            background: linear-gradient(45deg, #10b981, #059669);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-block;
-            margin: 5px;
-        }
-        
-        .info-badge {
-            background: linear-gradient(45deg, #3b82f6, #2563eb);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-block;
-            margin: 5px;
-        }
-        
-        .warning-badge {
-            background: linear-gradient(45deg, #f59e0b, #d97706);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-block;
-            margin: 5px;
-        }
-        
         @media (max-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -527,14 +494,11 @@
         }
         
         function processFile(file) {
-            // Handle different encodings for audience files
-            const encoding = (file.name.includes('Audience') && (file.name.includes('FB_') || file.name.includes('IG_'))) ? 'utf-16' : 'utf-8';
-            
             Papa.parse(file, {
                 header: true,
                 dynamicTyping: true,
                 skipEmptyLines: true,
-                encoding: 'utf-8', // Papa.parse doesn't support utf-16, we'll handle this differently
+                encoding: 'utf-8',
                 complete: (results) => {
                     processedData[file.name] = results.data;
                     if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
@@ -543,7 +507,6 @@
                 },
                 error: (error) => {
                     console.log(`Error parsing ${file.name}:`, error);
-                    // For problematic files, we'll skip them for now
                     if (Object.keys(processedData).length === Object.keys(uploadedFiles).length - 1) {
                         generateDashboard();
                     }
@@ -720,6 +683,10 @@
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = '';
             
+            // Add data overview section
+            const dataOverview = createDataOverview(startDate, endDate);
+            dashboard.appendChild(dataOverview);
+            
             // Web Analytics Section
             if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
                 dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
@@ -743,6 +710,86 @@
                 dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
                 generateYouTubeAnalytics(dashboard, startDate, endDate, compareType);
             }
+        }
+        
+        function createDataOverview(startDate, endDate) {
+            const overviewCard = createCard('📋 Data Overview & Status');
+            
+            const dataTypes = {
+                'Web Analytics': ['GA_Demographics.csv', 'GA_Traffic_Acquisition.csv', 'GA_Pages_And_Screens.csv', 'GA_UTMs.csv'],
+                'Facebook': ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Videos.csv', 'FB_Posts.csv'],
+                'Instagram': ['IG_Posts.csv', 'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv'],
+                'Email': ['Email_Campaign_Performance.csv'],
+                'YouTube': ['YouTube_Content.csv', 'YouTube_Age.csv', 'YouTube_Gender.csv', 'YouTube_Geography.csv']
+            };
+            
+            let overviewHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            `;
+            
+            Object.entries(dataTypes).forEach(([category, files]) => {
+                const loadedFiles = files.filter(file => processedData[file]);
+                const totalFiles = files.length;
+                const loadedCount = loadedFiles.length;
+                
+                let statusColor = loadedCount === 0 ? '#ef4444' : loadedCount === totalFiles ? '#10b981' : '#f59e0b';
+                let statusIcon = loadedCount === 0 ? '❌' : loadedCount === totalFiles ? '✅' : '⚠️';
+                
+                overviewHTML += `
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">${statusIcon} ${category}</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">${loadedCount}/${totalFiles} files loaded</p>
+                        ${loadedFiles.length > 0 ? `<small style="color: #888;">Loaded: ${loadedFiles.join(', ')}</small>` : ''}
+                    </div>
+                `;
+            });
+            
+            overviewHTML += '</div>';
+            
+            // Add specific Instagram posts info
+            if (processedData['IG_Posts.csv']) {
+                const totalPosts = processedData['IG_Posts.csv'].length;
+                let postsInRange = totalPosts;
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    postsInRange = processedData['IG_Posts.csv'].filter(post => {
+                        if (post['Publish time']) {
+                            const postDate = new Date(post['Publish time']);
+                            return postDate >= start && postDate <= end;
+                        } else if (post['Date']) {
+                            const postDate = new Date(post['Date']);
+                            return postDate >= start && postDate <= end;
+                        }
+                        return true;
+                    }).length;
+                }
+                
+                overviewHTML += `
+                    <div style="background: #e8f2ff; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">📷 Instagram Posts Details</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">
+                            Total posts in dataset: <strong>${totalPosts}</strong><br>
+                            Posts in selected date range: <strong>${postsInRange}</strong>
+                        </p>
+                    </div>
+                `;
+            }
+            
+            if (startDate && endDate) {
+                overviewHTML += `
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">📅 Date Range Filter Active</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">
+                            Showing data from <strong>${new Date(startDate).toLocaleDateString()}</strong> to <strong>${new Date(endDate).toLocaleDateString()}</strong>
+                        </p>
+                    </div>
+                `;
+            }
+            
+            overviewCard.innerHTML += overviewHTML;
+            return overviewCard;
         }
         
         function createSectionHeader(title) {
@@ -1240,12 +1287,24 @@
                         if (post['Publish time']) {
                             const postDate = new Date(post['Publish time']);
                             return postDate >= start && postDate <= end;
+                        } else if (post['Date']) {
+                            const postDate = new Date(post['Date']);
+                            return postDate >= start && postDate <= end;
                         }
                         return true;
                     });
                 }
                 
                 const card = createCard('🏆 Top Instagram Posts Performance');
+                
+                // Add data info
+                const dataInfo = document.createElement('div');
+                dataInfo.style.cssText = 'background: #f8f9ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; color: #666;';
+                dataInfo.innerHTML = `
+                    📊 <strong>Data Summary:</strong> ${processedData['IG_Posts.csv'].length} total posts in dataset, 
+                    ${posts.length} posts in selected date range
+                `;
+                card.appendChild(dataInfo);
                 
                 // Create tabs for different sorting options
                 const tabContainer = document.createElement('div');
@@ -1265,6 +1324,56 @@
                 // Initial display
                 displayTopPosts('Reach', posts, card);
                 container.appendChild(card);
+            }
+            
+            // Facebook Posts Analysis (if available)
+            if (processedData['FB_Posts.csv']) {
+                let fbPosts = processedData['FB_Posts.csv'];
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    fbPosts = fbPosts.filter(post => {
+                        if (post['Publish time']) {
+                            const postDate = new Date(post['Publish time']);
+                            return postDate >= start && postDate <= end;
+                        } else if (post['Date']) {
+                            const postDate = new Date(post['Date']);
+                            return postDate >= start && postDate <= end;
+                        }
+                        return true;
+                    });
+                }
+                
+                const fbCard = createCard('📘 Top Facebook Posts Performance');
+                
+                // Add data info for Facebook
+                const fbDataInfo = document.createElement('div');
+                fbDataInfo.style.cssText = 'background: #f8f9ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; color: #666;';
+                fbDataInfo.innerHTML = `
+                    📊 <strong>Data Summary:</strong> ${processedData['FB_Posts.csv'].length} total posts in dataset, 
+                    ${fbPosts.length} posts in selected date range
+                `;
+                fbCard.appendChild(fbDataInfo);
+                
+                // Create tabs for Facebook posts
+                const fbTabContainer = document.createElement('div');
+                fbTabContainer.style.cssText = 'display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;';
+                
+                ['Reach', 'Likes', 'Comments', 'Shares'].forEach((metric, index) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'upload-btn';
+                    tab.style.cssText = `padding: 8px 16px; font-size: 0.85rem; ${index === 0 ? 'background: linear-gradient(45deg, #667eea, #764ba2);' : 'background: #e1e5e9; color: #666;'}`;
+                    tab.textContent = `Top by ${metric}`;
+                    tab.onclick = () => displayTopFacebookPosts(metric, fbPosts, fbCard);
+                    fbTabContainer.appendChild(tab);
+                });
+                
+                fbCard.appendChild(fbTabContainer);
+                
+                // Initial display
+                displayTopFacebookPosts('Reach', fbPosts, fbCard);
+                container.appendChild(fbCard);
             }
             
             // Facebook Videos Performance
@@ -1303,6 +1412,7 @@
                                     <th>1m Views</th>
                                     <th>Engagement</th>
                                     <th>Watch Time (hrs)</th>
+                                    <th>Link</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1314,6 +1424,7 @@
                                         <td>${parseNumber(video['1-minute video views']).toLocaleString()}</td>
                                         <td>${parseNumber(video['Reactions, Comments and Shares']).toLocaleString()}</td>
                                         <td>${(parseNumber(video['Seconds viewed']) / 3600).toFixed(1)}</td>
+                                        <td>${video['Universal video ID'] ? `<a href="https://www.facebook.com/watch/?v=${video['Universal video ID']}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                                     </tr>`
                                 ).join('')}
                             </tbody>
@@ -1346,10 +1457,70 @@
                 }
             });
             
+            // More lenient filtering - include posts with any positive metrics
             const topPosts = posts
-                .filter(post => parseNumber(post[metric]) > 0)
-                .sort((a, b) => parseNumber(b[metric]) - parseNumber(a[metric]))
+                .filter(post => 
+                    parseNumber(post[metric] || 0) > 0 || 
+                    parseNumber(post.Reach || 0) > 0 || 
+                    parseNumber(post.Likes || 0) > 0 ||
+                    parseNumber(post.Comments || 0) > 0 ||
+                    parseNumber(post.Shares || 0) > 0 ||
+                    parseNumber(post.Saves || 0) > 0
+                )
+                .sort((a, b) => parseNumber(b[metric] || 0) - parseNumber(a[metric] || 0))
                 .slice(0, 5);
+            
+            if (topPosts.length === 0) {
+                // Show all posts if none meet the criteria
+                const allPosts = posts.slice(0, 5);
+                if (allPosts.length > 0) {
+                    const tableContainer = document.createElement('div');
+                    tableContainer.className = 'table-container';
+                    tableContainer.innerHTML = `
+                        <p style="color: #666; text-align: center; padding: 10px; font-style: italic;">
+                            📊 Showing all available posts (no posts with ${metric} > 0 found)
+                        </p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Post</th>
+                                    <th>${metric}</th>
+                                    <th>Reach</th>
+                                    <th>Likes</th>
+                                    <th>Comments</th>
+                                    <th>Shares</th>
+                                    <th>Saves</th>
+                                    <th>Link</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allPosts.map(post => 
+                                    `<tr>
+                                        <td><strong>${(post.Description || 'No description').substring(0, 40)}...</strong></td>
+                                        <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
+                                        <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Saves || 0).toLocaleString()}</td>
+                                        <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                    </tr>`
+                                ).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    card.appendChild(tableContainer);
+                } else {
+                    const noDataDiv = document.createElement('div');
+                    noDataDiv.style.cssText = 'text-align: center; padding: 40px; color: #666; font-style: italic;';
+                    noDataDiv.innerHTML = `
+                        📭 No Instagram posts found for the selected time period.<br>
+                        <small>Try expanding your date range or check if the posts data was uploaded correctly.</small>
+                    `;
+                    card.appendChild(noDataDiv);
+                }
+                return;
+            }
             
             const tableContainer = document.createElement('div');
             tableContainer.className = 'table-container';
@@ -1357,25 +1528,141 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Description</th>
+                            <th>Post</th>
                             <th>${metric}</th>
                             <th>Reach</th>
                             <th>Likes</th>
                             <th>Comments</th>
                             <th>Shares</th>
                             <th>Saves</th>
+                            <th>Link</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${topPosts.map(post => 
                             `<tr>
-                                <td><strong>${(post.Description || '').substring(0, 50)}...</strong></td>
-                                <td><strong>${parseNumber(post[metric]).toLocaleString()}</strong></td>
+                                <td><strong>${(post.Description || 'No description').substring(0, 40)}...</strong></td>
+                                <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
                                 <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Saves || 0).toLocaleString()}</td>
+                                <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                            </tr>`
+                        ).join('')}
+                    </tbody>
+                </table>
+            `;
+            card.appendChild(tableContainer);
+        }
+        
+        function displayTopFacebookPosts(metric, posts, card) {
+            // Remove existing table if any
+            const existingTable = card.querySelector('.table-container');
+            if (existingTable) {
+                existingTable.remove();
+            }
+            
+            // Update tab styles
+            const tabs = card.querySelectorAll('button');
+            tabs.forEach((tab, index) => {
+                if (tab.textContent.includes(metric)) {
+                    tab.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                    tab.style.color = 'white';
+                } else {
+                    tab.style.background = '#e1e5e9';
+                    tab.style.color = '#666';
+                }
+            });
+            
+            // More lenient filtering for Facebook posts
+            const topPosts = posts
+                .filter(post => 
+                    parseNumber(post[metric] || 0) > 0 || 
+                    parseNumber(post.Reach || 0) > 0 || 
+                    parseNumber(post.Likes || 0) > 0 ||
+                    parseNumber(post.Comments || 0) > 0 ||
+                    parseNumber(post.Shares || 0) > 0
+                )
+                .sort((a, b) => parseNumber(b[metric] || 0) - parseNumber(a[metric] || 0))
+                .slice(0, 5);
+            
+            if (topPosts.length === 0) {
+                // Show all posts if none meet the criteria
+                const allPosts = posts.slice(0, 5);
+                if (allPosts.length > 0) {
+                    const tableContainer = document.createElement('div');
+                    tableContainer.className = 'table-container';
+                    tableContainer.innerHTML = `
+                        <p style="color: #666; text-align: center; padding: 10px; font-style: italic;">
+                            📊 Showing all available posts (no posts with ${metric} > 0 found)
+                        </p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Post</th>
+                                    <th>${metric}</th>
+                                    <th>Reach</th>
+                                    <th>Likes</th>
+                                    <th>Comments</th>
+                                    <th>Shares</th>
+                                    <th>Link</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allPosts.map(post => 
+                                    `<tr>
+                                        <td><strong>${(post.Message || post.Description || 'No description').substring(0, 40)}...</strong></td>
+                                        <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
+                                        <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
+                                        <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
+                                        <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                    </tr>`
+                                ).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    card.appendChild(tableContainer);
+                } else {
+                    const noDataDiv = document.createElement('div');
+                    noDataDiv.style.cssText = 'text-align: center; padding: 40px; color: #666; font-style: italic;';
+                    noDataDiv.innerHTML = `
+                        📭 No Facebook posts found for the selected time period.<br>
+                        <small>Try expanding your date range or check if the posts data was uploaded correctly.</small>
+                    `;
+                    card.appendChild(noDataDiv);
+                }
+                return;
+            }
+            
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'table-container';
+            tableContainer.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Post</th>
+                            <th>${metric}</th>
+                            <th>Reach</th>
+                            <th>Likes</th>
+                            <th>Comments</th>
+                            <th>Shares</th>
+                            <th>Link</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${topPosts.map(post => 
+                            `<tr>
+                                <td><strong>${(post.Message || post.Description || 'No description').substring(0, 40)}...</strong></td>
+                                <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
+                                <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
+                                <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
+                                <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
+                                <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
+                                <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                             </tr>`
                         ).join('')}
                     </tbody>
@@ -1837,12 +2124,13 @@
                             <th>Likes</th>
                             <th>CTR (%)</th>
                             <th>Subscribers</th>
+                            <th>Link</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${topVideos.map(video => 
                             `<tr>
-                                <td><strong>${(video['Video title'] || '').substring(0, 50)}...</strong></td>
+                                <td><strong>${(video['Video title'] || '').substring(0, 40)}...</strong></td>
                                 <td><strong>${metric === 'Watch time (hours)' ? 
                                     Math.round(parseNumber(video[metric])) : 
                                     parseNumber(video[metric]).toLocaleString()}</strong></td>
@@ -1850,6 +2138,7 @@
                                 <td>${parseNumber(video.Likes || 0).toLocaleString()}</td>
                                 <td>${parseNumber(video['Impressions click-through rate (%)'] || 0).toFixed(1)}%</td>
                                 <td>+${parseNumber(video.Subscribers || 0).toLocaleString()}</td>
+                                <td>${video.Content ? `<a href="https://www.youtube.com/watch?v=${video.Content}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                             </tr>`
                         ).join('')}
                     </tbody>
