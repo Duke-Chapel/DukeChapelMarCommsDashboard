@@ -3,136 +3,935 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marketing Analytics Dashboards</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <title>Marketing Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .upload-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 3px dashed #667eea;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        .upload-area {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .upload-area.dragover {
+            background: #f8f9ff;
+            border-color: #4f46e5;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .file-list {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .file-item {
+            background: #e8f2ff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 2px solid #667eea;
+        }
+        
+        .controls {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            color: #444;
+        }
+        
+        .control-group input, .control-group select {
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+        }
+        
+        .card h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.3rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(45deg, #f8f9ff, #e8f2ff);
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        th, td {
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+        
+        th {
+            background: #f8f9ff;
+            font-weight: 600;
+            color: #444;
+        }
+        
+        tr:hover {
+            background: #f8f9ff;
+        }
+        
+        .section-header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 30px 0 20px 0;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #c33;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .metric-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-12">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-800 mb-4">Marketing Analytics Dashboards</h1>
-            <p class="text-lg text-gray-600 max-w-3xl mx-auto">
-                Interactive dashboards for your marketing analytics with data persistence. Upload your CSV files once and access your data anytime.
-            </p>
-        </header>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Marketing Analytics Dashboard</h1>
+            <p>Upload your CSV files to generate comprehensive marketing insights</p>
+        </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <!-- Social Media Dashboard Card -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
-                <div class="h-16 bg-gradient-to-r from-blue-500 to-pink-500"></div>
-                <div class="p-6">
-                    <h2 class="text-xl font-semibold mb-2">Social Media Dashboard</h2>
-                    <p class="text-gray-600 mb-4">
-                        Facebook and Instagram analytics with follower growth, engagement metrics, and top performing posts.
-                    </p>
-                    <a href="enhanced-social-dashboard.html" class="inline-block bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
-                        Open Dashboard
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Web Analytics Dashboard Card -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
-                <div class="h-16 bg-gradient-to-r from-blue-600 to-blue-400"></div>
-                <div class="p-6">
-                    <h2 class="text-xl font-semibold mb-2">Web Analytics Dashboard</h2>
-                    <p class="text-gray-600 mb-4">
-                        Google Analytics data with traffic sources, user demographics, top pages, and campaign performance.
-                    </p>
-                    <a href="enhanced-web-dashboard.html" class="inline-block bg-gradient-to-r from-blue-600 to-blue-400 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
-                        Open Dashboard
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Email Dashboard Card -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
-                <div class="h-16 bg-gradient-to-r from-purple-600 to-purple-400"></div>
-                <div class="p-6">
-                    <h2 class="text-xl font-semibold mb-2">Email Campaign Dashboard</h2>
-                    <p class="text-gray-600 mb-4">
-                        Email campaign analytics with open rates, click rates, subscriber metrics, and engagement data.
-                    </p>
-                    <a href="enhanced-email-dashboard.html" class="inline-block bg-gradient-to-r from-purple-600 to-purple-400 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
-                        Open Dashboard
-                    </a>
-                </div>
-            </div>
-            
-            <!-- YouTube Dashboard Card -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105">
-                <div class="h-16 bg-gradient-to-r from-red-600 to-red-400"></div>
-                <div class="p-6">
-                    <h2 class="text-xl font-semibold mb-2">YouTube Analytics Dashboard</h2>
-                    <p class="text-gray-600 mb-4">
-                        YouTube channel analytics with audience demographics, subscription status, and top performing videos.
-                    </p>
-                    <a href="enhanced-youtube-dashboard.html" class="inline-block bg-gradient-to-r from-red-600 to-red-400 text-white px-4 py-2 rounded hover:opacity-90 transition-opacity">
-                        Open Dashboard
-                    </a>
-                </div>
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <h3>📁 Upload Your Marketing Data Files</h3>
+                <p style="margin: 15px 0; color: #666;">Drag and drop CSV files here or click to select</p>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".csv">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Choose Files
+                </button>
+                <div class="file-list" id="fileList"></div>
             </div>
         </div>
         
-        <div class="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Features</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="p-4 border rounded-lg">
-                    <h3 class="font-medium text-lg mb-2">Data Persistence</h3>
-                    <p class="text-gray-600">
-                        All uploaded data is saved in your browser's local storage, available whenever you return.
-                    </p>
-                </div>
-                <div class="p-4 border rounded-lg">
-                    <h3 class="font-medium text-lg mb-2">Period Comparison</h3>
-                    <p class="text-gray-600">
-                        Compare metrics across different time periods to track performance.
-                    </p>
-                </div>
-                <div class="p-4 border rounded-lg">
-                    <h3 class="font-medium text-lg mb-2">Export/Import</h3>
-                    <p class="text-gray-600">
-                        Share dashboard data with team members via downloadable JSON files.
-                    </p>
-                </div>
-                <div class="p-4 border rounded-lg">
-                    <h3 class="font-medium text-lg mb-2">GitHub Pages Ready</h3>
-                    <p class="text-gray-600">
-                        Deploy to GitHub Pages for easy access by your entire team.
-                    </p>
-                </div>
+        <div class="controls" id="controls" style="display: none;">
+            <div class="control-group">
+                <label>Start Date</label>
+                <input type="date" id="startDate">
             </div>
+            <div class="control-group">
+                <label>End Date</label>
+                <input type="date" id="endDate">
+            </div>
+            <div class="control-group">
+                <label>Compare With</label>
+                <select id="compareType">
+                    <option value="none">No Comparison</option>
+                    <option value="previous">Previous Period</option>
+                    <option value="year">Same Period Last Year</option>
+                </select>
+            </div>
+            <button class="upload-btn" onclick="updateDashboard()">Update Dashboard</button>
         </div>
         
-        <div class="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Getting Started</h2>
-            <ol class="list-decimal pl-6 space-y-3">
-                <li>
-                    <p class="text-gray-700">Select one of the dashboards above to open it</p>
-                </li>
-                <li>
-                    <p class="text-gray-700">Use the "Choose Files" button to upload your CSV data files</p>
-                </li>
-                <li>
-                    <p class="text-gray-700">Explore your data with interactive visualizations</p>
-                </li>
-                <li>
-                    <p class="text-gray-700">Your data will be automatically saved for future sessions</p>
-                </li>
-                <li>
-                    <p class="text-gray-700">Use the Data Management section to export or import dashboard data</p>
-                </li>
-            </ol>
-        </div>
-        
-        <footer class="mt-12 text-center text-gray-500 text-sm">
-            <p>© 2025 Marketing Analytics Dashboard</p>
-            <p class="mt-2">All data is processed locally in your browser. No data is sent to any server.</p>
-        </footer>
+        <div id="dashboard"></div>
     </div>
+
+    <script>
+        let uploadedFiles = {};
+        let processedData = {};
+        
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                    uploadedFiles[file.name] = file;
+                    displayFile(file.name);
+                    processFile(file);
+                }
+            });
+            
+            if (Object.keys(uploadedFiles).length > 0) {
+                document.getElementById('controls').style.display = 'flex';
+                setDefaultDates();
+            }
+        }
+        
+        function displayFile(fileName) {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.textContent = fileName;
+            fileList.appendChild(fileItem);
+        }
+        
+        function processFile(file) {
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    processedData[file.name] = results.data;
+                    if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
+                        generateDashboard();
+                    }
+                }
+            });
+        }
+        
+        function setDefaultDates() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+        }
+        
+        function parsePercentage(str) {
+            if (typeof str === 'string' && str.includes('%')) {
+                return parseFloat(str.replace('%', ''));
+            }
+            return parseFloat(str) || 0;
+        }
+        
+        function parseNumber(str) {
+            if (typeof str === 'string') {
+                return parseFloat(str.replace(/,/g, ''));
+            }
+            return parseFloat(str) || 0;
+        }
+        
+        function parseDate(dateStr) {
+            if (typeof dateStr === 'number' && dateStr.toString().length === 10) {
+                // Handle YYYYMMDDHH format
+                const str = dateStr.toString();
+                const year = str.substring(0, 4);
+                const month = str.substring(4, 6);
+                const day = str.substring(6, 8);
+                const hour = str.substring(8, 10);
+                return new Date(year, month - 1, day, hour);
+            } else if (typeof dateStr === 'string') {
+                return new Date(dateStr);
+            }
+            return new Date(dateStr);
+        }
+        
+        function filterDataByDate(data, dateField, startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            return data.filter(row => {
+                const date = parseDate(row[dateField]);
+                return date >= start && date <= end;
+            });
+        }
+        
+        function generateDashboard() {
+            const dashboard = document.getElementById('dashboard');
+            dashboard.innerHTML = '';
+            
+            // Web Analytics Section
+            if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
+                dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
+                generateWebAnalytics(dashboard);
+            }
+            
+            // Social Media Section
+            if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv']) {
+                dashboard.appendChild(createSectionHeader('📱 Social Media'));
+                generateSocialAnalytics(dashboard);
+            }
+            
+            // Email Section
+            if (processedData['Email_Campaign_Performance.csv']) {
+                dashboard.appendChild(createSectionHeader('📧 Email Marketing'));
+                generateEmailAnalytics(dashboard);
+            }
+            
+            // YouTube Section
+            if (processedData['YouTube_Content.csv']) {
+                dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
+                generateYouTubeAnalytics(dashboard);
+            }
+        }
+        
+        function createSectionHeader(title) {
+            const header = document.createElement('div');
+            header.className = 'section-header';
+            header.textContent = title;
+            return header;
+        }
+        
+        function generateWebAnalytics(dashboard) {
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // Demographics Card
+            if (processedData['GA_Demographics.csv']) {
+                const demographics = processedData['GA_Demographics.csv'];
+                const card = createCard('Demographics Overview');
+                
+                // Country breakdown
+                const countryData = demographics.reduce((acc, row) => {
+                    acc[row.Country] = (acc[row.Country] || 0) + (row.Sessions || 0);
+                    return acc;
+                }, {});
+                
+                const topCountries = Object.entries(countryData)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5);
+                
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                
+                const totalUsers = demographics.reduce((sum, row) => sum + (row['Total users'] || 0), 0);
+                const totalSessions = demographics.reduce((sum, row) => sum + (row.Sessions || 0), 0);
+                const avgEngagement = demographics.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0) / demographics.length;
+                
+                metricsGrid.innerHTML = `
+                    <div class="metric">
+                        <div class="metric-value">${totalUsers.toLocaleString()}</div>
+                        <div class="metric-label">Total Users</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${totalSessions.toLocaleString()}</div>
+                        <div class="metric-label">Total Sessions</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${(avgEngagement * 100).toFixed(1)}%</div>
+                        <div class="metric-label">Avg Engagement Rate</div>
+                    </div>
+                `;
+                
+                card.appendChild(metricsGrid);
+                
+                // Top countries table
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container';
+                tableContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr><th>Country</th><th>Sessions</th></tr>
+                        </thead>
+                        <tbody>
+                            ${topCountries.map(([country, sessions]) => 
+                                `<tr><td>${country}</td><td>${sessions.toLocaleString()}</td></tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                `;
+                card.appendChild(tableContainer);
+                container.appendChild(card);
+            }
+            
+            // Traffic Sources
+            if (processedData['GA_Traffic_Acquisition.csv']) {
+                const traffic = processedData['GA_Traffic_Acquisition.csv'];
+                const card = createCard('Traffic Sources');
+                
+                const channelData = traffic.reduce((acc, row) => {
+                    const channel = row['Session primary channel group (Default Channel Group)'] || 'Unknown';
+                    acc[channel] = (acc[channel] || 0) + (row.Sessions || 0);
+                    return acc;
+                }, {});
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                card.appendChild(chartContainer);
+                
+                setTimeout(() => {
+                    new Chart(canvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(channelData),
+                            datasets: [{
+                                data: Object.values(channelData),
+                                backgroundColor: [
+                                    '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                                    '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                }, 100);
+                
+                container.appendChild(card);
+            }
+            
+            // Landing Pages
+            if (processedData['GA_Pages_And_Screens.csv']) {
+                const pages = processedData['GA_Pages_And_Screens.csv'];
+                const card = createCard('Top Landing Pages');
+                
+                const pageData = pages.reduce((acc, row) => {
+                    const path = row['Page path and screen class'] || 'Unknown';
+                    if (!acc[path]) {
+                        acc[path] = { views: 0, users: 0 };
+                    }
+                    acc[path].views += row.Views || 0;
+                    acc[path].users += row['Active users'] || 0;
+                    return acc;
+                }, {});
+                
+                const topPages = Object.entries(pageData)
+                    .sort(([,a], [,b]) => b.views - a.views)
+                    .slice(0, 10);
+                
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container';
+                tableContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr><th>Page</th><th>Views</th><th>Users</th></tr>
+                        </thead>
+                        <tbody>
+                            ${topPages.map(([page, data]) => 
+                                `<tr><td>${page}</td><td>${data.views.toLocaleString()}</td><td>${data.users.toLocaleString()}</td></tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                `;
+                card.appendChild(tableContainer);
+                container.appendChild(card);
+            }
+            
+            dashboard.appendChild(container);
+        }
+        
+        function generateSocialAnalytics(dashboard) {
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // Facebook Analytics
+            if (processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv']) {
+                const card = createCard('Facebook Metrics');
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                
+                const fbReach = processedData['FB_Reach.csv']?.reduce((sum, row) => sum + (row.Primary || 0), 0) || 0;
+                const fbInteractions = processedData['FB_Interactions.csv']?.reduce((sum, row) => sum + (row.Primary || 0), 0) || 0;
+                const fbFollows = processedData['FB_Follows.csv']?.reduce((sum, row) => sum + (row.Primary || 0), 0) || 0;
+                
+                metricsGrid.innerHTML = `
+                    <div class="metric">
+                        <div class="metric-value">${fbReach.toLocaleString()}</div>
+                        <div class="metric-label">Total Reach</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${fbInteractions.toLocaleString()}</div>
+                        <div class="metric-label">Interactions</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${fbFollows.toLocaleString()}</div>
+                        <div class="metric-label">New Follows</div>
+                    </div>
+                `;
+                
+                card.appendChild(metricsGrid);
+                container.appendChild(card);
+            }
+            
+            // Instagram Analytics
+            if (processedData['IG_Posts.csv']) {
+                const posts = processedData['IG_Posts.csv'];
+                const card = createCard('Top Instagram Posts');
+                
+                const topPosts = posts
+                    .filter(post => post.Reach && post.Reach > 0)
+                    .sort((a, b) => (b.Reach || 0) - (a.Reach || 0))
+                    .slice(0, 5);
+                
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container';
+                tableContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr><th>Description</th><th>Reach</th><th>Likes</th><th>Comments</th><th>Shares</th></tr>
+                        </thead>
+                        <tbody>
+                            ${topPosts.map(post => 
+                                `<tr>
+                                    <td>${(post.Description || '').substring(0, 50)}...</td>
+                                    <td>${(post.Reach || 0).toLocaleString()}</td>
+                                    <td>${post.Likes || 0}</td>
+                                    <td>${post.Comments || 0}</td>
+                                    <td>${post.Shares || 0}</td>
+                                </tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                `;
+                card.appendChild(tableContainer);
+                container.appendChild(card);
+            }
+            
+            dashboard.appendChild(container);
+        }
+        
+        function generateEmailAnalytics(dashboard) {
+            const emailData = processedData['Email_Campaign_Performance.csv'];
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // Email Overview
+            const overviewCard = createCard('Email Campaign Overview');
+            const metricsGrid = document.createElement('div');
+            metricsGrid.className = 'metric-grid';
+            
+            const totalSent = emailData.reduce((sum, row) => sum + parseNumber(row['Emails sent']), 0);
+            const totalOpened = emailData.reduce((sum, row) => sum + parseNumber(row['Email opened (MPP excluded)']), 0);
+            const totalClicked = emailData.reduce((sum, row) => sum + (row['Email clicked'] || 0), 0);
+            const avgOpenRate = emailData.reduce((sum, row) => sum + parsePercentage(row['Email open rate (MPP excluded)']), 0) / emailData.length;
+            const avgClickRate = emailData.reduce((sum, row) => sum + parsePercentage(row['Email click rate']), 0) / emailData.length;
+            
+            metricsGrid.innerHTML = `
+                <div class="metric">
+                    <div class="metric-value">${totalSent.toLocaleString()}</div>
+                    <div class="metric-label">Emails Sent</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">${avgOpenRate.toFixed(1)}%</div>
+                    <div class="metric-label">Avg Open Rate</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">${avgClickRate.toFixed(1)}%</div>
+                    <div class="metric-label">Avg Click Rate</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">${totalClicked.toLocaleString()}</div>
+                    <div class="metric-label">Total Clicks</div>
+                </div>
+            `;
+            
+            overviewCard.appendChild(metricsGrid);
+            container.appendChild(overviewCard);
+            
+            // Top Campaigns by Open Rate
+            const topOpenCard = createCard('Top 5 Campaigns by Open Rate');
+            const topOpenCampaigns = emailData
+                .sort((a, b) => parsePercentage(b['Email open rate (MPP excluded)']) - parsePercentage(a['Email open rate (MPP excluded)']))
+                .slice(0, 5);
+            
+            const openTableContainer = document.createElement('div');
+            openTableContainer.className = 'table-container';
+            openTableContainer.innerHTML = `
+                <table>
+                    <thead>
+                        <tr><th>Campaign</th><th>Open Rate</th><th>Click Rate</th><th>Sent</th></tr>
+                    </thead>
+                    <tbody>
+                        ${topOpenCampaigns.map(campaign => 
+                            `<tr>
+                                <td>${campaign.Campaign}</td>
+                                <td>${campaign['Email open rate (MPP excluded)']}</td>
+                                <td>${campaign['Email click rate']}</td>
+                                <td>${parseNumber(campaign['Emails sent']).toLocaleString()}</td>
+                            </tr>`
+                        ).join('')}
+                    </tbody>
+                </table>
+            `;
+            topOpenCard.appendChild(openTableContainer);
+            container.appendChild(topOpenCard);
+            
+            // Top Campaigns by Click Rate
+            const topClickCard = createCard('Top 5 Campaigns by Click Rate');
+            const topClickCampaigns = emailData
+                .sort((a, b) => parsePercentage(b['Email click rate']) - parsePercentage(a['Email click rate']))
+                .slice(0, 5);
+            
+            const clickTableContainer = document.createElement('div');
+            clickTableContainer.className = 'table-container';
+            clickTableContainer.innerHTML = `
+                <table>
+                    <thead>
+                        <tr><th>Campaign</th><th>Click Rate</th><th>Clicks</th><th>Opens</th></tr>
+                    </thead>
+                    <tbody>
+                        ${topClickCampaigns.map(campaign => 
+                            `<tr>
+                                <td>${campaign.Campaign}</td>
+                                <td>${campaign['Email click rate']}</td>
+                                <td>${(campaign['Email clicked'] || 0).toLocaleString()}</td>
+                                <td>${parseNumber(campaign['Email opened (MPP excluded)']).toLocaleString()}</td>
+                            </tr>`
+                        ).join('')}
+                    </tbody>
+                </table>
+            `;
+            topClickCard.appendChild(clickTableContainer);
+            container.appendChild(topClickCard);
+            
+            dashboard.appendChild(container);
+        }
+        
+        function generateYouTubeAnalytics(dashboard) {
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // YouTube Overview
+            if (processedData['YouTube_Content.csv']) {
+                const content = processedData['YouTube_Content.csv'];
+                const overviewCard = createCard('YouTube Overview');
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                
+                const totalViews = content.reduce((sum, row) => sum + (row.Views || 0), 0);
+                const totalWatchTime = content.reduce((sum, row) => sum + (row['Watch time (hours)'] || 0), 0);
+                const totalSubscribers = content.reduce((sum, row) => sum + (row.Subscribers || 0), 0);
+                const avgCTR = content.reduce((sum, row) => sum + (row['Impressions click-through rate (%)'] || 0), 0) / content.length;
+                
+                metricsGrid.innerHTML = `
+                    <div class="metric">
+                        <div class="metric-value">${totalViews.toLocaleString()}</div>
+                        <div class="metric-label">Total Views</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${Math.round(totalWatchTime).toLocaleString()}</div>
+                        <div class="metric-label">Watch Hours</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${totalSubscribers.toLocaleString()}</div>
+                        <div class="metric-label">Subscribers Gained</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${avgCTR.toFixed(1)}%</div>
+                        <div class="metric-label">Avg CTR</div>
+                    </div>
+                `;
+                
+                overviewCard.appendChild(metricsGrid);
+                container.appendChild(overviewCard);
+                
+                // Top Videos
+                const topVideosCard = createCard('Top 5 Videos by Views');
+                const topVideos = content
+                    .sort((a, b) => (b.Views || 0) - (a.Views || 0))
+                    .slice(0, 5);
+                
+                const videoTableContainer = document.createElement('div');
+                videoTableContainer.className = 'table-container';
+                videoTableContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr><th>Title</th><th>Views</th><th>Likes</th><th>Comments</th><th>Watch Time (hrs)</th></tr>
+                        </thead>
+                        <tbody>
+                            ${topVideos.map(video => 
+                                `<tr>
+                                    <td>${(video['Video title'] || '').substring(0, 40)}...</td>
+                                    <td>${(video.Views || 0).toLocaleString()}</td>
+                                    <td>${video.Likes || 0}</td>
+                                    <td>${video['Comments added'] || 0}</td>
+                                    <td>${Math.round(video['Watch time (hours)'] || 0)}</td>
+                                </tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                `;
+                topVideosCard.appendChild(videoTableContainer);
+                container.appendChild(topVideosCard);
+            }
+            
+            // Demographics
+            if (processedData['YouTube_Age.csv']) {
+                const ageData = processedData['YouTube_Age.csv'];
+                const demoCard = createCard('YouTube Demographics');
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                demoCard.appendChild(chartContainer);
+                
+                setTimeout(() => {
+                    new Chart(canvas, {
+                        type: 'bar',
+                        data: {
+                            labels: ageData.map(row => row['Viewer age']),
+                            datasets: [{
+                                label: 'Views (%)',
+                                data: ageData.map(row => row['Views (%)']),
+                                backgroundColor: '#667eea'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Percentage of Views'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }, 100);
+                
+                container.appendChild(demoCard);
+            }
+            
+            // Subscription Status
+            if (processedData['YouTube_Subscription_Status.csv']) {
+                const subData = processedData['YouTube_Subscription_Status.csv'];
+                const subCard = createCard('Subscriber vs Non-Subscriber Views');
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                subCard.appendChild(chartContainer);
+                
+                setTimeout(() => {
+                    new Chart(canvas, {
+                        type: 'pie',
+                        data: {
+                            labels: subData.map(row => row['Subscription status']),
+                            datasets: [{
+                                data: subData.map(row => row.Views),
+                                backgroundColor: ['#667eea', '#764ba2']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                }, 100);
+                
+                container.appendChild(subCard);
+            }
+            
+            dashboard.appendChild(container);
+        }
+        
+        function createCard(title) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            const header = document.createElement('h3');
+            header.textContent = title;
+            card.appendChild(header);
+            
+            return card;
+        }
+        
+        function updateDashboard() {
+            generateDashboard();
+        }
+    </script>
 </body>
 </html>
