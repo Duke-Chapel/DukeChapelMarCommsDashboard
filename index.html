@@ -420,32 +420,32 @@
             });
         }
         
-        function generateDashboard() {
+        function generateDashboard(startDate = null, endDate = null) {
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = '';
             
             // Web Analytics Section
             if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
                 dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
-                generateWebAnalytics(dashboard);
+                generateWebAnalytics(dashboard, startDate, endDate);
             }
             
             // Social Media Section
             if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv']) {
                 dashboard.appendChild(createSectionHeader('📱 Social Media'));
-                generateSocialAnalytics(dashboard);
+                generateSocialAnalytics(dashboard, startDate, endDate);
             }
             
             // Email Section
             if (processedData['Email_Campaign_Performance.csv']) {
                 dashboard.appendChild(createSectionHeader('📧 Email Marketing'));
-                generateEmailAnalytics(dashboard);
+                generateEmailAnalytics(dashboard, startDate, endDate);
             }
             
             // YouTube Section
             if (processedData['YouTube_Content.csv']) {
                 dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
-                generateYouTubeAnalytics(dashboard);
+                generateYouTubeAnalytics(dashboard, startDate, endDate);
             }
         }
         
@@ -456,13 +456,19 @@
             return header;
         }
         
-        function generateWebAnalytics(dashboard) {
+        function generateWebAnalytics(dashboard, startDate = null, endDate = null) {
             const container = document.createElement('div');
             container.className = 'dashboard';
             
             // Demographics Card
             if (processedData['GA_Demographics.csv']) {
-                const demographics = processedData['GA_Demographics.csv'];
+                let demographics = processedData['GA_Demographics.csv'];
+                
+                // Filter by date if provided
+                if (startDate && endDate) {
+                    demographics = filterDataByDate(demographics, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
                 const card = createCard('Demographics Overview');
                 
                 // Country breakdown
@@ -480,7 +486,8 @@
                 
                 const totalUsers = demographics.reduce((sum, row) => sum + (row['Total users'] || 0), 0);
                 const totalSessions = demographics.reduce((sum, row) => sum + (row.Sessions || 0), 0);
-                const avgEngagement = demographics.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0) / demographics.length;
+                const avgEngagement = demographics.length > 0 ? 
+                    demographics.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0) / demographics.length : 0;
                 
                 metricsGrid.innerHTML = `
                     <div class="metric">
@@ -520,7 +527,13 @@
             
             // Traffic Sources
             if (processedData['GA_Traffic_Acquisition.csv']) {
-                const traffic = processedData['GA_Traffic_Acquisition.csv'];
+                let traffic = processedData['GA_Traffic_Acquisition.csv'];
+                
+                // Filter by date if provided
+                if (startDate && endDate) {
+                    traffic = filterDataByDate(traffic, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
                 const card = createCard('Traffic Sources');
                 
                 const channelData = traffic.reduce((acc, row) => {
@@ -565,7 +578,13 @@
             
             // Landing Pages
             if (processedData['GA_Pages_And_Screens.csv']) {
-                const pages = processedData['GA_Pages_And_Screens.csv'];
+                let pages = processedData['GA_Pages_And_Screens.csv'];
+                
+                // Filter by date if provided
+                if (startDate && endDate) {
+                    pages = filterDataByDate(pages, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
                 const card = createCard('Top Landing Pages');
                 
                 const pageData = pages.reduce((acc, row) => {
@@ -603,7 +622,7 @@
             dashboard.appendChild(container);
         }
         
-        function generateSocialAnalytics(dashboard) {
+        function generateSocialAnalytics(dashboard, startDate = null, endDate = null) {
             const container = document.createElement('div');
             container.className = 'dashboard';
             
@@ -613,9 +632,31 @@
                 const metricsGrid = document.createElement('div');
                 metricsGrid.className = 'metric-grid';
                 
-                const fbReach = processedData['FB_Reach.csv']?.reduce((sum, row) => sum + (row.Primary || 0), 0) || 0;
-                const fbInteractions = processedData['FB_Interactions.csv']?.reduce((sum, row) => sum + (row.Primary || 0), 0) || 0;
-                const fbFollows = processedData['FB_Follows.csv']?.reduce((sum, row) => sum + (row.Primary || 0), 0) || 0;
+                let fbReach = 0, fbInteractions = 0, fbFollows = 0;
+                
+                if (processedData['FB_Reach.csv']) {
+                    let reachData = processedData['FB_Reach.csv'];
+                    if (startDate && endDate) {
+                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
+                    }
+                    fbReach = reachData.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                }
+                
+                if (processedData['FB_Interactions.csv']) {
+                    let interactionData = processedData['FB_Interactions.csv'];
+                    if (startDate && endDate) {
+                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
+                    }
+                    fbInteractions = interactionData.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                }
+                
+                if (processedData['FB_Follows.csv']) {
+                    let followData = processedData['FB_Follows.csv'];
+                    if (startDate && endDate) {
+                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
+                    }
+                    fbFollows = followData.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                }
                 
                 metricsGrid.innerHTML = `
                     <div class="metric">
@@ -638,7 +679,21 @@
             
             // Instagram Analytics
             if (processedData['IG_Posts.csv']) {
-                const posts = processedData['IG_Posts.csv'];
+                let posts = processedData['IG_Posts.csv'];
+                
+                // Filter posts by date if provided (using Publish time field)
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    posts = posts.filter(post => {
+                        if (post['Publish time']) {
+                            const postDate = new Date(post['Publish time']);
+                            return postDate >= start && postDate <= end;
+                        }
+                        return true;
+                    });
+                }
+                
                 const card = createCard('Top Instagram Posts');
                 
                 const topPosts = posts
@@ -673,8 +728,12 @@
             dashboard.appendChild(container);
         }
         
-        function generateEmailAnalytics(dashboard) {
-            const emailData = processedData['Email_Campaign_Performance.csv'];
+        function generateEmailAnalytics(dashboard, startDate = null, endDate = null) {
+            let emailData = processedData['Email_Campaign_Performance.csv'];
+            
+            // Note: Email campaign data doesn't have date fields in the provided format
+            // so we'll show all campaigns but could filter by campaign name patterns if needed
+            
             const container = document.createElement('div');
             container.className = 'dashboard';
             
@@ -686,8 +745,10 @@
             const totalSent = emailData.reduce((sum, row) => sum + parseNumber(row['Emails sent']), 0);
             const totalOpened = emailData.reduce((sum, row) => sum + parseNumber(row['Email opened (MPP excluded)']), 0);
             const totalClicked = emailData.reduce((sum, row) => sum + (row['Email clicked'] || 0), 0);
-            const avgOpenRate = emailData.reduce((sum, row) => sum + parsePercentage(row['Email open rate (MPP excluded)']), 0) / emailData.length;
-            const avgClickRate = emailData.reduce((sum, row) => sum + parsePercentage(row['Email click rate']), 0) / emailData.length;
+            const avgOpenRate = emailData.length > 0 ? 
+                emailData.reduce((sum, row) => sum + parsePercentage(row['Email open rate (MPP excluded)']), 0) / emailData.length : 0;
+            const avgClickRate = emailData.length > 0 ? 
+                emailData.reduce((sum, row) => sum + parsePercentage(row['Email click rate']), 0) / emailData.length : 0;
             
             metricsGrid.innerHTML = `
                 <div class="metric">
@@ -770,13 +831,27 @@
             dashboard.appendChild(container);
         }
         
-        function generateYouTubeAnalytics(dashboard) {
+        function generateYouTubeAnalytics(dashboard, startDate = null, endDate = null) {
             const container = document.createElement('div');
             container.className = 'dashboard';
             
             // YouTube Overview
             if (processedData['YouTube_Content.csv']) {
-                const content = processedData['YouTube_Content.csv'];
+                let content = processedData['YouTube_Content.csv'];
+                
+                // Filter by publish date if provided
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    content = content.filter(video => {
+                        if (video['Video publish time']) {
+                            const publishDate = new Date(video['Video publish time']);
+                            return publishDate >= start && publishDate <= end;
+                        }
+                        return true;
+                    });
+                }
+                
                 const overviewCard = createCard('YouTube Overview');
                 const metricsGrid = document.createElement('div');
                 metricsGrid.className = 'metric-grid';
@@ -784,7 +859,8 @@
                 const totalViews = content.reduce((sum, row) => sum + (row.Views || 0), 0);
                 const totalWatchTime = content.reduce((sum, row) => sum + (row['Watch time (hours)'] || 0), 0);
                 const totalSubscribers = content.reduce((sum, row) => sum + (row.Subscribers || 0), 0);
-                const avgCTR = content.reduce((sum, row) => sum + (row['Impressions click-through rate (%)'] || 0), 0) / content.length;
+                const avgCTR = content.length > 0 ? 
+                    content.reduce((sum, row) => sum + (row['Impressions click-through rate (%)'] || 0), 0) / content.length : 0;
                 
                 metricsGrid.innerHTML = `
                     <div class="metric">
@@ -838,7 +914,7 @@
                 container.appendChild(topVideosCard);
             }
             
-            // Demographics
+            // Demographics (not date-filtered as it's aggregate data)
             if (processedData['YouTube_Age.csv']) {
                 const ageData = processedData['YouTube_Age.csv'];
                 const demoCard = createCard('YouTube Demographics');
@@ -879,7 +955,7 @@
                 container.appendChild(demoCard);
             }
             
-            // Subscription Status
+            // Subscription Status (not date-filtered as it's aggregate data)
             if (processedData['YouTube_Subscription_Status.csv']) {
                 const subData = processedData['YouTube_Subscription_Status.csv'];
                 const subCard = createCard('Subscriber vs Non-Subscriber Views');
@@ -930,7 +1006,14 @@
         }
         
         function updateDashboard() {
-            generateDashboard();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (startDate && endDate) {
+                generateDashboard(startDate, endDate);
+            } else {
+                generateDashboard();
+            }
         }
     </script>
 </body>
