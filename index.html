@@ -361,6 +361,7 @@
         function setupDateValidation() {
             const startDateInput = document.getElementById('startDate');
             const endDateInput = document.getElementById('endDate');
+            const compareTypeSelect = document.getElementById('compareType');
             
             // Auto-update dashboard when dates change
             startDateInput.addEventListener('change', () => {
@@ -377,6 +378,13 @@
                     if (new Date(endDateInput.value) < new Date(startDateInput.value)) {
                         startDateInput.value = endDateInput.value;
                     }
+                    updateDashboard();
+                }
+            });
+            
+            // Auto-update dashboard when comparison type changes
+            compareTypeSelect.addEventListener('change', () => {
+                if (startDateInput.value && endDateInput.value) {
                     updateDashboard();
                 }
             });
@@ -581,32 +589,32 @@
             });
         }
         
-        function generateDashboard(startDate = null, endDate = null) {
+        function generateDashboard(startDate = null, endDate = null, compareType = 'none') {
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = '';
             
             // Web Analytics Section
             if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
                 dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
-                generateWebAnalytics(dashboard, startDate, endDate);
+                generateWebAnalytics(dashboard, startDate, endDate, compareType);
             }
             
             // Social Media Section
             if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv']) {
                 dashboard.appendChild(createSectionHeader('📱 Social Media'));
-                generateSocialAnalytics(dashboard, startDate, endDate);
+                generateSocialAnalytics(dashboard, startDate, endDate, compareType);
             }
             
             // Email Section
             if (processedData['Email_Campaign_Performance.csv']) {
                 dashboard.appendChild(createSectionHeader('📧 Email Marketing'));
-                generateEmailAnalytics(dashboard, startDate, endDate);
+                generateEmailAnalytics(dashboard, startDate, endDate, compareType);
             }
             
             // YouTube Section
             if (processedData['YouTube_Content.csv']) {
                 dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
-                generateYouTubeAnalytics(dashboard, startDate, endDate);
+                generateYouTubeAnalytics(dashboard, startDate, endDate, compareType);
             }
         }
         
@@ -617,7 +625,7 @@
             return header;
         }
         
-        function generateWebAnalytics(dashboard, startDate = null, endDate = null) {
+        function generateWebAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
             const container = document.createElement('div');
             container.className = 'dashboard';
             
@@ -629,6 +637,13 @@
                 if (startDate && endDate) {
                     demographics = filterDataByDate(demographics, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
                 }
+                
+                // Get comparison data
+                const comparisonDemographics = getComparisonData(
+                    processedData['GA_Demographics.csv'], 
+                    'Date + hour (YYYYMMDDHH)', 
+                    startDate, endDate, compareType
+                );
                 
                 const card = createCard('Demographics Overview');
                 
@@ -650,19 +665,19 @@
                 const avgEngagement = demographics.length > 0 ? 
                     demographics.reduce((sum, row) => sum + parseNumber(row['Engagement rate']), 0) / demographics.length : 0;
                 
+                // Calculate comparison metrics
+                let comparisonUsers = null, comparisonSessions = null, comparisonEngagement = null;
+                if (comparisonDemographics) {
+                    comparisonUsers = comparisonDemographics.reduce((sum, row) => sum + parseNumber(row['Total users']), 0);
+                    comparisonSessions = comparisonDemographics.reduce((sum, row) => sum + parseNumber(row.Sessions), 0);
+                    comparisonEngagement = comparisonDemographics.length > 0 ? 
+                        comparisonDemographics.reduce((sum, row) => sum + parseNumber(row['Engagement rate']), 0) / comparisonDemographics.length : 0;
+                }
+                
                 metricsGrid.innerHTML = `
-                    <div class="metric">
-                        <div class="metric-value">${totalUsers.toLocaleString()}</div>
-                        <div class="metric-label">Total Users</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${totalSessions.toLocaleString()}</div>
-                        <div class="metric-label">Total Sessions</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${(avgEngagement * 100).toFixed(1)}%</div>
-                        <div class="metric-label">Avg Engagement Rate</div>
-                    </div>
+                    ${createMetricWithComparison(totalUsers, 'Total Users', comparisonUsers)}
+                    ${createMetricWithComparison(totalSessions, 'Total Sessions', comparisonSessions)}
+                    ${createMetricWithComparison((avgEngagement * 100).toFixed(1) + '%', 'Avg Engagement Rate', comparisonEngagement ? comparisonEngagement * 100 : null)}
                 `;
                 
                 card.appendChild(metricsGrid);
@@ -783,7 +798,7 @@
             dashboard.appendChild(container);
         }
         
-        function generateSocialAnalytics(dashboard, startDate = null, endDate = null) {
+        function generateSocialAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
             const container = document.createElement('div');
             container.className = 'dashboard';
             
@@ -794,6 +809,7 @@
                 metricsGrid.className = 'metric-grid';
                 
                 let fbReach = 0, fbInteractions = 0, fbFollows = 0;
+                let compReach = null, compInteractions = null, compFollows = null;
                 
                 if (processedData['FB_Reach.csv']) {
                     let reachData = processedData['FB_Reach.csv'];
@@ -801,6 +817,12 @@
                         reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
                     }
                     fbReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    
+                    // Get comparison data
+                    const comparisonReach = getComparisonData(processedData['FB_Reach.csv'], 'Date', startDate, endDate, compareType);
+                    if (comparisonReach) {
+                        compReach = comparisonReach.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    }
                 }
                 
                 if (processedData['FB_Interactions.csv']) {
@@ -809,6 +831,12 @@
                         interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
                     }
                     fbInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    
+                    // Get comparison data
+                    const comparisonInteractions = getComparisonData(processedData['FB_Interactions.csv'], 'Date', startDate, endDate, compareType);
+                    if (comparisonInteractions) {
+                        compInteractions = comparisonInteractions.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    }
                 }
                 
                 if (processedData['FB_Follows.csv']) {
@@ -817,21 +845,18 @@
                         followData = filterDataByDate(followData, 'Date', startDate, endDate);
                     }
                     fbFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    
+                    // Get comparison data
+                    const comparisonFollows = getComparisonData(processedData['FB_Follows.csv'], 'Date', startDate, endDate, compareType);
+                    if (comparisonFollows) {
+                        compFollows = comparisonFollows.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    }
                 }
                 
                 metricsGrid.innerHTML = `
-                    <div class="metric">
-                        <div class="metric-value">${fbReach.toLocaleString()}</div>
-                        <div class="metric-label">Total Reach</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${fbInteractions.toLocaleString()}</div>
-                        <div class="metric-label">Interactions</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${fbFollows.toLocaleString()}</div>
-                        <div class="metric-label">New Follows</div>
-                    </div>
+                    ${createMetricWithComparison(fbReach, 'Total Reach', compReach)}
+                    ${createMetricWithComparison(fbInteractions, 'Interactions', compInteractions)}
+                    ${createMetricWithComparison(fbFollows, 'New Follows', compFollows)}
                 `;
                 
                 card.appendChild(metricsGrid);
@@ -889,7 +914,7 @@
             dashboard.appendChild(container);
         }
         
-        function generateEmailAnalytics(dashboard, startDate = null, endDate = null) {
+        function generateEmailAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
             let emailData = processedData['Email_Campaign_Performance.csv'];
             
             // Note: Email campaign data doesn't have date fields in the provided format
@@ -992,7 +1017,7 @@
             dashboard.appendChild(container);
         }
         
-        function generateYouTubeAnalytics(dashboard, startDate = null, endDate = null) {
+        function generateYouTubeAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
             const container = document.createElement('div');
             container.className = 'dashboard';
             
@@ -1013,6 +1038,21 @@
                     });
                 }
                 
+                // Get comparison data
+                let comparisonContent = null;
+                if (compareType !== 'none') {
+                    const comparisonDates = getComparisonPeriod(startDate, endDate, compareType);
+                    if (comparisonDates) {
+                        comparisonContent = processedData['YouTube_Content.csv'].filter(video => {
+                            if (video['Video publish time']) {
+                                const publishDate = new Date(video['Video publish time']);
+                                return publishDate >= comparisonDates.start && publishDate <= comparisonDates.end;
+                            }
+                            return true;
+                        });
+                    }
+                }
+                
                 const overviewCard = createCard('YouTube Overview');
                 const metricsGrid = document.createElement('div');
                 metricsGrid.className = 'metric-grid';
@@ -1023,23 +1063,21 @@
                 const avgCTR = content.length > 0 ? 
                     content.reduce((sum, row) => sum + parseNumber(row['Impressions click-through rate (%)']), 0) / content.length : 0;
                 
+                // Calculate comparison metrics
+                let compViews = null, compWatchTime = null, compSubscribers = null, compCTR = null;
+                if (comparisonContent) {
+                    compViews = comparisonContent.reduce((sum, row) => sum + parseNumber(row.Views), 0);
+                    compWatchTime = comparisonContent.reduce((sum, row) => sum + parseNumber(row['Watch time (hours)']), 0);
+                    compSubscribers = comparisonContent.reduce((sum, row) => sum + parseNumber(row.Subscribers), 0);
+                    compCTR = comparisonContent.length > 0 ? 
+                        comparisonContent.reduce((sum, row) => sum + parseNumber(row['Impressions click-through rate (%)']), 0) / comparisonContent.length : 0;
+                }
+                
                 metricsGrid.innerHTML = `
-                    <div class="metric">
-                        <div class="metric-value">${totalViews.toLocaleString()}</div>
-                        <div class="metric-label">Total Views</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${Math.round(totalWatchTime).toLocaleString()}</div>
-                        <div class="metric-label">Watch Hours</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${totalSubscribers.toLocaleString()}</div>
-                        <div class="metric-label">Subscribers Gained</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${avgCTR.toFixed(1)}%</div>
-                        <div class="metric-label">Avg CTR</div>
-                    </div>
+                    ${createMetricWithComparison(totalViews, 'Total Views', compViews)}
+                    ${createMetricWithComparison(Math.round(totalWatchTime), 'Watch Hours', compWatchTime ? Math.round(compWatchTime) : null)}
+                    ${createMetricWithComparison(totalSubscribers, 'Subscribers Gained', compSubscribers)}
+                    ${createMetricWithComparison(avgCTR.toFixed(1) + '%', 'Avg CTR', compCTR)}
                 `;
                 
                 overviewCard.appendChild(metricsGrid);
@@ -1155,6 +1193,39 @@
             dashboard.appendChild(container);
         }
         
+        function createMetricWithComparison(value, label, comparisonValue = null) {
+            let changeIndicator = '';
+            let changeClass = '';
+            
+            if (comparisonValue !== null && comparisonValue !== 0) {
+                const change = ((value - comparisonValue) / comparisonValue) * 100;
+                const changeIcon = change > 0 ? '📈' : change < 0 ? '📉' : '➡️';
+                changeIndicator = `<div style="font-size: 0.8rem; margin-top: 5px; color: ${change > 0 ? '#10b981' : change < 0 ? '#ef4444' : '#6b7280'};">
+                    ${changeIcon} ${change > 0 ? '+' : ''}${change.toFixed(1)}% vs previous
+                </div>`;
+            }
+            
+            return `
+                <div class="metric">
+                    <div class="metric-value">${typeof value === 'number' ? value.toLocaleString() : value}</div>
+                    <div class="metric-label">${label}</div>
+                    ${changeIndicator}
+                </div>
+            `;
+        }
+        
+        function getComparisonData(data, dateField, startDate, endDate, compareType) {
+            if (compareType === 'none') return null;
+            
+            const comparisonDates = getComparisonPeriod(startDate, endDate, compareType);
+            if (!comparisonDates) return null;
+            
+            return filterDataByDate(data, dateField, 
+                comparisonDates.start.toISOString().split('T')[0], 
+                comparisonDates.end.toISOString().split('T')[0]
+            );
+        }
+        
         function createCard(title) {
             const card = document.createElement('div');
             card.className = 'card';
@@ -1169,6 +1240,7 @@
         function updateDashboard() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
+            const compareType = document.getElementById('compareType').value;
             const dateRangeInfo = document.getElementById('dateRangeInfo');
             
             if (startDate && endDate) {
@@ -1182,12 +1254,46 @@
                 if (dataRange.min && dataRange.max) {
                     rangeText += ` (Data available: ${dataRange.min.toLocaleDateString()} - ${dataRange.max.toLocaleDateString()})`;
                 }
+                
+                // Add comparison period info
+                if (compareType !== 'none') {
+                    const comparisonDates = getComparisonPeriod(startDate, endDate, compareType);
+                    if (comparisonDates) {
+                        rangeText += ` | 📊 Comparing to: ${comparisonDates.start.toLocaleDateString()} - ${comparisonDates.end.toLocaleDateString()}`;
+                    }
+                }
+                
                 dateRangeInfo.innerHTML = rangeText;
                 
-                generateDashboard(startDate, endDate);
+                generateDashboard(startDate, endDate, compareType);
             } else {
                 generateDashboard();
             }
+        }
+        
+        function getComparisonPeriod(startDate, endDate, compareType) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+            
+            if (compareType === 'previous') {
+                // Previous period of same length
+                const comparisonEnd = new Date(start.getTime() - (24 * 60 * 60 * 1000));
+                const comparisonStart = new Date(comparisonEnd.getTime() - (daysDiff - 1) * (24 * 60 * 60 * 1000));
+                return {
+                    start: comparisonStart,
+                    end: comparisonEnd
+                };
+            } else if (compareType === 'year') {
+                // Same period last year
+                const comparisonStart = new Date(start.getFullYear() - 1, start.getMonth(), start.getDate());
+                const comparisonEnd = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
+                return {
+                    start: comparisonStart,
+                    end: comparisonEnd
+                };
+            }
+            return null;
         }
     </script>
 </body>
