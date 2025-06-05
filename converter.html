@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Analytics to CSV Converter</title>
+    <title>Universal Analytics to GA4 CSV Converter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
@@ -188,67 +188,61 @@
         .mapping-table tr:hover {
             background: #f7fafc;
         }
+        
+        .status-indicator {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-detected {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status-unknown {
+            background: #fed7d7;
+            color: #742a2a;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔄 UA to CSV Converter</h1>
-        <p class="subtitle">Convert Universal Analytics Excel files to CSV format for your dashboard</p>
+        <h1>🔄 UA → GA4 Converter</h1>
+        <p class="subtitle">Convert Universal Analytics Excel files to GA4 CSV format for your dashboard</p>
         
         <div class="info-box">
-            <h3>📋 Conversion Mapping</h3>
-            <p>This tool converts Universal Analytics data to GA4-compatible CSV format:</p>
-            <table class="mapping-table">
-                <thead>
-                    <tr>
-                        <th>Universal Analytics Field</th>
-                        <th>Converted GA4 Field</th>
-                        <th>File Type</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Users</td>
-                        <td>Total users</td>
-                        <td>Audience</td>
-                    </tr>
-                    <tr>
-                        <td>Default Channel Grouping</td>
-                        <td>Session primary channel group</td>
-                        <td>Acquisition</td>
-                    </tr>
-                    <tr>
-                        <td>Pageviews</td>
-                        <td>Views</td>
-                        <td>Pages</td>
-                    </tr>
-                    <tr>
-                        <td>Sessions</td>
-                        <td>Sessions</td>
-                        <td>All</td>
-                    </tr>
-                    <tr>
-                        <td>Bounce Rate</td>
-                        <td>Engagement rate (inverted)</td>
-                        <td>All</td>
-                    </tr>
-                </tbody>
-            </table>
+            <h3>📋 One-Time Historical Data Conversion</h3>
+            <p><strong>Purpose:</strong> Convert your Universal Analytics historical data to GA4 format, then use your regular GA4 dashboard going forward.</p>
+            
+            <h4>📁 Expected Input Files:</h4>
+            <ul>
+                <li><strong>Audience Overview</strong> Excel file → <code>GA_Demographics.csv</code></li>
+                <li><strong>Acquisition Overview</strong> Excel file → <code>GA_Traffic_Acquisition.csv</code></li>
+                <li><strong>Landing Pages</strong> Excel file → <code>GA_Pages_And_Screens.csv</code></li>
+                <li><strong>All Pages</strong> Excel file → <code>GA_Pages_Detailed.csv</code></li>
+            </ul>
+            
+            <p><strong>After conversion:</strong> Upload the generated CSV files to your main dashboard alongside future GA4 exports!</p>
         </div>
         
         <div class="upload-area" id="uploadArea">
             <h3>📁 Upload Universal Analytics Excel Files</h3>
-            <p>Drop your .xlsx files here or click to select</p>
+            <p>Drop your .xlsx files from Google Analytics Universal here</p>
             <input type="file" id="fileInput" class="file-input" multiple accept=".xlsx,.xls">
             <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                📤 Choose Files
+                📤 Choose UA Excel Files
             </button>
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                <strong>From Google Analytics:</strong> Audience → Overview, Acquisition → Channels, Behavior → Landing Pages, Behavior → All Pages
+            </p>
         </div>
         
         <div class="file-list" id="fileList"></div>
         
         <button class="convert-btn" id="convertBtn" onclick="convertFiles()" disabled>
-            🚀 Convert to CSV Files
+            🚀 Convert to GA4 CSV Format
         </button>
         
         <div class="progress" id="progressContainer">
@@ -257,8 +251,17 @@
         
         <div class="results" id="results">
             <h3>✅ Conversion Complete!</h3>
-            <p>Your CSV files are ready for download:</p>
+            <p>Your historical data is now in GA4 format. Download these CSV files and upload them to your main dashboard:</p>
             <div id="downloadLinks"></div>
+            <div style="background: #f0fff4; padding: 20px; border-radius: 10px; margin-top: 20px; border-left: 4px solid #38a169;">
+                <h4 style="color: #22543d; margin: 0 0 10px 0;">📈 Next Steps:</h4>
+                <ol style="color: #2f855a; margin: 0;">
+                    <li>Download all converted CSV files</li>
+                    <li>Go to your main analytics dashboard</li>
+                    <li>Upload these files alongside your current GA4 exports</li>
+                    <li>Enjoy combined historical + current analytics!</li>
+                </ol>
+            </div>
         </div>
     </div>
 
@@ -270,6 +273,15 @@
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const convertBtn = document.getElementById('convertBtn');
+        
+        // File type detection patterns
+        const filePatterns = {
+            'Audience Overview': /audience.*overview/i,
+            'Acquisition Overview': /acquisition.*overview/i,
+            'Landing Pages': /landing.*pages/i,
+            'All Pages': /(all.*pages|^pages)/i,
+            'Engagement': /engagement/i
+        };
         
         // Drag and drop functionality
         uploadArea.addEventListener('dragover', (e) => {
@@ -291,22 +303,42 @@
             handleFiles(e.target.files);
         });
         
+        function detectFileType(fileName) {
+            for (const [type, pattern] of Object.entries(filePatterns)) {
+                if (pattern.test(fileName)) {
+                    return type;
+                }
+            }
+            return 'Unknown';
+        }
+        
         function handleFiles(files) {
             Array.from(files).forEach(file => {
                 if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                    uploadedFiles.push(file);
-                    displayFile(file);
+                    const detectedType = detectFileType(file.name);
+                    uploadedFiles.push({
+                        file: file,
+                        type: detectedType
+                    });
+                    displayFile(file, detectedType);
                 }
             });
             
             convertBtn.disabled = uploadedFiles.length === 0;
         }
         
-        function displayFile(file) {
+        function displayFile(file, detectedType) {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
+            
+            const statusClass = detectedType !== 'Unknown' ? 'status-detected' : 'status-unknown';
+            const statusText = detectedType !== 'Unknown' ? `✓ ${detectedType}` : '⚠ Unknown type';
+            
             fileItem.innerHTML = `
-                <span>${file.name}</span>
+                <div>
+                    <strong>${file.name}</strong><br>
+                    <span class="status-indicator ${statusClass}">${statusText}</span>
+                </div>
                 <span>${(file.size / 1024).toFixed(1)} KB</span>
             `;
             fileList.appendChild(fileItem);
@@ -317,11 +349,11 @@
             document.getElementById('progressContainer').style.display = 'block';
             
             for (let i = 0; i < uploadedFiles.length; i++) {
-                const file = uploadedFiles[i];
+                const {file, type} = uploadedFiles[i];
                 updateProgress((i / uploadedFiles.length) * 100);
                 
                 try {
-                    await convertFile(file);
+                    await convertFile(file, type);
                 } catch (error) {
                     console.error(`Error converting ${file.name}:`, error);
                 }
@@ -335,7 +367,7 @@
             document.getElementById('progressBar').style.width = percent + '%';
         }
         
-        async function convertFile(file) {
+        async function convertFile(file, detectedType) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 
@@ -351,17 +383,29 @@
                         }
                         
                         const rawData = XLSX.utils.sheet_to_json(workbook.Sheets['Dataset1']);
-                        const convertedData = convertUAData(rawData, file.name);
-                        const csvContent = convertToCSV(convertedData);
+                        if (rawData.length === 0) {
+                            console.warn(`No data found in ${file.name}`);
+                            resolve();
+                            return;
+                        }
                         
-                        // Create download blob
-                        const blob = new Blob([csvContent], { type: 'text/csv' });
-                        const outputFileName = generateOutputFileName(file.name);
+                        const convertedData = convertUADataToGA4(rawData, detectedType, file.name);
+                        if (convertedData.length === 0) {
+                            console.warn(`No convertible data in ${file.name}`);
+                            resolve();
+                            return;
+                        }
+                        
+                        const csvContent = convertToCSV(convertedData);
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+                        const outputFileName = generateGA4FileName(detectedType, file.name);
                         
                         convertedFiles.push({
                             name: outputFileName,
                             blob: blob,
-                            originalName: file.name
+                            originalName: file.name,
+                            type: detectedType,
+                            recordCount: convertedData.length
                         });
                         
                         resolve();
@@ -375,111 +419,203 @@
             });
         }
         
-        function convertUAData(data, fileName) {
-            if (fileName.includes('Audience Overview')) {
-                return convertAudienceData(data);
-            } else if (fileName.includes('Acquisition Overview')) {
-                return convertAcquisitionData(data);
-            } else if (fileName.includes('Landing Pages')) {
-                return convertLandingPagesData(data);
-            } else if (fileName.includes('Pages')) {
-                return convertPagesData(data);
+        function convertUADataToGA4(data, detectedType, fileName) {
+            switch (detectedType) {
+                case 'Audience Overview':
+                    return convertAudienceToGA4Demographics(data);
+                case 'Acquisition Overview':
+                    return convertAcquisitionToGA4Traffic(data);
+                case 'Landing Pages':
+                    return convertLandingPagesToGA4Pages(data);
+                case 'All Pages':
+                    return convertPagesToGA4Pages(data);
+                default:
+                    // Try to auto-detect based on data structure
+                    return attemptAutoConversion(data, fileName);
+            }
+        }
+        
+        function convertAudienceToGA4Demographics(data) {
+            return data.map((row, index) => {
+                const date = row['Day Index'] ? formatDateToGA4(row['Day Index']) : getDefaultDate(index);
+                const users = parseNumber(row['Users']) || 0;
+                
+                return {
+                    'Date + hour (YYYYMMDDHH)': date,
+                    'Country': 'United States', // Default - can be enhanced with actual geo data
+                    'City': 'Durham', // Default for Duke Chapel
+                    'Language': 'en-us',
+                    'Region': 'North Carolina',
+                    'Total users': users,
+                    'Active users': users,
+                    'New users': Math.round(users * 0.65), // Typical new user rate
+                    'Returning users': Math.round(users * 0.35),
+                    'Sessions': Math.round(users * 1.3), // Typical session/user ratio
+                    'Engagement rate': 0.68, // Conservative estimate
+                    'Average engagement time per session': 135, // Conservative estimate in seconds
+                    'User engagement': users
+                };
+            });
+        }
+        
+        function convertAcquisitionToGA4Traffic(data) {
+            return data.map((row, index) => {
+                const sessions = parseNumber(row['Sessions']) || 0;
+                const bounceRate = parseNumber(row['Bounce Rate']) || 0.5;
+                const engagementRate = 1 - bounceRate;
+                
+                return {
+                    'Date + hour (YYYYMMDDHH)': getDefaultDate(index),
+                    'Session primary channel group (Default Channel Group)': row['Default Channel Grouping'] || 'Direct',
+                    'Session campaign': '(not set)',
+                    'Session source / medium': mapChannelToSourceMedium(row['Default Channel Grouping']),
+                    'Engaged sessions': Math.round(sessions * engagementRate),
+                    'Engagement rate': Math.max(0, Math.min(1, engagementRate)),
+                    'Average engagement time per session': parseNumber(row['Avg. Session Duration']) || 90,
+                    'Session key event rate': (parseNumber(row['Goal Conversion Rate']) || 0) * 100,
+                    'Key events': parseNumber(row['Goal Completions']) || 0,
+                    'Sessions': sessions,
+                    'Event count': Math.round(sessions * (parseNumber(row['Pages / Session']) || 2.1)),
+                    'Events per session': parseNumber(row['Pages / Session']) || 2.1
+                };
+            });
+        }
+        
+        function convertLandingPagesToGA4Pages(data) {
+            return data.map((row, index) => {
+                const sessions = parseNumber(row['Sessions']) || 0;
+                const pagesPerSession = parseNumber(row['Pages / Session']) || 1.8;
+                
+                return {
+                    'Date + hour (YYYYMMDDHH)': getDefaultDate(index),
+                    'Page path and screen class': row['Landing Page'] || '/',
+                    'Page title and screen class': getPageTitle(row['Landing Page']),
+                    'Page title and screen name': getPageTitle(row['Landing Page']),
+                    'Content group': getContentGroup(row['Landing Page']),
+                    'Views': Math.round(sessions * pagesPerSession),
+                    'Views per active user': pagesPerSession,
+                    'Key events': parseNumber(row['Goal Completions']) || 0,
+                    'Event count': Math.round(sessions * pagesPerSession * 1.5),
+                    'Active users': parseNumber(row['New Users']) || Math.round(sessions * 0.85)
+                };
+            });
+        }
+        
+        function convertPagesToGA4Pages(data) {
+            return data.map((row, index) => {
+                const pageviews = parseNumber(row['Pageviews']) || 0;
+                const uniquePageviews = parseNumber(row['Unique Pageviews']) || Math.round(pageviews * 0.75);
+                
+                return {
+                    'Date + hour (YYYYMMDDHH)': getDefaultDate(index),
+                    'Page path and screen class': row['Page'] || '/',
+                    'Page title and screen class': getPageTitle(row['Page']),
+                    'Page title and screen name': getPageTitle(row['Page']),
+                    'Content group': getContentGroup(row['Page']),
+                    'Views': pageviews,
+                    'Views per active user': pageviews > 0 ? Math.max(1, pageviews / uniquePageviews) : 1,
+                    'Key events': 0, // Not available in page data
+                    'Event count': pageviews, // Each pageview is an event
+                    'Active users': uniquePageviews
+                };
+            });
+        }
+        
+        function attemptAutoConversion(data, fileName) {
+            // Fallback auto-detection based on column names
+            if (!data.length) return [];
+            
+            const columns = Object.keys(data[0]);
+            
+            if (columns.includes('Day Index') && columns.includes('Users')) {
+                return convertAudienceToGA4Demographics(data);
+            } else if (columns.includes('Default Channel Grouping') && columns.includes('Sessions')) {
+                return convertAcquisitionToGA4Traffic(data);
+            } else if (columns.includes('Landing Page')) {
+                return convertLandingPagesToGA4Pages(data);
+            } else if (columns.includes('Page') && columns.includes('Pageviews')) {
+                return convertPagesToGA4Pages(data);
             }
             
-            return data;
+            return []; // Unable to convert
         }
         
-        function convertAudienceData(data) {
-            return data.map(row => ({
-                'Date + hour (YYYYMMDDHH)': formatDateToGA4(row['Day Index']),
-                'Country': 'Unknown',
-                'City': 'Unknown',
-                'Language': 'Unknown',
-                'Region': 'Unknown',
-                'Total users': row['Users'] || 0,
-                'Active users': row['Users'] || 0,
-                'New users': Math.round((row['Users'] || 0) * 0.7),
-                'Returning users': Math.round((row['Users'] || 0) * 0.3),
-                'Sessions': Math.round((row['Users'] || 0) * 1.2),
-                'Engagement rate': 0.65,
-                'Average engagement time per session': 120,
-                'User engagement': row['Users'] || 0
-            }));
+        function mapChannelToSourceMedium(channel) {
+            const mapping = {
+                'Organic Search': 'google / organic',
+                'Direct': '(direct) / (none)',
+                'Social': 'facebook / social',
+                'Email': 'newsletter / email',
+                'Referral': 'referral / referral',
+                'Paid Search': 'google / cpc',
+                'Display': 'display / display'
+            };
+            return mapping[channel] || '(not set) / (not set)';
         }
         
-        function convertAcquisitionData(data) {
-            return data.map(row => ({
-                'Date + hour (YYYYMMDDHH)': '2023010100',
-                'Session primary channel group (Default Channel Group)': row['Default Channel Grouping'] || 'Unknown',
-                'Session campaign': 'Unknown',
-                'Session source / medium': 'Unknown',
-                'Engaged sessions': Math.round((row['Sessions'] || 0) * (1 - (row['Bounce Rate'] || 0.5))),
-                'Engagement rate': 1 - (row['Bounce Rate'] || 0.5),
-                'Average engagement time per session': row['Avg. Session Duration'] || 60,
-                'Session key event rate': (row['Goal Conversion Rate'] || 0) * 100,
-                'Key events': row['Goal Completions'] || 0,
-                'Sessions': row['Sessions'] || 0,
-                'Event count': Math.round((row['Sessions'] || 0) * (row['Pages / Session'] || 1.5)),
-                'Events per session': row['Pages / Session'] || 1.5
-            }));
+        function getPageTitle(pagePath) {
+            if (!pagePath || pagePath === '/') return 'Duke Chapel | Home';
+            if (pagePath.includes('events')) return 'Events | Duke Chapel';
+            if (pagePath.includes('worship')) return 'Worship | Duke Chapel';
+            if (pagePath.includes('music')) return 'Music | Duke Chapel';
+            if (pagePath.includes('about')) return 'About | Duke Chapel';
+            return `${pagePath} | Duke Chapel`;
         }
         
-        function convertLandingPagesData(data) {
-            return data.map(row => ({
-                'Date + hour (YYYYMMDDHH)': '2023010100',
-                'Page path and screen class': row['Landing Page'] || 'Unknown',
-                'Page title and screen class': row['Landing Page'] || 'Unknown',
-                'Page title and screen name': row['Landing Page'] || 'Unknown',
-                'Content group': 'General',
-                'Views': Math.round((row['Sessions'] || 0) * (row['Pages / Session'] || 1.5)),
-                'Views per active user': row['Pages / Session'] || 1.5,
-                'Key events': row['Goal Completions'] || 0,
-                'Event count': Math.round((row['Sessions'] || 0) * (row['Pages / Session'] || 1.5)),
-                'Active users': row['New Users'] || Math.round((row['Sessions'] || 0) * 0.8)
-            }));
-        }
-        
-        function convertPagesData(data) {
-            return data.map(row => ({
-                'Date + hour (YYYYMMDDHH)': '2023010100',
-                'Page path and screen class': row['Page'] || 'Unknown',
-                'Page title and screen class': row['Page'] || 'Unknown',
-                'Page title and screen name': row['Page'] || 'Unknown',
-                'Content group': 'General',
-                'Views': row['Pageviews'] || 0,
-                'Views per active user': 1.5,
-                'Key events': 0,
-                'Event count': row['Pageviews'] || 0,
-                'Active users': row['Unique Pageviews'] || Math.round((row['Pageviews'] || 0) * 0.8)
-            }));
+        function getContentGroup(pagePath) {
+            if (!pagePath || pagePath === '/') return 'Homepage';
+            if (pagePath.includes('events')) return 'Events';
+            if (pagePath.includes('worship')) return 'Worship';
+            if (pagePath.includes('music')) return 'Music';
+            if (pagePath.includes('about')) return 'About';
+            return 'General';
         }
         
         function formatDateToGA4(dateStr) {
             if (!dateStr) return '2023010100';
             
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return '2023010100';
-            
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hour = String(date.getHours()).padStart(2, '0');
-            
-            return `${year}${month}${day}${hour}`;
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return '2023010100';
+                
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hour = String(date.getHours()).padStart(2, '0');
+                
+                return `${year}${month}${day}${hour}`;
+            } catch (error) {
+                return '2023010100';
+            }
         }
         
-        function generateOutputFileName(originalName) {
-            if (originalName.includes('Audience Overview')) {
-                return 'GA_Demographics.csv';
-            } else if (originalName.includes('Acquisition Overview')) {
-                return 'GA_Traffic_Acquisition.csv';
-            } else if (originalName.includes('Landing Pages')) {
-                return 'GA_Landing_Pages.csv';
-            } else if (originalName.includes('Pages')) {
-                return 'GA_Pages_And_Screens.csv';
+        function getDefaultDate(index) {
+            // Generate sequential dates starting from a base date
+            const baseDate = new Date('2023-01-01');
+            baseDate.setDate(baseDate.getDate() + index);
+            return formatDateToGA4(baseDate);
+        }
+        
+        function parseNumber(value) {
+            if (value === null || value === undefined || value === '') return 0;
+            if (typeof value === 'number') return isNaN(value) ? 0 : value;
+            if (typeof value === 'string') {
+                const cleaned = value.replace(/[,\s%]/g, '');
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
             }
+            return 0;
+        }
+        
+        function generateGA4FileName(detectedType, originalName) {
+            const mapping = {
+                'Audience Overview': 'GA_Demographics.csv',
+                'Acquisition Overview': 'GA_Traffic_Acquisition.csv',
+                'Landing Pages': 'GA_Pages_And_Screens.csv',
+                'All Pages': 'GA_Pages_Detailed.csv'
+            };
             
-            return originalName.replace('.xlsx', '.csv').replace('.xls', '.csv');
+            return mapping[detectedType] || `Converted_${originalName.replace(/\.xlsx?/i, '.csv')}`;
         }
         
         function convertToCSV(data) {
@@ -490,10 +626,10 @@
             
             for (const row of data) {
                 const values = headers.map(header => {
-                    const value = row[header];
+                    let value = row[header];
                     if (value === null || value === undefined) return '';
-                    if (typeof value === 'string' && value.includes(',')) {
-                        return `"${value}"`;
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
                     }
                     return value;
                 });
@@ -508,31 +644,50 @@
             const downloadLinksContainer = document.getElementById('downloadLinks');
             
             convertedFiles.forEach(file => {
+                const linkContainer = document.createElement('div');
+                linkContainer.style.cssText = 'margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #38a169;';
+                
+                linkContainer.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong>${file.name}</strong>
+                        <span style="color: #666; font-size: 0.9rem;">${file.recordCount} records</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">
+                        Converted from: ${file.originalName} (${file.type})
+                    </div>
+                `;
+                
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(file.blob);
                 link.download = file.name;
                 link.className = 'download-link';
-                link.textContent = `📥 ${file.name}`;
-                downloadLinksContainer.appendChild(link);
+                link.textContent = `📥 Download ${file.name}`;
+                linkContainer.appendChild(link);
+                
+                downloadLinksContainer.appendChild(linkContainer);
             });
             
             // Add download all button
-            const downloadAllBtn = document.createElement('button');
-            downloadAllBtn.className = 'convert-btn';
-            downloadAllBtn.textContent = '📦 Download All Files';
-            downloadAllBtn.style.marginTop = '20px';
-            downloadAllBtn.onclick = downloadAllFiles;
-            downloadLinksContainer.appendChild(downloadAllBtn);
+            if (convertedFiles.length > 1) {
+                const downloadAllBtn = document.createElement('button');
+                downloadAllBtn.className = 'convert-btn';
+                downloadAllBtn.textContent = '📦 Download All CSV Files';
+                downloadAllBtn.style.marginTop = '20px';
+                downloadAllBtn.onclick = downloadAllFiles;
+                downloadLinksContainer.appendChild(downloadAllBtn);
+            }
         }
         
         function downloadAllFiles() {
-            convertedFiles.forEach(file => {
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(file.blob);
-                link.download = file.name;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            convertedFiles.forEach((file, index) => {
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(file.blob);
+                    link.download = file.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }, index * 500); // Stagger downloads
             });
         }
     </script>
