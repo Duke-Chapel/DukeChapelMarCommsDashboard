@@ -760,25 +760,364 @@
             fileList.appendChild(fileItem);
         }
         
-        function processFile(file) {
-            Papa.parse(file, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                encoding: 'utf-8',
-                complete: (results) => {
-                    processedData[file.name] = results.data;
-                    if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
-                        generateDashboard();
+        function generateAudienceDemographics(container) {
+            // Facebook Audience Demographics
+            if (processedData['FB_Audience.csv']) {
+                const fbCard = createCard('📊 Facebook Audience Demographics');
+                processFacebookAudience(fbCard, processedData['FB_Audience.csv']);
+                container.appendChild(fbCard);
+            }
+            
+            // Instagram Audience Demographics  
+            if (processedData['IG_Audience.csv']) {
+                const igCard = createCard('📷 Instagram Audience Demographics');
+                processInstagramAudience(igCard, processedData['IG_Audience.csv']);
+                container.appendChild(igCard);
+            }
+        }
+        
+        function processFacebookAudience(card, rawData) {
+            // Facebook audience data has a specific structure - parse it properly
+            const lines = rawData.split('\n').map(line => line.trim()).filter(line => line);
+            
+            // Find age demographics
+            let ageData = [];
+            let cityData = [];
+            let countryData = [];
+            let currentSection = 'age';
+            
+            for (let i = 1; i < lines.length; i++) { // Skip header
+                const line = lines[i];
+                
+                if (line.includes('Top cities')) {
+                    currentSection = 'cities_header';
+                    continue;
+                } else if (line.includes('Top countries')) {
+                    currentSection = 'countries_header';
+                    continue;
+                }
+                
+                if (currentSection === 'age' && line.includes('-') || line.includes('+')) {
+                    const parts = line.split(',');
+                    if (parts.length >= 3) {
+                        ageData.push({
+                            age: parts[0],
+                            women: parseFloat(parts[1]) || 0,
+                            men: parseFloat(parts[2]) || 0
+                        });
                     }
-                },
-                error: (error) => {
-                    console.log(`Error parsing ${file.name}:`, error);
-                    if (Object.keys(processedData).length === Object.keys(uploadedFiles).length - 1) {
-                        generateDashboard();
+                } else if (currentSection === 'cities_header') {
+                    // Next line after "Top cities" header contains city names
+                    const cities = line.replace(/"/g, '').split(',').filter(c => c.trim());
+                    currentSection = 'cities_values';
+                    
+                    // Get values from next line
+                    if (i + 1 < lines.length) {
+                        const values = lines[i + 1].split(',').map(v => parseFloat(v) || 0);
+                        for (let j = 0; j < Math.min(cities.length, values.length); j++) {
+                            cityData.push({ city: cities[j].trim(), percentage: values[j] });
+                        }
+                        i++; // Skip the values line
+                    }
+                    currentSection = 'none';
+                } else if (currentSection === 'countries_header') {
+                    const countries = line.replace(/"/g, '').split(',').filter(c => c.trim());
+                    currentSection = 'countries_values';
+                    
+                    if (i + 1 < lines.length) {
+                        const values = lines[i + 1].split(',').map(v => parseFloat(v) || 0);
+                        for (let j = 0; j < Math.min(countries.length, values.length); j++) {
+                            if (countries[j].trim()) {
+                                countryData.push({ country: countries[j].trim(), percentage: values[j] });
+                            }
+                        }
+                        i++;
+                    }
+                    currentSection = 'none';
+                }
+            }
+            
+            // Display age demographics chart
+            if (ageData.length > 0) {
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                chartContainer.style.height = '300px';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                card.appendChild(chartContainer);
+                
+                setTimeout(() => {
+                    new Chart(canvas, {
+                        type: 'bar',
+                        data: {
+                            labels: ageData.map(d => d.age),
+                            datasets: [
+                                {
+                                    label: 'Women (%)',
+                                    data: ageData.map(d => d.women),
+                                    backgroundColor: 'var(--duke-blue)',
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Men (%)',
+                                    data: ageData.map(d => d.men),
+                                    backgroundColor: 'var(--duke-orange)',
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Facebook Audience by Age & Gender',
+                                    font: { family: 'Montserrat', weight: 700, size: 16 }
+                                },
+                                legend: {
+                                    labels: { font: { family: 'Montserrat' } }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Percentage (%)', font: { family: 'Montserrat' } },
+                                    ticks: { font: { family: 'Montserrat' } }
+                                },
+                                x: { ticks: { font: { family: 'Montserrat' } } }
+                            }
+                        }
+                    });
+                }, 100);
+            }
+            
+            // Display top cities and countries tables
+            if (cityData.length > 0 || countryData.length > 0) {
+                const tablesContainer = document.createElement('div');
+                tablesContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px;';
+                
+                if (cityData.length > 0) {
+                    const cityTable = document.createElement('div');
+                    cityTable.className = 'table-container';
+                    cityTable.innerHTML = `
+                        <table>
+                            <thead><tr><th>Top Cities</th><th>%</th></tr></thead>
+                            <tbody>
+                                ${cityData.slice(0, 8).map(city => 
+                                    `<tr><td><strong>${city.city}</strong></td><td>${city.percentage}%</td></tr>`
+                                ).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    tablesContainer.appendChild(cityTable);
+                }
+                
+                if (countryData.length > 0) {
+                    const countryTable = document.createElement('div');
+                    countryTable.className = 'table-container';
+                    countryTable.innerHTML = `
+                        <table>
+                            <thead><tr><th>Top Countries</th><th>%</th></tr></thead>
+                            <tbody>
+                                ${countryData.slice(0, 8).map(country => 
+                                    `<tr><td><strong>${country.country}</strong></td><td>${country.percentage}%</td></tr>`
+                                ).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    tablesContainer.appendChild(countryTable);
+                }
+                
+                card.appendChild(tablesContainer);
+            }
+        }
+        
+        function processInstagramAudience(card, data) {
+            // Parse Instagram audience data
+            const lines = data.split('\n').map(line => line.trim()).filter(line => line);
+            
+            let followerCount = 0;
+            let ageData = [];
+            let cityData = [];
+            let currentSection = 'none';
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].replace(/"/g, '');
+                
+                // Extract follower count
+                if (line.match(/^\d+$/)) {
+                    followerCount = parseInt(line);
+                }
+                
+                // Detect sections
+                if (line.includes('gender and age')) {
+                    currentSection = 'age_header';
+                    continue;
+                } else if (line.includes('top cities')) {
+                    currentSection = 'cities_header';
+                    continue;
+                }
+                
+                // Parse age data
+                if (currentSection === 'age_data') {
+                    const parts = line.split(',');
+                    if (parts.length >= 3 && parts[0].includes('-') || parts[0].includes('+')) {
+                        ageData.push({
+                            age: parts[0],
+                            women: parseFloat(parts[1].replace('%', '')) || 0,
+                            men: parseFloat(parts[2].replace('%', '')) || 0
+                        });
+                    }
+                } else if (currentSection === 'cities_data') {
+                    const parts = line.split(',');
+                    if (parts.length >= 2 && !parts[0].includes('Top cities')) {
+                        cityData.push({
+                            city: parts[0],
+                            percentage: parseFloat(parts[1].replace('%', '')) || 0
+                        });
                     }
                 }
-            });
+                
+                // Set data parsing mode
+                if (currentSection === 'age_header' && line.includes('Age')) {
+                    currentSection = 'age_data';
+                } else if (currentSection === 'cities_header' && line.includes('Top cities')) {
+                    currentSection = 'cities_data';
+                }
+            }
+            
+            // Display follower count
+            if (followerCount > 0) {
+                const followerMetric = document.createElement('div');
+                followerMetric.className = 'metric-grid';
+                followerMetric.innerHTML = `
+                    <div class="metric">
+                        <div class="metric-value">${followerCount.toLocaleString()}</div>
+                        <div class="metric-label">Total Followers</div>
+                    </div>
+                `;
+                card.appendChild(followerMetric);
+            }
+            
+            // Display age demographics chart
+            if (ageData.length > 0) {
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                chartContainer.style.height = '300px';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                card.appendChild(chartContainer);
+                
+                setTimeout(() => {
+                    new Chart(canvas, {
+                        type: 'bar',
+                        data: {
+                            labels: ageData.map(d => d.age),
+                            datasets: [
+                                {
+                                    label: 'Women (%)',
+                                    data: ageData.map(d => d.women),
+                                    backgroundColor: 'var(--duke-blue)',
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Men (%)',
+                                    data: ageData.map(d => d.men),
+                                    backgroundColor: 'var(--duke-orange)',
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Instagram Audience by Age & Gender',
+                                    font: { family: 'Montserrat', weight: 700, size: 16 }
+                                },
+                                legend: {
+                                    labels: { font: { family: 'Montserrat' } }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Percentage (%)', font: { family: 'Montserrat' } },
+                                    ticks: { font: { family: 'Montserrat' } }
+                                },
+                                x: { ticks: { font: { family: 'Montserrat' } } }
+                            }
+                        }
+                    });
+                }, 100);
+            }
+            
+            // Display top cities
+            if (cityData.length > 0) {
+                const cityTable = document.createElement('div');
+                cityTable.className = 'table-container';
+                cityTable.style.marginTop = '25px';
+                cityTable.innerHTML = `
+                    <table>
+                        <thead><tr><th>Top Cities</th><th>Percentage</th></tr></thead>
+                        <tbody>
+                            ${cityData.slice(0, 10).map(city => 
+                                `<tr><td><strong>${city.city}</strong></td><td>${city.percentage}%</td></tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                `;
+                card.appendChild(cityTable);
+            }
+        }
+        
+        function processFile(file) {
+            // Handle audience files specially due to their custom formats
+            if (file.name === 'IG_Audience.csv') {
+                // Instagram audience file is UTF-16 encoded
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    const decoder = new TextDecoder('utf-16le');
+                    const content = decoder.decode(arrayBuffer);
+                    processedData[file.name] = content;
+                    checkAllFilesProcessed();
+                };
+                reader.readAsArrayBuffer(file);
+            } else if (file.name === 'FB_Audience.csv') {
+                // Facebook audience file has custom format, read as text
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    processedData[file.name] = e.target.result;
+                    checkAllFilesProcessed();
+                };
+                reader.readAsText(file);
+            } else {
+                // Regular CSV processing for other files
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    encoding: 'utf-8',
+                    complete: (results) => {
+                        processedData[file.name] = results.data;
+                        checkAllFilesProcessed();
+                    },
+                    error: (error) => {
+                        console.log(`Error parsing ${file.name}:`, error);
+                        checkAllFilesProcessed();
+                    }
+                });
+            }
+        }
+        
+        function checkAllFilesProcessed() {
+            if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
+                generateDashboard();
+            }
         }
         
         function setDefaultDates() {
@@ -961,7 +1300,8 @@
             }
             
             // Social Media Section
-            if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv'] || processedData['FB_Videos.csv']) {
+            if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv'] || processedData['FB_Videos.csv'] || 
+                processedData['FB_Audience.csv'] || processedData['IG_Audience.csv']) {
                 dashboard.appendChild(createSectionHeader('📱 Social Media Analytics'));
                 generateSocialAnalytics(dashboard, startDate, endDate, compareType);
             }
@@ -984,8 +1324,8 @@
             
             const dataTypes = {
                 'Web Analytics': ['GA_Demographics.csv', 'GA_Traffic_Acquisition.csv', 'GA_Pages_And_Screens.csv', 'GA_UTMs.csv'],
-                'Facebook': ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Videos.csv', 'FB_Posts.csv'],
-                'Instagram': ['IG_Posts.csv', 'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv'],
+                'Facebook': ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Videos.csv', 'FB_Posts.csv', 'FB_Audience.csv'],
+                'Instagram': ['IG_Posts.csv', 'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv', 'IG_Audience.csv'],
                 'Email': ['Email_Campaign_Performance.csv'],
                 'YouTube': ['YouTube_Content.csv', 'YouTube_Age.csv', 'YouTube_Gender.csv', 'YouTube_Geography.csv']
             };
@@ -1016,7 +1356,21 @@
                 const totalPosts = processedData['IG_Posts.csv'].length;
                 let postsInRange = totalPosts;
                 
-                if (startDate && endDate) {
+                // Add audience analytics info
+            const audienceFiles = ['FB_Audience.csv', 'IG_Audience.csv'].filter(file => processedData[file]);
+            if (audienceFiles.length > 0) {
+                overviewHTML += `
+                    <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-green); box-shadow: 0 4px 15px rgba(5, 150, 105, 0.1);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">👥 Audience Demographics Available</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
+                            Loaded: <strong>${audienceFiles.join(', ')}</strong><br>
+                            <small>Age, gender, and location demographics are displayed in the Social Media section</small>
+                        </p>
+                    </div>
+                `;
+            }
+            
+            if (startDate && endDate) {
                     const start = new Date(startDate);
                     const end = new Date(endDate);
                     postsInRange = processedData['IG_Posts.csv'].filter(post => {
@@ -1398,6 +1752,21 @@
         function generateSocialAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
             const container = document.createElement('div');
             container.className = 'dashboard';
+            
+            // Social Media Audience Demographics
+            generateAudienceDemographics(container);
+            
+            // Add a note if no audience data is available
+            if (!processedData['FB_Audience.csv'] && !processedData['IG_Audience.csv']) {
+                const noteCard = createCard('💡 Demographics Note');
+                noteCard.innerHTML += `
+                    <div style="text-align: center; padding: 20px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;">
+                        📊 Upload FB_Audience.csv and/or IG_Audience.csv files to see audience demographics<br>
+                        <small style="margin-top: 10px; display: block;">Age, gender, and location breakdowns will appear here</small>
+                    </div>
+                `;
+                container.appendChild(noteCard);
+            }
             
             // Facebook Analytics Overview
             if (processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv']) {
@@ -2551,6 +2920,105 @@
                 };
             }
             return null;
+        }
+        
+        // Continue with all the social analytics functions
+        function generateSocialAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // Social Media Audience Demographics
+            generateAudienceDemographics(container);
+            
+            // Add a note if no audience data is available
+            if (!processedData['FB_Audience.csv'] && !processedData['IG_Audience.csv']) {
+                const noteCard = createCard('💡 Demographics Note');
+                noteCard.innerHTML += `
+                    <div style="text-align: center; padding: 20px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;">
+                        📊 Upload FB_Audience.csv and/or IG_Audience.csv files to see audience demographics<br>
+                        <small style="margin-top: 10px; display: block;">Age, gender, and location breakdowns will appear here</small>
+                    </div>
+                `;
+                container.appendChild(noteCard);
+            }
+            
+            // Facebook Analytics Overview
+            if (processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv']) {
+                const card = createCard('📘 Facebook Performance');
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                
+                let fbReach = 0, fbInteractions = 0, fbFollows = 0, fbViews = 0, fbVisits = 0, fbLinkClicks = 0;
+                let compReach = null, compInteractions = null, compFollows = null;
+                
+                // Calculate Facebook metrics
+                if (processedData['FB_Reach.csv']) {
+                    let reachData = processedData['FB_Reach.csv'];
+                    if (startDate && endDate) {
+                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
+                    }
+                    fbReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    
+                    const comparisonReach = getComparisonData(processedData['FB_Reach.csv'], 'Date', startDate, endDate, compareType);
+                    if (comparisonReach) {
+                        compReach = comparisonReach.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                    }
+                }
+                
+                if (processedData['FB_Interactions.csv']) {
+                    let interactionData = processedData['FB_Interactions.csv'];
+                    if (startDate && endDate) {
+                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
+                    }
+                    fbInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Follows.csv']) {
+                    let followData = processedData['FB_Follows.csv'];
+                    if (startDate && endDate) {
+                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
+                    }
+                    fbFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Views.csv']) {
+                    let viewData = processedData['FB_Views.csv'];
+                    if (startDate && endDate) {
+                        viewData = filterDataByDate(viewData, 'Date', startDate, endDate);
+                    }
+                    fbViews = viewData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Visits.csv']) {
+                    let visitData = processedData['FB_Visits.csv'];
+                    if (startDate && endDate) {
+                        visitData = filterDataByDate(visitData, 'Date', startDate, endDate);
+                    }
+                    fbVisits = visitData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Link_clicks.csv']) {
+                    let linkData = processedData['FB_Link_clicks.csv'];
+                    if (startDate && endDate) {
+                        linkData = filterDataByDate(linkData, 'Date', startDate, endDate);
+                    }
+                    fbLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                metricsGrid.innerHTML = `
+                    ${createMetricWithComparison(fbReach, 'Total Reach', compReach)}
+                    ${createMetricWithComparison(fbInteractions, 'Interactions', compInteractions)}
+                    ${createMetricWithComparison(fbFollows, 'New Follows', compFollows)}
+                    ${createMetricWithComparison(fbViews, 'Profile Views', null)}
+                    ${createMetricWithComparison(fbVisits, 'Page Visits', null)}
+                    ${createMetricWithComparison(fbLinkClicks, 'Link Clicks', null)}
+                `;
+                
+                card.appendChild(metricsGrid);
+                container.appendChild(card);
+            }
+            
+            dashboard.appendChild(container);
         }
     </script>
 </body>
