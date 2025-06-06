@@ -3,29 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Duke Chapel Marketing Analytics Dashboard</title>
+    <title>Enhanced Marketing Analytics Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --duke-navy: #1a365d;
-            --duke-blue: #2563eb;
-            --duke-light-blue: #3b82f6;
-            --duke-orange: #ea580c;
-            --duke-yellow: #f59e0b;
-            --duke-teal: #0891b2;
-            --duke-green: #059669;
-            --duke-purple: #7c3aed;
-            --duke-brown: #a3a3a3;
-            --duke-gray: #6b7280;
-            --duke-light-gray: #f3f4f6;
-            --duke-white: #ffffff;
-            --duke-cream: #fefcf8;
-        }
-        
         * {
             margin: 0;
             padding: 0;
@@ -33,11 +14,10 @@
         }
         
         body {
-            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, var(--duke-navy) 0%, var(--duke-blue) 50%, var(--duke-light-blue) 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            color: #1f2937;
-            line-height: 1.6;
+            color: #333;
         }
         
         .container {
@@ -50,82 +30,33 @@
             text-align: center;
             margin-bottom: 30px;
             color: white;
-            position: relative;
-            padding: 40px 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-        }
-        
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 4px;
-            background: linear-gradient(90deg, var(--duke-orange), var(--duke-yellow), var(--duke-teal));
-            border-radius: 2px;
         }
         
         .header h1 {
-            font-family: 'EB Garamond', Georgia, serif;
-            font-size: 3.2rem;
-            font-weight: 700;
-            margin: 20px 0 15px 0;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #ffffff, #e2e8f0);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .header .subtitle {
-            font-size: 1.3rem;
-            opacity: 0.95;
-            font-weight: 500;
+            font-size: 2.8rem;
             margin-bottom: 10px;
-            color: var(--duke-cream);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
-        .header .tagline {
-            font-size: 1rem;
-            opacity: 0.8;
-            font-style: italic;
-            font-weight: 300;
-            color: #cbd5e1;
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
         }
         
         .upload-section {
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 24px;
+            background: white;
+            border-radius: 20px;
             padding: 40px;
             margin-bottom: 30px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-            border: 2px dashed var(--duke-blue);
-            transition: all 0.4s ease;
-            backdrop-filter: blur(15px);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .upload-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--duke-blue), transparent);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border: 3px dashed #667eea;
+            transition: all 0.3s ease;
         }
         
         .upload-section:hover {
-            border-color: var(--duke-orange);
+            border-color: #764ba2;
             transform: translateY(-3px);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
         
         .upload-area {
@@ -133,18 +64,9 @@
             padding: 40px 20px;
         }
         
-        .upload-area h3 {
-            font-family: 'EB Garamond', Georgia, serif;
-            font-size: 1.9rem;
-            color: var(--duke-navy);
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-        
         .upload-area.dragover {
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
-            border-radius: 20px;
-            border-color: var(--duke-orange);
+            background: #f8f9ff;
+            border-color: #4f46e5;
         }
         
         .file-input {
@@ -152,41 +74,21 @@
         }
         
         .upload-btn {
-            background: linear-gradient(135deg, var(--duke-blue), var(--duke-navy));
+            background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 20px 40px;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            font-weight: 600;
+            padding: 18px 35px;
+            border-radius: 30px;
+            font-size: 1.2rem;
             cursor: pointer;
-            transition: all 0.4s ease;
-            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
-            font-family: 'Montserrat', sans-serif;
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .upload-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .upload-btn:hover::before {
-            left: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            font-weight: 600;
         }
         
         .upload-btn:hover {
-            background: linear-gradient(135deg, var(--duke-orange), var(--duke-yellow));
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(234, 88, 12, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
         }
         
         .file-list {
@@ -198,68 +100,52 @@
         }
         
         .file-item {
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 0.9rem;
-            border: 2px solid var(--duke-blue);
+            background: linear-gradient(45deg, #e8f2ff, #f0f8ff);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            border: 2px solid #667eea;
             font-weight: 500;
-            color: var(--duke-navy);
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .file-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.2);
         }
         
         .controls {
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 24px;
-            padding: 35px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
             margin-bottom: 30px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             display: flex;
             flex-wrap: wrap;
-            gap: 30px;
+            gap: 25px;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
         
         .control-group label {
             font-weight: 700;
-            color: var(--duke-navy);
+            color: #444;
             font-size: 0.95rem;
-            font-family: 'Montserrat', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
         
         .control-group input, .control-group select {
-            padding: 14px 18px;
-            border: 2px solid #e5e7eb;
-            border-radius: 15px;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
             font-size: 1rem;
             transition: all 0.3s ease;
             background: white;
-            font-family: 'Montserrat', sans-serif;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         
         .control-group input:focus, .control-group select:focus {
             outline: none;
-            border-color: var(--duke-blue);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-            transform: translateY(-1px);
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
         .dashboard {
@@ -270,40 +156,26 @@
         }
         
         .card {
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 24px;
-            padding: 35px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
-            transition: all 0.4s ease;
-            border: 1px solid rgba(37, 99, 235, 0.1);
-            backdrop-filter: blur(15px);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, var(--duke-blue), var(--duke-orange), var(--duke-teal));
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(102, 126, 234, 0.1);
         }
         
         .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
         }
         
         .card h3 {
-            margin-bottom: 30px;
-            color: var(--duke-navy);
-            font-size: 1.6rem;
+            margin-bottom: 25px;
+            color: #333;
+            font-size: 1.4rem;
             font-weight: 700;
-            font-family: 'EB Garamond', Georgia, serif;
-            border-bottom: 3px solid var(--duke-blue);
-            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 12px;
             position: relative;
         }
         
@@ -312,34 +184,26 @@
             position: absolute;
             bottom: -3px;
             left: 0;
-            width: 80px;
+            width: 60px;
             height: 3px;
-            background: linear-gradient(90deg, var(--duke-orange), var(--duke-yellow));
-            border-radius: 2px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
         }
         
         .metric-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
         }
         
         .metric {
             text-align: center;
-            padding: 25px 18px;
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
-            border-radius: 20px;
-            border-left: 5px solid var(--duke-blue);
+            padding: 20px 15px;
+            background: linear-gradient(135deg, #f8f9ff, #e8f2ff);
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
             position: relative;
             overflow: hidden;
-            transition: all 0.4s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        
-        .metric:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
         }
         
         .metric::before {
@@ -348,113 +212,91 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--duke-blue), var(--duke-orange));
+            height: 2px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
         }
         
         .metric-value {
-            font-size: 2.2rem;
+            font-size: 2rem;
             font-weight: 800;
-            color: var(--duke-navy);
-            margin-bottom: 10px;
+            color: #667eea;
+            margin-bottom: 8px;
             line-height: 1;
-            font-family: 'Montserrat', sans-serif;
         }
         
         .metric-label {
             font-size: 0.9rem;
-            color: var(--duke-gray);
+            color: #666;
             font-weight: 600;
-            font-family: 'Montserrat', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
         
         .metric-change {
             font-size: 0.8rem;
-            margin-top: 10px;
-            font-weight: 700;
-            font-family: 'Montserrat', sans-serif;
-            padding: 4px 8px;
-            border-radius: 12px;
-            display: inline-block;
+            margin-top: 8px;
+            font-weight: 600;
         }
         
         .metric-change.positive {
-            color: var(--duke-green);
-            background: rgba(5, 150, 105, 0.1);
+            color: #10b981;
         }
         
         .metric-change.negative {
-            color: #dc2626;
-            background: rgba(220, 38, 38, 0.1);
+            color: #ef4444;
         }
         
         .metric-change.neutral {
-            color: var(--duke-gray);
-            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
         }
         
         .chart-container {
             width: 100%;
-            height: 380px;
+            height: 350px;
             margin-top: 25px;
             position: relative;
-            background: rgba(255,255,255,0.5);
-            border-radius: 16px;
-            padding: 15px;
         }
         
         .table-container {
             overflow-x: auto;
             margin-top: 25px;
-            border-radius: 20px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            border: 1px solid #e1e5e9;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
-            font-family: 'Montserrat', sans-serif;
         }
         
         th, td {
-            padding: 18px 15px;
+            padding: 15px 12px;
             text-align: left;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e1e5e9;
         }
         
         th {
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            background: linear-gradient(135deg, #f8f9ff, #e8f2ff);
             font-weight: 700;
-            color: var(--duke-navy);
+            color: #444;
             font-size: 0.85rem;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.5px;
         }
         
-        tbody tr {
-            transition: all 0.3s ease;
-        }
-        
-        tbody tr:hover {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            transform: scale(1.01);
+        tr:hover {
+            background: #f8f9ff;
         }
         
         .section-header {
-            background: linear-gradient(135deg, var(--duke-navy), var(--duke-blue));
+            background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
-            padding: 35px;
-            border-radius: 24px;
-            margin: 50px 0 30px 0;
+            padding: 25px;
+            border-radius: 20px;
+            margin: 40px 0 25px 0;
             text-align: center;
-            font-size: 2rem;
-            font-weight: 700;
-            font-family: 'EB Garamond', Georgia, serif;
-            box-shadow: 0 20px 50px rgba(26, 54, 93, 0.3);
+            font-size: 1.6rem;
+            font-weight: 800;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
         }
@@ -468,7 +310,7 @@
             height: 200%;
             background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
             transform: rotate(45deg);
-            animation: shimmer 4s infinite;
+            animation: shimmer 3s infinite;
         }
         
         @keyframes shimmer {
@@ -478,114 +320,19 @@
         
         .loading {
             text-align: center;
-            padding: 60px;
-            color: var(--duke-gray);
-            font-size: 1.2rem;
-            font-family: 'Montserrat', sans-serif;
-        }
-        
-        .error {
-            background: linear-gradient(135deg, #fef2f2, #fee2e2);
-            color: #dc2626;
-            padding: 25px;
-            border-radius: 20px;
-            margin: 20px 0;
-            border-left: 5px solid #dc2626;
-            font-weight: 600;
-            font-family: 'Montserrat', sans-serif;
-            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.1);
-        }
-        
-        #dateRangeInfo {
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
-            padding: 18px 25px;
-            border-radius: 15px;
-            border-left: 4px solid var(--duke-blue);
-            font-size: 0.95rem;
-            color: var(--duke-navy);
-            font-weight: 500;
-            margin-top: 20px;
-            font-family: 'Montserrat', sans-serif;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);
-        }
-        
-        .data-overview-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-        
-        .data-status-card {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            padding: 22px;
-            border-radius: 20px;
-            border-left: 4px solid var(--duke-blue);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        
-        .data-status-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-        
-        .data-status-card h4 {
-            margin: 0 0 10px 0;
-            color: var(--duke-navy);
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
+            padding: 50px;
+            color: #666;
             font-size: 1.1rem;
         }
         
-        .data-status-card p {
-            margin: 0;
-            font-size: 0.9rem;
-            color: var(--duke-gray);
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 500;
-        }
-        
-        .data-status-card small {
-            color: #9ca3af;
-            font-size: 0.8rem;
-            line-height: 1.4;
-        }
-        
-        /* Tab styling improvements */
-        .tab-container {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-        
-        .tab-button {
-            padding: 10px 20px;
-            font-size: 0.85rem;
-            border-radius: 25px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Montserrat', sans-serif;
+        .error {
+            background: linear-gradient(135deg, #fee, #fdd);
+            color: #c33;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border-left: 5px solid #c33;
             font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .tab-button.active {
-            background: linear-gradient(135deg, var(--duke-blue), var(--duke-navy));
-            color: white;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-        }
-        
-        .tab-button:not(.active) {
-            background: var(--duke-light-gray);
-            color: var(--duke-gray);
-        }
-        
-        .tab-button:not(.active):hover {
-            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-            transform: translateY(-1px);
         }
         
         @media (max-width: 768px) {
@@ -596,7 +343,6 @@
             .controls {
                 flex-direction: column;
                 align-items: stretch;
-                gap: 20px;
             }
             
             .metric-grid {
@@ -604,28 +350,16 @@
             }
             
             .header h1 {
-                font-size: 2.5rem;
-            }
-            
-            .header .subtitle {
-                font-size: 1.1rem;
-            }
-            
-            .container {
-                padding: 15px;
+                font-size: 2.2rem;
             }
         }
         
         @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
             .metric-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .data-overview-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -634,15 +368,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Duke Chapel Analytics</h1>
-            <p class="subtitle">Marketing Performance Dashboard</p>
-            <p class="tagline">Comprehensive insights across digital platforms</p>
+            <h1>🚀 Enhanced Marketing Analytics Dashboard</h1>
+            <p>Comprehensive insights across web, social, email, and video platforms</p>
         </div>
         
         <div class="upload-section">
             <div class="upload-area" id="uploadArea">
-                <h3>📊 Upload Your Marketing Data Files</h3>
-                <p style="margin: 20px 0; color: var(--duke-gray); font-size: 1.1rem;">Drag and drop CSV files here or click to select</p>
+                <h3>📁 Upload Your Marketing Data Files</h3>
+                <p style="margin: 20px 0; color: #666; font-size: 1.1rem;">Drag and drop CSV files here or click to select</p>
                 <input type="file" id="fileInput" class="file-input" multiple accept=".csv">
                 <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
                     📤 Choose Files
@@ -662,7 +395,7 @@
             </div>
             <div class="control-group">
                 <label>⚡ Quick Select</label>
-                <button class="upload-btn" onclick="selectFullRange()" style="padding: 12px 24px; font-size: 0.9rem;">Full Range</button>
+                <button class="upload-btn" onclick="selectFullRange()" style="padding: 10px 20px; font-size: 0.9rem;">Full Range</button>
             </div>
             <div class="control-group">
                 <label>📊 Compare With</label>
@@ -673,7 +406,7 @@
                 </select>
             </div>
             <button class="upload-btn" onclick="updateDashboard()">🔄 Update Dashboard</button>
-            <div id="dateRangeInfo"></div>
+            <div id="dateRangeInfo" style="margin-top: 15px; font-size: 0.95rem; color: #666; font-weight: 600;"></div>
         </div>
         
         <div id="dashboard"></div>
@@ -990,21 +723,23 @@
                 'YouTube': ['YouTube_Content.csv', 'YouTube_Age.csv', 'YouTube_Gender.csv', 'YouTube_Geography.csv']
             };
             
-            let overviewHTML = `<div class="data-overview-grid">`;
+            let overviewHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            `;
             
             Object.entries(dataTypes).forEach(([category, files]) => {
                 const loadedFiles = files.filter(file => processedData[file]);
                 const totalFiles = files.length;
                 const loadedCount = loadedFiles.length;
                 
-                let statusColor = loadedCount === 0 ? '#dc2626' : loadedCount === totalFiles ? 'var(--duke-green)' : 'var(--duke-orange)';
+                let statusColor = loadedCount === 0 ? '#ef4444' : loadedCount === totalFiles ? '#10b981' : '#f59e0b';
                 let statusIcon = loadedCount === 0 ? '❌' : loadedCount === totalFiles ? '✅' : '⚠️';
                 
                 overviewHTML += `
-                    <div class="data-status-card" style="border-left-color: ${statusColor};">
-                        <h4>${statusIcon} ${category}</h4>
-                        <p>${loadedCount}/${totalFiles} files loaded</p>
-                        ${loadedFiles.length > 0 ? `<small>Loaded: ${loadedFiles.join(', ')}</small>` : ''}
+                    <div style="background: #f8f9ff; padding: 15px; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">${statusIcon} ${category}</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">${loadedCount}/${totalFiles} files loaded</p>
+                        ${loadedFiles.length > 0 ? `<small style="color: #888;">Loaded: ${loadedFiles.join(', ')}</small>` : ''}
                     </div>
                 `;
             });
@@ -1032,9 +767,9 @@
                 }
                 
                 overviewHTML += `
-                    <div style="background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);">
-                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">📷 Instagram Posts Details</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
+                    <div style="background: #e8f2ff; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">📷 Instagram Posts Details</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">
                             Total posts in dataset: <strong>${totalPosts}</strong><br>
                             Posts in selected date range: <strong>${postsInRange}</strong>
                         </p>
@@ -1044,9 +779,9 @@
             
             if (startDate && endDate) {
                 overviewHTML += `
-                    <div style="background: linear-gradient(135deg, #fef3cd, #fef3cd); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-orange); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.1);">
-                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">📅 Date Range Filter Active</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">📅 Date Range Filter Active</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">
                             Showing data from <strong>${new Date(startDate).toLocaleDateString()}</strong> to <strong>${new Date(endDate).toLocaleDateString()}</strong>
                         </p>
                     </div>
@@ -1204,9 +939,9 @@
                             datasets: [{
                                 data: Object.values(channelData).map(d => d.sessions),
                                 backgroundColor: [
-                                    '#1a365d', '#2563eb', '#ea580c', '#f59e0b',
-                                    '#0891b2', '#059669', '#7c3aed', '#a3a3a3',
-                                    '#6b7280', '#f3f4f6'
+                                    '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                                    '#4facfe', '#00f2fe', '#43e97b', '#38f9d7',
+                                    '#667eea', '#764ba2'
                                 ]
                             }]
                         },
@@ -1218,10 +953,7 @@
                                     position: 'bottom',
                                     labels: {
                                         padding: 20,
-                                        usePointStyle: true,
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
+                                        usePointStyle: true
                                     }
                                 }
                             }
@@ -1387,7 +1119,7 @@
                     `;
                     card.appendChild(tableContainer);
                 } else {
-                    card.innerHTML += '<p style="color: var(--duke-gray); text-align: center; padding: 20px;">No UTM campaign data available for selected period.</p>';
+                    card.innerHTML += '<p style="color: #666; text-align: center; padding: 20px;">No UTM campaign data available for selected period.</p>';
                 }
                 container.appendChild(card);
             }
@@ -1567,7 +1299,7 @@
                 
                 // Add data info
                 const dataInfo = document.createElement('div');
-                dataInfo.style.cssText = 'background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 16px; margin-bottom: 20px; font-size: 0.9rem; color: var(--duke-gray); border-left: 4px solid var(--duke-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);';
+                dataInfo.style.cssText = 'background: #f8f9ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; color: #666;';
                 dataInfo.innerHTML = `
                     📊 <strong>Data Summary:</strong> ${processedData['IG_Posts.csv'].length} total posts in dataset, 
                     ${posts.length} posts in selected date range
@@ -1576,12 +1308,12 @@
                 
                 // Create tabs for different sorting options
                 const tabContainer = document.createElement('div');
-                tabContainer.className = 'tab-container';
+                tabContainer.style.cssText = 'display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;';
                 
                 ['Reach', 'Likes', 'Comments', 'Saves', 'Shares'].forEach((metric, index) => {
                     const tab = document.createElement('button');
-                    tab.className = 'tab-button';
-                    if (index === 0) tab.classList.add('active');
+                    tab.className = 'upload-btn';
+                    tab.style.cssText = `padding: 8px 16px; font-size: 0.85rem; ${index === 0 ? 'background: linear-gradient(45deg, #667eea, #764ba2);' : 'background: #e1e5e9; color: #666;'}`;
                     tab.textContent = `Top by ${metric}`;
                     tab.onclick = () => displayTopPosts(metric, posts, card);
                     tabContainer.appendChild(tab);
@@ -1617,7 +1349,7 @@
                 
                 // Add data info for Facebook
                 const fbDataInfo = document.createElement('div');
-                fbDataInfo.style.cssText = 'background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 16px; margin-bottom: 20px; font-size: 0.9rem; color: var(--duke-gray); border-left: 4px solid var(--duke-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);';
+                fbDataInfo.style.cssText = 'background: #f8f9ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; color: #666;';
                 fbDataInfo.innerHTML = `
                     📊 <strong>Data Summary:</strong> ${processedData['FB_Posts.csv'].length} total posts in dataset, 
                     ${fbPosts.length} posts in selected date range
@@ -1626,12 +1358,12 @@
                 
                 // Create tabs for Facebook posts
                 const fbTabContainer = document.createElement('div');
-                fbTabContainer.className = 'tab-container';
+                fbTabContainer.style.cssText = 'display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;';
                 
                 ['Reach', 'Likes', 'Comments', 'Shares'].forEach((metric, index) => {
                     const tab = document.createElement('button');
-                    tab.className = 'tab-button';
-                    if (index === 0) tab.classList.add('active');
+                    tab.className = 'upload-btn';
+                    tab.style.cssText = `padding: 8px 16px; font-size: 0.85rem; ${index === 0 ? 'background: linear-gradient(45deg, #667eea, #764ba2);' : 'background: #e1e5e9; color: #666;'}`;
                     tab.textContent = `Top by ${metric}`;
                     tab.onclick = () => displayTopFacebookPosts(metric, fbPosts, fbCard);
                     fbTabContainer.appendChild(tab);
@@ -1692,7 +1424,7 @@
                                         <td>${parseNumber(video['1-minute video views']).toLocaleString()}</td>
                                         <td>${parseNumber(video['Reactions, Comments and Shares']).toLocaleString()}</td>
                                         <td>${(parseNumber(video['Seconds viewed']) / 3600).toFixed(1)}</td>
-                                        <td>${video['Universal video ID'] ? `<a href="https://www.facebook.com/watch/?v=${video['Universal video ID']}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                        <td>${video['Universal video ID'] ? `<a href="https://www.facebook.com/watch/?v=${video['Universal video ID']}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                                     </tr>`
                                 ).join('')}
                             </tbody>
@@ -1714,11 +1446,14 @@
             }
             
             // Update tab styles
-            const tabs = card.querySelectorAll('.tab-button');
-            tabs.forEach((tab) => {
-                tab.classList.remove('active');
+            const tabs = card.querySelectorAll('button');
+            tabs.forEach((tab, index) => {
                 if (tab.textContent.includes(metric)) {
-                    tab.classList.add('active');
+                    tab.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                    tab.style.color = 'white';
+                } else {
+                    tab.style.background = '#e1e5e9';
+                    tab.style.color = '#666';
                 }
             });
             
@@ -1742,7 +1477,7 @@
                     const tableContainer = document.createElement('div');
                     tableContainer.className = 'table-container';
                     tableContainer.innerHTML = `
-                        <p style="color: var(--duke-gray); text-align: center; padding: 15px; font-style: italic; background: rgba(107, 114, 128, 0.1); border-radius: 12px; margin-bottom: 15px;">
+                        <p style="color: #666; text-align: center; padding: 10px; font-style: italic;">
                             📊 Showing all available posts (no posts with ${metric} > 0 found)
                         </p>
                         <table>
@@ -1768,7 +1503,7 @@
                                         <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
                                         <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
                                         <td>${parseNumber(post.Saves || 0).toLocaleString()}</td>
-                                        <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                        <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                                     </tr>`
                                 ).join('')}
                             </tbody>
@@ -1777,10 +1512,10 @@
                     card.appendChild(tableContainer);
                 } else {
                     const noDataDiv = document.createElement('div');
-                    noDataDiv.style.cssText = 'text-align: center; padding: 50px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;';
+                    noDataDiv.style.cssText = 'text-align: center; padding: 40px; color: #666; font-style: italic;';
                     noDataDiv.innerHTML = `
                         📭 No Instagram posts found for the selected time period.<br>
-                        <small style="margin-top: 10px; display: block;">Try expanding your date range or check if the posts data was uploaded correctly.</small>
+                        <small>Try expanding your date range or check if the posts data was uploaded correctly.</small>
                     `;
                     card.appendChild(noDataDiv);
                 }
@@ -1807,13 +1542,13 @@
                         ${topPosts.map(post => 
                             `<tr>
                                 <td><strong>${(post.Description || 'No description').substring(0, 40)}...</strong></td>
-                                <td><strong style="color: var(--duke-blue);">${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
+                                <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
                                 <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Saves || 0).toLocaleString()}</td>
-                                <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                             </tr>`
                         ).join('')}
                     </tbody>
@@ -1830,11 +1565,14 @@
             }
             
             // Update tab styles
-            const tabs = card.querySelectorAll('.tab-button');
-            tabs.forEach((tab) => {
-                tab.classList.remove('active');
+            const tabs = card.querySelectorAll('button');
+            tabs.forEach((tab, index) => {
                 if (tab.textContent.includes(metric)) {
-                    tab.classList.add('active');
+                    tab.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                    tab.style.color = 'white';
+                } else {
+                    tab.style.background = '#e1e5e9';
+                    tab.style.color = '#666';
                 }
             });
             
@@ -1857,7 +1595,7 @@
                     const tableContainer = document.createElement('div');
                     tableContainer.className = 'table-container';
                     tableContainer.innerHTML = `
-                        <p style="color: var(--duke-gray); text-align: center; padding: 15px; font-style: italic; background: rgba(107, 114, 128, 0.1); border-radius: 12px; margin-bottom: 15px;">
+                        <p style="color: #666; text-align: center; padding: 10px; font-style: italic;">
                             📊 Showing all available posts (no posts with ${metric} > 0 found)
                         </p>
                         <table>
@@ -1881,7 +1619,7 @@
                                         <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
                                         <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
                                         <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
-                                        <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                        <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                                     </tr>`
                                 ).join('')}
                             </tbody>
@@ -1890,10 +1628,10 @@
                     card.appendChild(tableContainer);
                 } else {
                     const noDataDiv = document.createElement('div');
-                    noDataDiv.style.cssText = 'text-align: center; padding: 50px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;';
+                    noDataDiv.style.cssText = 'text-align: center; padding: 40px; color: #666; font-style: italic;';
                     noDataDiv.innerHTML = `
                         📭 No Facebook posts found for the selected time period.<br>
-                        <small style="margin-top: 10px; display: block;">Try expanding your date range or check if the posts data was uploaded correctly.</small>
+                        <small>Try expanding your date range or check if the posts data was uploaded correctly.</small>
                     `;
                     card.appendChild(noDataDiv);
                 }
@@ -1919,12 +1657,12 @@
                         ${topPosts.map(post => 
                             `<tr>
                                 <td><strong>${(post.Message || post.Description || 'No description').substring(0, 40)}...</strong></td>
-                                <td><strong style="color: var(--duke-blue);">${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
+                                <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
                                 <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
-                                <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                             </tr>`
                         ).join('')}
                     </tbody>
@@ -2016,7 +1754,7 @@
                         ${topOpenCampaigns.map(campaign => 
                             `<tr>
                                 <td><strong>${campaign.Campaign}</strong></td>
-                                <td><strong style="color: var(--duke-blue);">${campaign['Email open rate (MPP excluded)']}</strong></td>
+                                <td><strong>${campaign['Email open rate (MPP excluded)']}</strong></td>
                                 <td>${parseNumber(campaign['Email opened (MPP excluded)']).toLocaleString()}</td>
                                 <td>${parseNumber(campaign['Emails sent']).toLocaleString()}</td>
                                 <td>${parseNumber(campaign['Email deliveries']).toLocaleString()}</td>
@@ -2051,7 +1789,7 @@
                         ${topClickCampaigns.map(campaign => 
                             `<tr>
                                 <td><strong>${campaign.Campaign}</strong></td>
-                                <td><strong style="color: var(--duke-blue);">${campaign['Email click rate']}</strong></td>
+                                <td><strong>${campaign['Email click rate']}</strong></td>
                                 <td>${parseNumber(campaign['Email clicked']).toLocaleString()}</td>
                                 <td>${parseNumber(campaign['Email total clicks']).toLocaleString()}</td>
                                 <td>${campaign['Email clicks per unique opens (MPP excluded)'] || 'N/A'}</td>
@@ -2082,7 +1820,7 @@
                     <div class="metric-label">Total Campaigns</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">${Math.round(totalSent / emailData.length).toLocaleString()}</div>
+                    <div class="metric-value">${(totalSent / emailData.length).toLocaleString()}</div>
                     <div class="metric-label">Avg. Emails/Campaign</div>
                 </div>
             `;
@@ -2152,12 +1890,12 @@
                 const topVideosCard = createCard('🏆 Top 5 Videos by Performance');
                 
                 const tabContainer = document.createElement('div');
-                tabContainer.className = 'tab-container';
+                tabContainer.style.cssText = 'display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;';
                 
                 ['Views', 'Watch time (hours)', 'Likes', 'Comments added', 'Subscribers'].forEach((metric, index) => {
                     const tab = document.createElement('button');
-                    tab.className = 'tab-button';
-                    if (index === 0) tab.classList.add('active');
+                    tab.className = 'upload-btn';
+                    tab.style.cssText = `padding: 8px 16px; font-size: 0.85rem; ${index === 0 ? 'background: linear-gradient(45deg, #667eea, #764ba2);' : 'background: #e1e5e9; color: #666;'}`;
                     tab.textContent = `Top by ${metric === 'Comments added' ? 'Comments' : metric === 'Watch time (hours)' ? 'Watch Time' : metric}`;
                     tab.onclick = () => displayTopYouTubeVideos(metric, content, topVideosCard);
                     tabContainer.appendChild(tab);
@@ -2220,7 +1958,7 @@
                             labels: ['Subscribed Viewers', 'Non-Subscribed Viewers'],
                             datasets: [{
                                 data: [subscriberViews, nonSubscriberViews],
-                                backgroundColor: ['var(--duke-blue)', 'var(--duke-orange)']
+                                backgroundColor: ['#667eea', '#764ba2']
                             }]
                         },
                         options: {
@@ -2231,10 +1969,7 @@
                                     position: 'bottom',
                                     labels: {
                                         padding: 20,
-                                        usePointStyle: true,
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
+                                        usePointStyle: true
                                     }
                                 }
                             }
@@ -2254,7 +1989,7 @@
                 
                 // Age demographics chart
                 const ageChartContainer = document.createElement('div');
-                ageChartContainer.style.cssText = 'width: 100%; height: 250px; margin: 20px 0;';
+                ageChartContainer.style.cssText = 'width: 100%; height: 200px; margin: 20px 0;';
                 const ageCanvas = document.createElement('canvas');
                 ageChartContainer.appendChild(ageCanvas);
                 demoCard.appendChild(ageChartContainer);
@@ -2267,9 +2002,8 @@
                             datasets: [{
                                 label: 'Views (%)',
                                 data: ageData.map(row => parseNumber(row['Views (%)'])),
-                                backgroundColor: 'var(--duke-blue)',
-                                borderRadius: 8,
-                                borderSkipped: false,
+                                backgroundColor: '#667eea',
+                                borderRadius: 5
                             }]
                         },
                         options: {
@@ -2278,20 +2012,7 @@
                             plugins: {
                                 title: {
                                     display: true,
-                                    text: 'Views by Age Group',
-                                    font: {
-                                        family: 'Montserrat',
-                                        weight: 700,
-                                        size: 16
-                                    },
-                                    color: 'var(--duke-navy)'
-                                },
-                                legend: {
-                                    labels: {
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
-                                    }
+                                    text: 'Views by Age Group'
                                 }
                             },
                             scales: {
@@ -2299,23 +2020,7 @@
                                     beginAtZero: true,
                                     title: {
                                         display: true,
-                                        text: 'Percentage of Views',
-                                        font: {
-                                            family: 'Montserrat',
-                                            weight: 600
-                                        }
-                                    },
-                                    ticks: {
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
-                                    }
-                                },
-                                x: {
-                                    ticks: {
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
+                                        text: 'Percentage of Views'
                                     }
                                 }
                             }
@@ -2326,7 +2031,7 @@
                 // Gender demographics as metrics
                 const genderGrid = document.createElement('div');
                 genderGrid.className = 'metric-grid';
-                genderGrid.style.marginTop = '25px';
+                genderGrid.style.marginTop = '20px';
                 
                 const genderMetrics = genderData.map(row => 
                     `<div class="metric">
@@ -2386,16 +2091,19 @@
                 existingTable.remove();
             }
             
-            const tabs = card.querySelectorAll('.tab-button');
+            const tabs = card.querySelectorAll('button');
             tabs.forEach((tab) => {
-                tab.classList.remove('active');
                 const tabMetric = tab.textContent.includes('Comments') ? 'Comments added' : 
                                tab.textContent.includes('Watch Time') ? 'Watch time (hours)' : 
                                tab.textContent.replace('Top by ', '');
                                
                 if (tabMetric === metric || (tabMetric === 'Comments' && metric === 'Comments added') || 
                     (tabMetric === 'Watch Time' && metric === 'Watch time (hours)')) {
-                    tab.classList.add('active');
+                    tab.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                    tab.style.color = 'white';
+                } else {
+                    tab.style.background = '#e1e5e9';
+                    tab.style.color = '#666';
                 }
             });
             
@@ -2423,14 +2131,14 @@
                         ${topVideos.map(video => 
                             `<tr>
                                 <td><strong>${(video['Video title'] || '').substring(0, 40)}...</strong></td>
-                                <td><strong style="color: var(--duke-blue);">${metric === 'Watch time (hours)' ? 
+                                <td><strong>${metric === 'Watch time (hours)' ? 
                                     Math.round(parseNumber(video[metric])) : 
                                     parseNumber(video[metric]).toLocaleString()}</strong></td>
                                 <td>${parseNumber(video.Views || 0).toLocaleString()}</td>
                                 <td>${parseNumber(video.Likes || 0).toLocaleString()}</td>
                                 <td>${parseNumber(video['Impressions click-through rate (%)'] || 0).toFixed(1)}%</td>
                                 <td>+${parseNumber(video.Subscribers || 0).toLocaleString()}</td>
-                                <td>${video.Content ? `<a href="https://www.youtube.com/watch?v=${video.Content}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                <td>${video.Content ? `<a href="https://www.youtube.com/watch?v=${video.Content}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                             </tr>`
                         ).join('')}
                     </tbody>
