@@ -223,10 +223,37 @@
             display: flex;
             flex-wrap: wrap;
             gap: 30px;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .quick-range-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .quick-range-btn {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            color: var(--duke-navy);
+            border: 2px solid #e5e7eb;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 0.3px;
+        }
+        
+        .quick-range-btn:hover {
+            background: linear-gradient(135deg, var(--duke-blue), var(--duke-navy));
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
         }
         
         .control-group {
@@ -264,7 +291,7 @@
         
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 30px;
             margin-bottom: 30px;
         }
@@ -618,10 +645,27 @@
                 flex-direction: column;
                 align-items: stretch;
                 gap: 20px;
+                padding: 25px;
+            }
+            
+            .control-group {
+                width: 100%;
+            }
+            
+            .quick-range-buttons {
+                justify-content: center;
+            }
+            
+            .quick-range-btn {
+                flex: 1;
+                min-width: 80px;
+                font-size: 0.8rem;
+                padding: 6px 12px;
             }
             
             .metric-grid {
                 grid-template-columns: 1fr 1fr;
+                gap: 15px;
             }
             
             .header h1 {
@@ -634,6 +678,14 @@
             
             .container {
                 padding: 15px;
+            }
+            
+            .card {
+                padding: 25px;
+            }
+            
+            .data-overview-grid {
+                grid-template-columns: 1fr;
             }
         }
         
@@ -648,6 +700,20 @@
             
             .data-overview-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .quick-range-btn {
+                font-size: 0.75rem;
+                padding: 5px 10px;
+            }
+            
+            .controls {
+                padding: 20px;
+                gap: 15px;
+            }
+            
+            .chart-container {
+                height: 300px;
             }
         }
     </style>
@@ -682,8 +748,13 @@
                 <input type="date" id="endDate">
             </div>
             <div class="control-group">
-                <label>⚡ Quick Select</label>
-                <button class="upload-btn" onclick="selectFullRange()" style="padding: 12px 24px; font-size: 0.9rem;">Full Range</button>
+                <label>⚡ Quick Ranges</label>
+                <div class="quick-range-buttons">
+                    <button class="quick-range-btn" onclick="setDateRange(7)">Last 7 Days</button>
+                    <button class="quick-range-btn" onclick="setDateRange(30)">Last 30 Days</button>
+                    <button class="quick-range-btn" onclick="setDateRange(90)">Last 3 Months</button>
+                    <button class="quick-range-btn" onclick="selectFullRange()">Full Range</button>
+                </div>
             </div>
             <div class="control-group">
                 <label>📊 Compare With</label>
@@ -808,6 +879,7 @@
         
         function parseDate(dateStr) {
             if (typeof dateStr === 'number' && dateStr.toString().length === 10) {
+                // Google Analytics format: YYYYMMDDHH
                 const str = dateStr.toString();
                 const year = str.substring(0, 4);
                 const month = str.substring(4, 6);
@@ -815,7 +887,13 @@
                 const hour = str.substring(8, 10);
                 return new Date(year, month - 1, day, hour);
             } else if (typeof dateStr === 'string') {
-                return new Date(dateStr);
+                // Handle various string date formats
+                if (dateStr.includes('T') || dateStr.includes(' ')) {
+                    return new Date(dateStr);
+                } else {
+                    // Simple date format like "2024-01-15"
+                    return new Date(dateStr + 'T00:00:00');
+                }
             }
             return new Date(dateStr);
         }
@@ -867,7 +945,16 @@
         
         function checkAllFilesProcessed() {
             if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
-                generateDashboard();
+                // Show loading state
+                const dashboard = document.getElementById('dashboard');
+                dashboard.innerHTML = '<div class="loading">📊 Processing data and generating dashboard...</div>';
+                
+                // Generate dashboard after a short delay to show loading
+                setTimeout(() => {
+                    generateDashboard();
+                    // Auto-update dashboard when data loads
+                    updateDashboard();
+                }, 500);
             }
         }
         
@@ -960,14 +1047,38 @@
             }
         }
         
+        function setDateRange(days) {
+            const dateRange = getDataDateRange();
+            if (!dateRange.max) return;
+            
+            const endDate = dateRange.max;
+            const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000));
+            
+            // Make sure start date is not before available data
+            const actualStartDate = dateRange.min && startDate < dateRange.min ? dateRange.min : startDate;
+            
+            document.getElementById('startDate').value = actualStartDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+            updateDashboard();
+        }
+        
         function filterDataByDate(data, dateField, startDate, endDate) {
-            if (!startDate || !endDate) return data;
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+            if (!startDate || !endDate || !Array.isArray(data)) return data;
+            
+            const start = new Date(startDate + 'T00:00:00');
+            const end = new Date(endDate + 'T23:59:59');
             
             return data.filter(row => {
-                const date = parseDate(row[dateField]);
-                return date >= start && date <= end;
+                if (!row || !row[dateField]) return false;
+                
+                try {
+                    const date = parseDate(row[dateField]);
+                    if (isNaN(date.getTime())) return false;
+                    return date >= start && date <= end;
+                } catch (error) {
+                    console.warn('Date parsing error:', error, row[dateField]);
+                    return false;
+                }
             });
         }
         
@@ -975,14 +1086,24 @@
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = '';
             
+            // Check if we have any data
+            if (Object.keys(processedData).length === 0) {
+                dashboard.innerHTML = '<div class="no-data-message">No data files uploaded yet. Please upload your CSV files to get started.</div>';
+                return;
+            }
+            
             // Add data overview section
             const dataOverview = createDataOverview(startDate, endDate);
             dashboard.appendChild(dataOverview);
+            
+            // Track if any sections have data
+            let hasSections = false;
             
             // Web Analytics Section
             if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
                 dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
                 generateWebAnalytics(dashboard, startDate, endDate, compareType);
+                hasSections = true;
             }
             
             // Social Media Section
@@ -990,18 +1111,41 @@
                 processedData['FB_Audience.csv'] || processedData['IG_Audience.csv']) {
                 dashboard.appendChild(createSectionHeader('📱 Social Media Analytics'));
                 generateSocialAnalytics(dashboard, startDate, endDate, compareType);
+                hasSections = true;
             }
             
             // Email Section
             if (processedData['Email_Campaign_Performance.csv']) {
                 dashboard.appendChild(createSectionHeader('📧 Email Marketing Analytics'));
                 generateEmailAnalytics(dashboard, startDate, endDate, compareType);
+                hasSections = true;
             }
             
             // YouTube Section
             if (processedData['YouTube_Content.csv']) {
                 dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
                 generateYouTubeAnalytics(dashboard, startDate, endDate, compareType);
+                hasSections = true;
+            }
+            
+            // If no recognizable data files were found
+            if (!hasSections) {
+                const noDataCard = createCard('❌ No Recognized Data Files');
+                noDataCard.innerHTML += `
+                    <div class="no-data-message">
+                        <p>The uploaded files don't match the expected marketing data formats.</p>
+                        <p><strong>Expected files include:</strong></p>
+                        <ul style="text-align: left; margin: 15px 0;">
+                            <li>Google Analytics: GA_Demographics.csv, GA_Traffic_Acquisition.csv, etc.</li>
+                            <li>Facebook: FB_Interactions.csv, FB_Reach.csv, FB_Posts.csv, etc.</li>
+                            <li>Instagram: IG_Posts.csv, IG_Interactions.csv, IG_Reach.csv, etc.</li>
+                            <li>Email: Email_Campaign_Performance.csv</li>
+                            <li>YouTube: YouTube_Content.csv, YouTube_Age.csv, etc.</li>
+                        </ul>
+                        <p>Please check your file names and upload the correct marketing data exports.</p>
+                    </div>
+                `;
+                dashboard.appendChild(noDataCard);
             }
         }
         
@@ -1158,70 +1302,112 @@
                 
                 const card = createCard('🚀 Traffic Sources & Channels');
                 
-                const channelData = traffic.reduce((acc, row) => {
-                    const channel = row['Session primary channel group (Default Channel Group)'] || 'Unknown';
-                    if (!acc[channel]) {
-                        acc[channel] = { 
-                            sessions: 0, 
-                            engagedSessions: 0, 
-                            keyEvents: 0,
-                            avgEngagementTime: 0,
-                            count: 0
-                        };
-                    }
-                    acc[channel].sessions += parseNumber(row.Sessions);
-                    acc[channel].engagedSessions += parseNumber(row['Engaged sessions']);
-                    acc[channel].keyEvents += parseNumber(row['Key events']);
-                    acc[channel].avgEngagementTime += parseNumber(row['Average engagement time per session']);
-                    acc[channel].count++;
-                    return acc;
-                }, {});
+                // Get additional fields if available
+                const hasFullData = traffic.length > 0 && traffic[0]['Session primary channel group (Default Channel Group)'];
+                
+                let channelData = {};
+                
+                if (hasFullData) {
+                    channelData = traffic.reduce((acc, row) => {
+                        const channel = row['Session primary channel group (Default Channel Group)'] || 'Unknown';
+                        if (!acc[channel]) {
+                            acc[channel] = { 
+                                sessions: 0, 
+                                engagedSessions: 0, 
+                                keyEvents: 0,
+                                avgEngagementTime: 0,
+                                count: 0
+                            };
+                        }
+                        acc[channel].sessions += parseNumber(row.Sessions || 0);
+                        acc[channel].engagedSessions += parseNumber(row['Engaged sessions'] || 0);
+                        acc[channel].keyEvents += parseNumber(row['Key events'] || 0);
+                        acc[channel].avgEngagementTime += parseNumber(row['Average engagement time per session'] || 0);
+                        acc[channel].count++;
+                        return acc;
+                    }, {});
+                } else {
+                    // Use source/medium data if channel group not available
+                    channelData = traffic.reduce((acc, row) => {
+                        const source = row['Session source / medium'] || 'Unknown';
+                        if (!acc[source]) {
+                            acc[source] = { 
+                                sessions: 0, 
+                                engagedSessions: 0, 
+                                keyEvents: 0,
+                                avgEngagementTime: 0,
+                                count: 0
+                            };
+                        }
+                        acc[source].sessions += parseNumber(row.Sessions || 0);
+                        acc[source].engagedSessions += parseNumber(row['Engaged sessions'] || 0);
+                        acc[source].keyEvents += parseNumber(row['Key events'] || 0);
+                        acc[source].avgEngagementTime += parseNumber(row['Average engagement time per session'] || 0);
+                        acc[source].count++;
+                        return acc;
+                    }, {});
+                }
                 
                 // Calculate averages
                 Object.keys(channelData).forEach(channel => {
-                    channelData[channel].avgEngagementTime = channelData[channel].avgEngagementTime / channelData[channel].count;
-                    channelData[channel].engagementRate = channelData[channel].sessions > 0 ? 
-                        (channelData[channel].engagedSessions / channelData[channel].sessions) * 100 : 0;
+                    if (channelData[channel].count > 0) {
+                        channelData[channel].avgEngagementTime = channelData[channel].avgEngagementTime / channelData[channel].count;
+                        channelData[channel].engagementRate = channelData[channel].sessions > 0 ? 
+                            (channelData[channel].engagedSessions / channelData[channel].sessions) * 100 : 0;
+                    }
                 });
                 
-                const chartContainer = document.createElement('div');
-                chartContainer.className = 'chart-container';
-                const canvas = document.createElement('canvas');
-                chartContainer.appendChild(canvas);
-                card.appendChild(chartContainer);
-                
-                setTimeout(() => {
-                    new Chart(canvas, {
-                        type: 'doughnut',
-                        data: {
-                            labels: Object.keys(channelData),
-                            datasets: [{
-                                data: Object.values(channelData).map(d => d.sessions),
-                                backgroundColor: [
-                                    '#1a365d', '#2563eb', '#ea580c', '#f59e0b',
-                                    '#0891b2', '#059669', '#7c3aed', '#a3a3a3',
-                                    '#6b7280', '#f3f4f6'
-                                ]
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        padding: 20,
-                                        usePointStyle: true,
+                if (Object.keys(channelData).length > 0) {
+                    const chartContainer = document.createElement('div');
+                    chartContainer.className = 'chart-container';
+                    const canvas = document.createElement('canvas');
+                    chartContainer.appendChild(canvas);
+                    card.appendChild(chartContainer);
+                    
+                    setTimeout(() => {
+                        new Chart(canvas, {
+                            type: 'doughnut',
+                            data: {
+                                labels: Object.keys(channelData),
+                                datasets: [{
+                                    data: Object.values(channelData).map(d => d.sessions || d.engagedSessions),
+                                    backgroundColor: [
+                                        '#1a365d', '#2563eb', '#ea580c', '#f59e0b',
+                                        '#0891b2', '#059669', '#7c3aed', '#a3a3a3',
+                                        '#6b7280', '#f3f4f6'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: {
+                                            padding: 20,
+                                            usePointStyle: true,
+                                            font: {
+                                                family: 'Montserrat'
+                                            }
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: hasFullData ? 'Sessions by Channel Group' : 'Sessions by Source/Medium',
                                         font: {
-                                            family: 'Montserrat'
+                                            family: 'Montserrat',
+                                            weight: 700,
+                                            size: 16
                                         }
                                     }
                                 }
                             }
-                        }
-                    });
-                }, 100);
+                        });
+                    }, 100);
+                } else {
+                    card.innerHTML += '<p class="no-data-message">No traffic data available for selected period.</p>';
+                }
                 
                 container.appendChild(card);
             }
@@ -1400,7 +1586,7 @@
                 
                 let fbReach = 0, fbInteractions = 0, fbFollows = 0, fbViews = 0, fbVisits = 0, fbLinkClicks = 0;
                 
-                // Calculate Facebook metrics with proper number parsing
+                // Calculate Facebook metrics with proper number parsing and date filtering
                 if (processedData['FB_Reach.csv']) {
                     let reachData = processedData['FB_Reach.csv'];
                     if (startDate && endDate) {
@@ -1449,16 +1635,21 @@
                     fbLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
                 }
                 
-                metricsGrid.innerHTML = `
-                    ${createMetric(fbReach, 'Total Reach')}
-                    ${createMetric(fbInteractions, 'Interactions')}
-                    ${createMetric(fbFollows, 'New Follows')}
-                    ${createMetric(fbViews, 'Profile Views')}
-                    ${createMetric(fbVisits, 'Page Visits')}
-                    ${createMetric(fbLinkClicks, 'Link Clicks')}
-                `;
+                // Show message if no data for selected period
+                if (fbReach === 0 && fbInteractions === 0 && fbFollows === 0 && fbViews === 0 && fbVisits === 0 && fbLinkClicks === 0) {
+                    card.innerHTML += '<p class="no-data-message">No Facebook data available for selected date range.</p>';
+                } else {
+                    metricsGrid.innerHTML = `
+                        ${createMetric(fbReach, 'Total Reach')}
+                        ${createMetric(fbInteractions, 'Interactions')}
+                        ${createMetric(fbFollows, 'New Follows')}
+                        ${createMetric(fbViews, 'Profile Views')}
+                        ${createMetric(fbVisits, 'Page Visits')}
+                        ${createMetric(fbLinkClicks, 'Link Clicks')}
+                    `;
+                    card.appendChild(metricsGrid);
+                }
                 
-                card.appendChild(metricsGrid);
                 container.appendChild(card);
             }
             
@@ -1518,16 +1709,21 @@
                     igLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
                 }
                 
-                metricsGrid.innerHTML = `
-                    ${createMetric(igReach, 'Total Reach')}
-                    ${createMetric(igInteractions, 'Interactions')}
-                    ${createMetric(igFollows, 'New Follows')}
-                    ${createMetric(igViews, 'Profile Views')}
-                    ${createMetric(igVisits, 'Page Visits')}
-                    ${createMetric(igLinkClicks, 'Link Clicks')}
-                `;
+                // Show message if no data for selected period
+                if (igReach === 0 && igInteractions === 0 && igFollows === 0 && igViews === 0 && igVisits === 0 && igLinkClicks === 0) {
+                    card.innerHTML += '<p class="no-data-message">No Instagram data available for selected date range.</p>';
+                } else {
+                    metricsGrid.innerHTML = `
+                        ${createMetric(igReach, 'Total Reach')}
+                        ${createMetric(igInteractions, 'Interactions')}
+                        ${createMetric(igFollows, 'New Follows')}
+                        ${createMetric(igViews, 'Profile Views')}
+                        ${createMetric(igVisits, 'Page Visits')}
+                        ${createMetric(igLinkClicks, 'Link Clicks')}
+                    `;
+                    card.appendChild(metricsGrid);
+                }
                 
-                card.appendChild(metricsGrid);
                 container.appendChild(card);
             }
             
