@@ -588,6 +588,27 @@
             transform: translateY(-1px);
         }
         
+        .no-data-message {
+            text-align: center;
+            padding: 50px;
+            color: var(--duke-gray);
+            font-style: italic;
+            background: rgba(107, 114, 128, 0.05);
+            border-radius: 16px;
+            margin: 20px 0;
+        }
+        
+        .subscriber-note {
+            background: linear-gradient(135deg, #fef3cd, #fef3cd);
+            padding: 20px;
+            border-radius: 20px;
+            margin-top: 20px;
+            border-left: 4px solid var(--duke-orange);
+            box-shadow: 0 4px 15px rgba(234, 88, 12, 0.1);
+            font-size: 0.9rem;
+            color: var(--duke-gray);
+        }
+        
         @media (max-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -760,6 +781,902 @@
             fileList.appendChild(fileItem);
         }
         
+        // Enhanced parsing functions for numeric values
+        function parsePercentage(str) {
+            if (str === null || str === undefined || str === '') return 0;
+            if (typeof str === 'number') return isNaN(str) ? 0 : str;
+            if (typeof str === 'string') {
+                const cleaned = str.replace(/[%,\s]/g, '');
+                if (cleaned === '') return 0;
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+            return 0;
+        }
+        
+        function parseNumber(str) {
+            if (str === null || str === undefined || str === '') return 0;
+            if (typeof str === 'number') return isNaN(str) ? 0 : str;
+            if (typeof str === 'string') {
+                const cleaned = str.replace(/[,\s]/g, '');
+                if (cleaned === '') return 0;
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+            return 0;
+        }
+        
+        function parseDate(dateStr) {
+            if (typeof dateStr === 'number' && dateStr.toString().length === 10) {
+                const str = dateStr.toString();
+                const year = str.substring(0, 4);
+                const month = str.substring(4, 6);
+                const day = str.substring(6, 8);
+                const hour = str.substring(8, 10);
+                return new Date(year, month - 1, day, hour);
+            } else if (typeof dateStr === 'string') {
+                return new Date(dateStr);
+            }
+            return new Date(dateStr);
+        }
+        
+        function processFile(file) {
+            // Special handling for UTF-16 encoded audience files
+            if (file.name === 'IG_Audience.csv' || file.name === 'FB_Audience.csv') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    const decoder = new TextDecoder('utf-16le');
+                    const content = decoder.decode(arrayBuffer);
+                    processedData[file.name] = content;
+                    checkAllFilesProcessed();
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // Regular CSV processing for other files
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    delimitersToGuess: [',', '\t', '|', ';'],
+                    complete: (results) => {
+                        // Clean column headers by trimming whitespace
+                        if (results.data.length > 0) {
+                            const cleanedData = results.data.map(row => {
+                                const cleanedRow = {};
+                                Object.keys(row).forEach(key => {
+                                    const cleanKey = key.trim();
+                                    cleanedRow[cleanKey] = row[key];
+                                });
+                                return cleanedRow;
+                            });
+                            processedData[file.name] = cleanedData;
+                        } else {
+                            processedData[file.name] = results.data;
+                        }
+                        checkAllFilesProcessed();
+                    },
+                    error: (error) => {
+                        console.log(`Error parsing ${file.name}:`, error);
+                        processedData[file.name] = [];
+                        checkAllFilesProcessed();
+                    }
+                });
+            }
+        }
+        
+        function checkAllFilesProcessed() {
+            if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
+                generateDashboard();
+            }
+        }
+        
+        function setDefaultDates() {
+            const dateRange = getDataDateRange();
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const dateRangeInfo = document.getElementById('dateRangeInfo');
+            
+            if (dateRange.min && dateRange.max) {
+                startDateInput.min = dateRange.min.toISOString().split('T')[0];
+                startDateInput.max = dateRange.max.toISOString().split('T')[0];
+                endDateInput.min = dateRange.min.toISOString().split('T')[0];
+                endDateInput.max = dateRange.max.toISOString().split('T')[0];
+                
+                const minDateStr = dateRange.min.toLocaleDateString();
+                const maxDateStr = dateRange.max.toLocaleDateString();
+                dateRangeInfo.innerHTML = `📅 Data available from ${minDateStr} to ${maxDateStr}`;
+                
+                const daysDiff = (dateRange.max - dateRange.min) / (1000 * 60 * 60 * 24);
+                if (daysDiff <= 30) {
+                    startDateInput.value = dateRange.min.toISOString().split('T')[0];
+                    endDateInput.value = dateRange.max.toISOString().split('T')[0];
+                } else {
+                    const thirtyDaysAgo = new Date(dateRange.max.getTime() - (30 * 24 * 60 * 60 * 1000));
+                    startDateInput.value = Math.max(thirtyDaysAgo, dateRange.min).toISOString().split('T')[0];
+                    endDateInput.value = dateRange.max.toISOString().split('T')[0];
+                }
+            } else {
+                const today = new Date();
+                const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+                
+                endDateInput.value = today.toISOString().split('T')[0];
+                startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+                dateRangeInfo.innerHTML = `⚠️ No date data found in files - using current date`;
+            }
+        }
+        
+        function getDataDateRange() {
+            let minDate = null;
+            let maxDate = null;
+            
+            // Check all date fields across files
+            const dateFields = {
+                'GA_Demographics.csv': 'Date + hour (YYYYMMDDHH)',
+                'GA_Traffic_Acquisition.csv': 'Date + hour (YYYYMMDDHH)',
+                'GA_Pages_And_Screens.csv': 'Date + hour (YYYYMMDDHH)',
+                'GA_UTMs.csv': 'Date + hour (YYYYMMDDHH)',
+                'FB_Interactions.csv': 'Date',
+                'FB_Reach.csv': 'Date',
+                'FB_Follows.csv': 'Date',
+                'FB_Link_clicks.csv': 'Date',
+                'FB_Views.csv': 'Date',
+                'FB_Visits.csv': 'Date',
+                'FB_Videos.csv': 'Date',
+                'FB_Posts.csv': 'Publish time',
+                'IG_Interactions.csv': 'Date',
+                'IG_Reach.csv': 'Date',
+                'IG_Follows.csv': 'Date',
+                'IG_Link_clicks.csv': 'Date',
+                'IG_Views.csv': 'Date',
+                'IG_Visits.csv': 'Date',
+                'IG_Posts.csv': 'Publish time',
+                'YouTube_Content.csv': 'Video publish time'
+            };
+            
+            Object.entries(dateFields).forEach(([fileName, dateField]) => {
+                if (processedData[fileName] && Array.isArray(processedData[fileName])) {
+                    processedData[fileName].forEach(row => {
+                        if (row[dateField]) {
+                            const date = parseDate(row[dateField]);
+                            if (!isNaN(date.getTime())) {
+                                if (!minDate || date < minDate) minDate = date;
+                                if (!maxDate || date > maxDate) maxDate = date;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            return { min: minDate, max: maxDate };
+        }
+        
+        function selectFullRange() {
+            const dateRange = getDataDateRange();
+            if (dateRange.min && dateRange.max) {
+                document.getElementById('startDate').value = dateRange.min.toISOString().split('T')[0];
+                document.getElementById('endDate').value = dateRange.max.toISOString().split('T')[0];
+                updateDashboard();
+            }
+        }
+        
+        function filterDataByDate(data, dateField, startDate, endDate) {
+            if (!startDate || !endDate) return data;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            return data.filter(row => {
+                const date = parseDate(row[dateField]);
+                return date >= start && date <= end;
+            });
+        }
+        
+        function generateDashboard(startDate = null, endDate = null, compareType = 'none') {
+            const dashboard = document.getElementById('dashboard');
+            dashboard.innerHTML = '';
+            
+            // Add data overview section
+            const dataOverview = createDataOverview(startDate, endDate);
+            dashboard.appendChild(dataOverview);
+            
+            // Web Analytics Section
+            if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
+                dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
+                generateWebAnalytics(dashboard, startDate, endDate, compareType);
+            }
+            
+            // Social Media Section
+            if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv'] || processedData['FB_Videos.csv'] || 
+                processedData['FB_Audience.csv'] || processedData['IG_Audience.csv']) {
+                dashboard.appendChild(createSectionHeader('📱 Social Media Analytics'));
+                generateSocialAnalytics(dashboard, startDate, endDate, compareType);
+            }
+            
+            // Email Section
+            if (processedData['Email_Campaign_Performance.csv']) {
+                dashboard.appendChild(createSectionHeader('📧 Email Marketing Analytics'));
+                generateEmailAnalytics(dashboard, startDate, endDate, compareType);
+            }
+            
+            // YouTube Section
+            if (processedData['YouTube_Content.csv']) {
+                dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
+                generateYouTubeAnalytics(dashboard, startDate, endDate, compareType);
+            }
+        }
+        
+        function createDataOverview(startDate, endDate) {
+            const overviewCard = createCard('📋 Data Overview & Status');
+            
+            const dataTypes = {
+                'Web Analytics': ['GA_Demographics.csv', 'GA_Traffic_Acquisition.csv', 'GA_Pages_And_Screens.csv', 'GA_UTMs.csv'],
+                'Facebook': ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Videos.csv', 'FB_Posts.csv', 'FB_Audience.csv'],
+                'Instagram': ['IG_Posts.csv', 'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv', 'IG_Audience.csv'],
+                'Email': ['Email_Campaign_Performance.csv'],
+                'YouTube': ['YouTube_Content.csv', 'YouTube_Age.csv', 'YouTube_Gender.csv', 'YouTube_Geography.csv', 'YouTube_Subscription_Status.csv']
+            };
+            
+            let overviewHTML = `<div class="data-overview-grid">`;
+            
+            Object.entries(dataTypes).forEach(([category, files]) => {
+                const loadedFiles = files.filter(file => processedData[file]);
+                const totalFiles = files.length;
+                const loadedCount = loadedFiles.length;
+                
+                let statusColor = loadedCount === 0 ? '#dc2626' : loadedCount === totalFiles ? 'var(--duke-green)' : 'var(--duke-orange)';
+                let statusIcon = loadedCount === 0 ? '❌' : loadedCount === totalFiles ? '✅' : '⚠️';
+                
+                overviewHTML += `
+                    <div class="data-status-card" style="border-left-color: ${statusColor};">
+                        <h4>${statusIcon} ${category}</h4>
+                        <p>${loadedCount}/${totalFiles} files loaded</p>
+                        ${loadedFiles.length > 0 ? `<small>Loaded: ${loadedFiles.join(', ')}</small>` : ''}
+                    </div>
+                `;
+            });
+            
+            overviewHTML += '</div>';
+            
+            // Add audience analytics info
+            const audienceFiles = ['FB_Audience.csv', 'IG_Audience.csv'].filter(file => processedData[file]);
+            if (audienceFiles.length > 0) {
+                overviewHTML += `
+                    <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-green); box-shadow: 0 4px 15px rgba(5, 150, 105, 0.1);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">👥 Audience Demographics Available</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
+                            Loaded: <strong>${audienceFiles.join(', ')}</strong><br>
+                            <small>Age, gender, and location demographics are displayed in the Social Media section</small>
+                        </p>
+                    </div>
+                `;
+            }
+            
+            if (startDate && endDate) {
+                overviewHTML += `
+                    <div style="background: linear-gradient(135deg, #fef3cd, #fef3cd); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-orange); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.1);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">📅 Date Range Filter Active</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
+                            Showing data from <strong>${new Date(startDate).toLocaleDateString()}</strong> to <strong>${new Date(endDate).toLocaleDateString()}</strong>
+                        </p>
+                    </div>
+                `;
+            }
+            
+            overviewCard.innerHTML += overviewHTML;
+            return overviewCard;
+        }
+        
+        function createSectionHeader(title) {
+            const header = document.createElement('div');
+            header.className = 'section-header';
+            header.textContent = title;
+            return header;
+        }
+        
+        function generateWebAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // Demographics Card
+            if (processedData['GA_Demographics.csv']) {
+                let demographics = processedData['GA_Demographics.csv'];
+                
+                if (startDate && endDate) {
+                    demographics = filterDataByDate(demographics, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
+                const card = createCard('🌍 Demographics & User Insights');
+                
+                // Metrics
+                const totalUsers = demographics.reduce((sum, row) => sum + parseNumber(row['Total users']), 0);
+                const newUsers = demographics.reduce((sum, row) => sum + parseNumber(row['New users']), 0);
+                const returningUsers = demographics.reduce((sum, row) => sum + parseNumber(row['Returning users']), 0);
+                const totalSessions = demographics.reduce((sum, row) => sum + parseNumber(row.Sessions), 0);
+                const avgEngagement = demographics.length > 0 ? 
+                    demographics.reduce((sum, row) => sum + parseNumber(row['Engagement rate']), 0) / demographics.length : 0;
+                const avgEngagementTime = demographics.length > 0 ? 
+                    demographics.reduce((sum, row) => sum + parseNumber(row['Average engagement time per session']), 0) / demographics.length : 0;
+                
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                metricsGrid.innerHTML = `
+                    ${createMetric(totalUsers, 'Total Users')}
+                    ${createMetric(newUsers, 'New Users')}
+                    ${createMetric(Math.round((newUsers/totalUsers) * 100) + '%', 'New User %')}
+                    ${createMetric(totalSessions, 'Sessions')}
+                    ${createMetric((avgEngagement * 100).toFixed(1) + '%', 'Engagement Rate')}
+                    ${createMetric(Math.round(avgEngagementTime) + 's', 'Avg. Session Time')}
+                `;
+                card.appendChild(metricsGrid);
+                
+                // Top countries and cities
+                const locationData = demographics.reduce((acc, row) => {
+                    const country = row.Country || 'Unknown';
+                    const city = row.City || 'Unknown';
+                    if (!acc[country]) acc[country] = { sessions: 0, cities: {} };
+                    acc[country].sessions += parseNumber(row.Sessions);
+                    if (!acc[country].cities[city]) acc[country].cities[city] = 0;
+                    acc[country].cities[city] += parseNumber(row.Sessions);
+                    return acc;
+                }, {});
+                
+                const topCountries = Object.entries(locationData)
+                    .sort(([,a], [,b]) => b.sessions - a.sessions)
+                    .slice(0, 5);
+                
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container';
+                tableContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr><th>Country</th><th>Sessions</th><th>Top City</th><th>City Sessions</th></tr>
+                        </thead>
+                        <tbody>
+                            ${topCountries.map(([country, data]) => {
+                                const topCity = Object.entries(data.cities).sort(([,a], [,b]) => b - a)[0];
+                                return `<tr>
+                                    <td><strong>${country}</strong></td>
+                                    <td>${data.sessions.toLocaleString()}</td>
+                                    <td>${topCity ? topCity[0] : 'N/A'}</td>
+                                    <td>${topCity ? topCity[1].toLocaleString() : '0'}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                card.appendChild(tableContainer);
+                container.appendChild(card);
+            }
+            
+            // Traffic Sources
+            if (processedData['GA_Traffic_Acquisition.csv']) {
+                let traffic = processedData['GA_Traffic_Acquisition.csv'];
+                
+                if (startDate && endDate) {
+                    traffic = filterDataByDate(traffic, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
+                const card = createCard('🚀 Traffic Sources & Channels');
+                
+                const channelData = traffic.reduce((acc, row) => {
+                    const channel = row['Session primary channel group (Default Channel Group)'] || 'Unknown';
+                    if (!acc[channel]) {
+                        acc[channel] = { 
+                            sessions: 0, 
+                            engagedSessions: 0, 
+                            keyEvents: 0,
+                            avgEngagementTime: 0,
+                            count: 0
+                        };
+                    }
+                    acc[channel].sessions += parseNumber(row.Sessions);
+                    acc[channel].engagedSessions += parseNumber(row['Engaged sessions']);
+                    acc[channel].keyEvents += parseNumber(row['Key events']);
+                    acc[channel].avgEngagementTime += parseNumber(row['Average engagement time per session']);
+                    acc[channel].count++;
+                    return acc;
+                }, {});
+                
+                // Calculate averages
+                Object.keys(channelData).forEach(channel => {
+                    channelData[channel].avgEngagementTime = channelData[channel].avgEngagementTime / channelData[channel].count;
+                    channelData[channel].engagementRate = channelData[channel].sessions > 0 ? 
+                        (channelData[channel].engagedSessions / channelData[channel].sessions) * 100 : 0;
+                });
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                card.appendChild(chartContainer);
+                
+                setTimeout(() => {
+                    new Chart(canvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(channelData),
+                            datasets: [{
+                                data: Object.values(channelData).map(d => d.sessions),
+                                backgroundColor: [
+                                    '#1a365d', '#2563eb', '#ea580c', '#f59e0b',
+                                    '#0891b2', '#059669', '#7c3aed', '#a3a3a3',
+                                    '#6b7280', '#f3f4f6'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        usePointStyle: true,
+                                        font: {
+                                            family: 'Montserrat'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }, 100);
+                
+                container.appendChild(card);
+            }
+            
+            // Top Landing Pages
+            if (processedData['GA_Pages_And_Screens.csv']) {
+                let pages = processedData['GA_Pages_And_Screens.csv'];
+                
+                if (startDate && endDate) {
+                    pages = filterDataByDate(pages, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
+                const card = createCard('📄 Top Landing Pages by Sessions & Engagement');
+                
+                const pageData = pages.reduce((acc, row) => {
+                    const path = row['Page path and screen class'] || 'Unknown';
+                    const title = row['Page title and screen class'] || 'Unknown';
+                    if (!acc[path]) {
+                        acc[path] = { 
+                            views: 0, 
+                            users: 0, 
+                            keyEvents: 0, 
+                            title: title,
+                            eventCount: 0,
+                            totalEngagementTime: 0,
+                            sessions: 0
+                        };
+                    }
+                    acc[path].views += parseNumber(row.Views);
+                    acc[path].users += parseNumber(row['Active users']);
+                    acc[path].keyEvents += parseNumber(row['Key events']);
+                    acc[path].eventCount += parseNumber(row['Event count']);
+                    
+                    // Estimate engagement time based on active users and average engagement
+                    const userEngagementTime = parseNumber(row['Active users']) * 45; // Estimated 45s per user
+                    acc[path].totalEngagementTime += userEngagementTime;
+                    acc[path].sessions += parseNumber(row['Active users']); // Use active users as proxy for sessions
+                    return acc;
+                }, {});
+                
+                // Calculate average engagement time per page
+                Object.keys(pageData).forEach(page => {
+                    pageData[page].avgEngagementTime = pageData[page].sessions > 0 ? 
+                        pageData[page].totalEngagementTime / pageData[page].sessions : 0;
+                });
+                
+                const topPagesByEngagement = Object.entries(pageData)
+                    .sort(([,a], [,b]) => b.totalEngagementTime - a.totalEngagementTime)
+                    .slice(0, 10);
+                
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container';
+                tableContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Page Path</th>
+                                <th>Views</th>
+                                <th>Users</th>
+                                <th>Est. Total Engagement Time</th>
+                                <th>Key Events</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${topPagesByEngagement.map(([page, data]) => 
+                                `<tr>
+                                    <td><strong>${page}</strong></td>
+                                    <td>${data.views.toLocaleString()}</td>
+                                    <td>${data.users.toLocaleString()}</td>
+                                    <td>${Math.round(data.totalEngagementTime / 60).toLocaleString()} min</td>
+                                    <td>${data.keyEvents.toLocaleString()}</td>
+                                </tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                `;
+                card.appendChild(tableContainer);
+                container.appendChild(card);
+            }
+            
+            // Campaign Performance (UTM tracking)
+            if (processedData['GA_UTMs.csv']) {
+                let utms = processedData['GA_UTMs.csv'];
+                
+                if (startDate && endDate) {
+                    utms = filterDataByDate(utms, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+                }
+                
+                const card = createCard('🎯 Campaign Performance (Specific Campaigns)');
+                
+                const campaignData = utms.reduce((acc, row) => {
+                    const campaign = row['Manual campaign name'] || 'Unknown';
+                    const source = row['Manual source / medium'] || 'Unknown';
+                    const key = `${campaign} (${source})`;
+                    
+                    if (!acc[key]) {
+                        acc[key] = { 
+                            sessions: 0, 
+                            engagedSessions: 0, 
+                            keyEvents: 0, 
+                            eventValue: 0 
+                        };
+                    }
+                    acc[key].sessions += parseNumber(row.Sessions);
+                    acc[key].engagedSessions += parseNumber(row['Engaged sessions']);
+                    acc[key].keyEvents += parseNumber(row['Key events']);
+                    acc[key].eventValue += parseNumber(row['Event value']);
+                    return acc;
+                }, {});
+                
+                const topCampaigns = Object.entries(campaignData)
+                    .sort(([,a], [,b]) => b.sessions - a.sessions)
+                    .slice(0, 8);
+                
+                if (topCampaigns.length > 0) {
+                    const tableContainer = document.createElement('div');
+                    tableContainer.className = 'table-container';
+                    tableContainer.innerHTML = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Campaign (Source)</th>
+                                    <th>Sessions</th>
+                                    <th>Engaged</th>
+                                    <th>Events</th>
+                                    <th>Event Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topCampaigns.map(([campaign, data]) => 
+                                    `<tr>
+                                        <td><strong>${campaign}</strong></td>
+                                        <td>${data.sessions.toLocaleString()}</td>
+                                        <td>${data.engagedSessions.toLocaleString()}</td>
+                                        <td>${data.keyEvents.toLocaleString()}</td>
+                                        <td>$${data.eventValue.toLocaleString()}</td>
+                                    </tr>`
+                                ).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    card.appendChild(tableContainer);
+                } else {
+                    card.innerHTML += '<p class="no-data-message">No UTM campaign data available for selected period.</p>';
+                }
+                container.appendChild(card);
+            }
+            
+            dashboard.appendChild(container);
+        }
+        
+        function generateSocialAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
+            const container = document.createElement('div');
+            container.className = 'dashboard';
+            
+            // Social Media Audience Demographics
+            generateAudienceDemographics(container);
+            
+            // Page Rank Note
+            const pageRankCard = createCard('📊 Page Rank Information');
+            pageRankCard.innerHTML += `
+                <div class="subscriber-note">
+                    <strong>📈 Page Rank Data:</strong> Page rank information is not included in the standard Facebook export files. 
+                    This metric would need to be obtained through Facebook Insights' Page Quality tab or through the Facebook Graph API.
+                    <br><br>
+                    <strong>Alternative Metrics Available:</strong> We're showing reach, engagement, and follower growth trends which are good indicators of page performance.
+                </div>
+            `;
+            container.appendChild(pageRankCard);
+            
+            // Facebook Analytics Overview
+            if (processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv']) {
+                const card = createCard('📘 Facebook Performance - General Metrics');
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                
+                let fbReach = 0, fbInteractions = 0, fbFollows = 0, fbViews = 0, fbVisits = 0, fbLinkClicks = 0;
+                
+                // Calculate Facebook metrics with proper number parsing
+                if (processedData['FB_Reach.csv']) {
+                    let reachData = processedData['FB_Reach.csv'];
+                    if (startDate && endDate) {
+                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
+                    }
+                    fbReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Interactions.csv']) {
+                    let interactionData = processedData['FB_Interactions.csv'];
+                    if (startDate && endDate) {
+                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
+                    }
+                    fbInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Follows.csv']) {
+                    let followData = processedData['FB_Follows.csv'];
+                    if (startDate && endDate) {
+                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
+                    }
+                    fbFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Views.csv']) {
+                    let viewData = processedData['FB_Views.csv'];
+                    if (startDate && endDate) {
+                        viewData = filterDataByDate(viewData, 'Date', startDate, endDate);
+                    }
+                    fbViews = viewData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Visits.csv']) {
+                    let visitData = processedData['FB_Visits.csv'];
+                    if (startDate && endDate) {
+                        visitData = filterDataByDate(visitData, 'Date', startDate, endDate);
+                    }
+                    fbVisits = visitData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['FB_Link_clicks.csv']) {
+                    let linkData = processedData['FB_Link_clicks.csv'];
+                    if (startDate && endDate) {
+                        linkData = filterDataByDate(linkData, 'Date', startDate, endDate);
+                    }
+                    fbLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                metricsGrid.innerHTML = `
+                    ${createMetric(fbReach, 'Total Reach')}
+                    ${createMetric(fbInteractions, 'Interactions')}
+                    ${createMetric(fbFollows, 'New Follows')}
+                    ${createMetric(fbViews, 'Profile Views')}
+                    ${createMetric(fbVisits, 'Page Visits')}
+                    ${createMetric(fbLinkClicks, 'Link Clicks')}
+                `;
+                
+                card.appendChild(metricsGrid);
+                container.appendChild(card);
+            }
+            
+            // Instagram Analytics Overview  
+            if (processedData['IG_Interactions.csv'] || processedData['IG_Reach.csv']) {
+                const card = createCard('📷 Instagram Performance - General Metrics');
+                const metricsGrid = document.createElement('div');
+                metricsGrid.className = 'metric-grid';
+                
+                let igReach = 0, igInteractions = 0, igFollows = 0, igViews = 0, igVisits = 0, igLinkClicks = 0;
+                
+                if (processedData['IG_Reach.csv']) {
+                    let reachData = processedData['IG_Reach.csv'];
+                    if (startDate && endDate) {
+                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
+                    }
+                    igReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['IG_Interactions.csv']) {
+                    let interactionData = processedData['IG_Interactions.csv'];
+                    if (startDate && endDate) {
+                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
+                    }
+                    igInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['IG_Follows.csv']) {
+                    let followData = processedData['IG_Follows.csv'];
+                    if (startDate && endDate) {
+                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
+                    }
+                    igFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['IG_Views.csv']) {
+                    let viewData = processedData['IG_Views.csv'];
+                    if (startDate && endDate) {
+                        viewData = filterDataByDate(viewData, 'Date', startDate, endDate);
+                    }
+                    igViews = viewData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['IG_Visits.csv']) {
+                    let visitData = processedData['IG_Visits.csv'];
+                    if (startDate && endDate) {
+                        visitData = filterDataByDate(visitData, 'Date', startDate, endDate);
+                    }
+                    igVisits = visitData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                if (processedData['IG_Link_clicks.csv']) {
+                    let linkData = processedData['IG_Link_clicks.csv'];
+                    if (startDate && endDate) {
+                        linkData = filterDataByDate(linkData, 'Date', startDate, endDate);
+                    }
+                    igLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
+                }
+                
+                metricsGrid.innerHTML = `
+                    ${createMetric(igReach, 'Total Reach')}
+                    ${createMetric(igInteractions, 'Interactions')}
+                    ${createMetric(igFollows, 'New Follows')}
+                    ${createMetric(igViews, 'Profile Views')}
+                    ${createMetric(igVisits, 'Page Visits')}
+                    ${createMetric(igLinkClicks, 'Link Clicks')}
+                `;
+                
+                card.appendChild(metricsGrid);
+                container.appendChild(card);
+            }
+            
+            // Top Instagram Posts Analysis
+            if (processedData['IG_Posts.csv'] && processedData['IG_Posts.csv'].length > 0) {
+                let posts = processedData['IG_Posts.csv'];
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    posts = posts.filter(post => {
+                        if (post['Publish time']) {
+                            const postDate = new Date(post['Publish time']);
+                            return postDate >= start && postDate <= end;
+                        } else if (post['Date']) {
+                            const postDate = new Date(post['Date']);
+                            return postDate >= start && postDate <= end;
+                        }
+                        return true;
+                    });
+                }
+                
+                const card = createCard('🏆 Top 5 Instagram Posts');
+                
+                // Create tabs for different sorting options
+                const tabContainer = document.createElement('div');
+                tabContainer.className = 'tab-container';
+                
+                ['Reach', 'Likes', 'Comments', 'Saves', 'Shares'].forEach((metric, index) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'tab-button';
+                    if (index === 0) tab.classList.add('active');
+                    tab.textContent = `By ${metric}`;
+                    tab.onclick = () => displayTopPosts(metric, posts, card);
+                    tabContainer.appendChild(tab);
+                });
+                
+                card.appendChild(tabContainer);
+                
+                // Initial display
+                displayTopPosts('Reach', posts, card);
+                container.appendChild(card);
+            }
+            
+            // Top Facebook Posts Analysis (if available)
+            if (processedData['FB_Posts.csv'] && processedData['FB_Posts.csv'].length > 0) {
+                let fbPosts = processedData['FB_Posts.csv'];
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    fbPosts = fbPosts.filter(post => {
+                        if (post['Publish time']) {
+                            const postDate = new Date(post['Publish time']);
+                            return postDate >= start && postDate <= end;
+                        } else if (post['Date']) {
+                            const postDate = new Date(post['Date']);
+                            return postDate >= start && postDate <= end;
+                        }
+                        return true;
+                    });
+                }
+                
+                const fbCard = createCard('📘 Top 5 Facebook Posts');
+                
+                // Create tabs for Facebook posts
+                const fbTabContainer = document.createElement('div');
+                fbTabContainer.className = 'tab-container';
+                
+                ['Reach', 'Reactions', 'Comments', 'Shares', 'Total clicks'].forEach((metric, index) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'tab-button';
+                    if (index === 0) tab.classList.add('active');
+                    tab.textContent = `By ${metric.includes('Total clicks') ? 'Clicks' : metric}`;
+                    tab.onclick = () => displayTopFacebookPosts(metric, fbPosts, fbCard);
+                    fbTabContainer.appendChild(tab);
+                });
+                
+                fbCard.appendChild(fbTabContainer);
+                
+                // Initial display
+                displayTopFacebookPosts('Reach', fbPosts, fbCard);
+                container.appendChild(fbCard);
+            }
+            
+            // Facebook Videos Performance
+            if (processedData['FB_Videos.csv'] && processedData['FB_Videos.csv'].length > 0) {
+                let videos = processedData['FB_Videos.csv'];
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    videos = videos.filter(video => {
+                        if (video.Date) {
+                            const videoDate = new Date(video.Date);
+                            return videoDate >= start && videoDate <= end;
+                        }
+                        return true;
+                    });
+                }
+                
+                if (videos.length > 0) {
+                    const card = createCard('🎬 Facebook Video Performance');
+                    
+                    const topVideos = videos
+                        .filter(video => parseNumber(video.Reach) > 0)
+                        .sort((a, b) => parseNumber(b.Reach) - parseNumber(a.Reach))
+                        .slice(0, 5);
+                    
+                    if (topVideos.length > 0) {
+                        const tableContainer = document.createElement('div');
+                        tableContainer.className = 'table-container';
+                        tableContainer.innerHTML = `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Video Title</th>
+                                        <th>Reach</th>
+                                        <th>3s Views</th>
+                                        <th>1m Views</th>
+                                        <th>Engagement</th>
+                                        <th>Watch Time (hrs)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topVideos.map(video => 
+                                        `<tr>
+                                            <td><strong>${(video.Title || 'Untitled').substring(0, 40)}...</strong></td>
+                                            <td>${parseNumber(video.Reach).toLocaleString()}</td>
+                                            <td>${parseNumber(video['3-second video views']).toLocaleString()}</td>
+                                            <td>${parseNumber(video['1-minute video views']).toLocaleString()}</td>
+                                            <td>${parseNumber(video['Reactions, Comments and Shares']).toLocaleString()}</td>
+                                            <td>${(parseNumber(video['Seconds viewed']) / 3600).toFixed(1)}</td>
+                                        </tr>`
+                                    ).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                        card.appendChild(tableContainer);
+                    } else {
+                        card.innerHTML += '<p class="no-data-message">No video data available for selected period.</p>';
+                    }
+                    container.appendChild(card);
+                }
+            }
+            
+            dashboard.appendChild(container);
+        }
+        
         function generateAudienceDemographics(container) {
             // Facebook Audience Demographics
             if (processedData['FB_Audience.csv']) {
@@ -780,60 +1697,54 @@
             // Facebook audience data has a specific structure - parse it properly
             const lines = rawData.split('\n').map(line => line.trim()).filter(line => line);
             
-            // Find age demographics
+            // Find sections
             let ageData = [];
             let cityData = [];
             let countryData = [];
-            let currentSection = 'age';
+            let currentSection = '';
             
-            for (let i = 1; i < lines.length; i++) { // Skip header
+            for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 
-                if (line.includes('Top cities')) {
-                    currentSection = 'cities_header';
+                if (line.includes('Age & gender')) {
+                    currentSection = 'age';
+                    i++; // Skip header
+                    continue;
+                } else if (line.includes('Top cities')) {
+                    currentSection = 'cities';
+                    i++; // Skip header
                     continue;
                 } else if (line.includes('Top countries')) {
-                    currentSection = 'countries_header';
+                    currentSection = 'countries';
+                    i++; // Skip header
                     continue;
                 }
                 
-                if (currentSection === 'age' && line.includes('-') || line.includes('+')) {
+                if (currentSection === 'age' && line.includes(',')) {
                     const parts = line.split(',');
-                    if (parts.length >= 3) {
+                    if (parts.length >= 3 && (parts[0].includes('-') || parts[0].includes('+'))) {
                         ageData.push({
-                            age: parts[0],
-                            women: parseFloat(parts[1]) || 0,
-                            men: parseFloat(parts[2]) || 0
+                            age: parts[0].replace(/"/g, '').trim(),
+                            women: parseFloat(parts[1].replace(/["%]/g, '').trim()) || 0,
+                            men: parseFloat(parts[2].replace(/["%]/g, '').trim()) || 0
                         });
                     }
-                } else if (currentSection === 'cities_header') {
-                    // Next line after "Top cities" header contains city names
-                    const cities = line.replace(/"/g, '').split(',').filter(c => c.trim());
-                    currentSection = 'cities_values';
-                    
-                    // Get values from next line
-                    if (i + 1 < lines.length) {
-                        const values = lines[i + 1].split(',').map(v => parseFloat(v) || 0);
-                        for (let j = 0; j < Math.min(cities.length, values.length); j++) {
-                            cityData.push({ city: cities[j].trim(), percentage: values[j] });
-                        }
-                        i++; // Skip the values line
+                } else if (currentSection === 'cities' && line.includes(',')) {
+                    const parts = line.split(',');
+                    if (parts.length === 2) {
+                        cityData.push({
+                            city: parts[0].replace(/"/g, '').trim(),
+                            percentage: parseFloat(parts[1].replace(/["%]/g, '').trim()) || 0
+                        });
                     }
-                    currentSection = 'none';
-                } else if (currentSection === 'countries_header') {
-                    const countries = line.replace(/"/g, '').split(',').filter(c => c.trim());
-                    currentSection = 'countries_values';
-                    
-                    if (i + 1 < lines.length) {
-                        const values = lines[i + 1].split(',').map(v => parseFloat(v) || 0);
-                        for (let j = 0; j < Math.min(countries.length, values.length); j++) {
-                            if (countries[j].trim()) {
-                                countryData.push({ country: countries[j].trim(), percentage: values[j] });
-                            }
-                        }
-                        i++;
+                } else if (currentSection === 'countries' && line.includes(',')) {
+                    const parts = line.split(',');
+                    if (parts.length === 2) {
+                        countryData.push({
+                            country: parts[0].replace(/"/g, '').trim(),
+                            percentage: parseFloat(parts[1].replace(/["%]/g, '').trim()) || 0
+                        });
                     }
-                    currentSection = 'none';
                 }
             }
             
@@ -940,50 +1851,58 @@
             let followerCount = 0;
             let ageData = [];
             let cityData = [];
-            let currentSection = 'none';
+            let countryData = [];
+            let currentSection = '';
             
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].replace(/"/g, '');
                 
                 // Extract follower count
-                if (line.match(/^\d+$/)) {
+                if (line.match(/^\d+$/) && i < 5) {
                     followerCount = parseInt(line);
                 }
                 
                 // Detect sections
-                if (line.includes('gender and age')) {
-                    currentSection = 'age_header';
+                if (line.includes('by gender and age')) {
+                    currentSection = 'age';
+                    i++; // Skip header
                     continue;
-                } else if (line.includes('top cities')) {
-                    currentSection = 'cities_header';
+                } else if (line.includes('by top cities')) {
+                    currentSection = 'cities';
+                    i++; // Skip header
+                    continue;
+                } else if (line.includes('by top countries')) {
+                    currentSection = 'countries';
+                    i++; // Skip header
                     continue;
                 }
                 
-                // Parse age data
-                if (currentSection === 'age_data') {
+                // Parse data based on section
+                if (currentSection === 'age' && line.includes(',')) {
                     const parts = line.split(',');
-                    if (parts.length >= 3 && parts[0].includes('-') || parts[0].includes('+')) {
+                    if (parts.length >= 3 && (parts[0].includes('-') || parts[0].includes('+'))) {
                         ageData.push({
-                            age: parts[0],
-                            women: parseFloat(parts[1].replace('%', '')) || 0,
-                            men: parseFloat(parts[2].replace('%', '')) || 0
+                            age: parts[0].trim(),
+                            women: parseFloat(parts[1].replace('%', '').trim()) || 0,
+                            men: parseFloat(parts[2].replace('%', '').trim()) || 0
                         });
                     }
-                } else if (currentSection === 'cities_data') {
+                } else if (currentSection === 'cities' && line.includes(',')) {
                     const parts = line.split(',');
-                    if (parts.length >= 2 && !parts[0].includes('Top cities')) {
+                    if (parts.length >= 2) {
                         cityData.push({
-                            city: parts[0],
-                            percentage: parseFloat(parts[1].replace('%', '')) || 0
+                            city: parts[0].trim(),
+                            percentage: parseFloat(parts[1].replace('%', '').trim()) || 0
                         });
                     }
-                }
-                
-                // Set data parsing mode
-                if (currentSection === 'age_header' && line.includes('Age')) {
-                    currentSection = 'age_data';
-                } else if (currentSection === 'cities_header' && line.includes('Top cities')) {
-                    currentSection = 'cities_data';
+                } else if (currentSection === 'countries' && line.includes(',')) {
+                    const parts = line.split(',');
+                    if (parts.length >= 2) {
+                        countryData.push({
+                            country: parts[0].trim(),
+                            percentage: parseFloat(parts[1].replace('%', '').trim()) || 0
+                        });
+                    }
                 }
             }
             
@@ -1056,1023 +1975,44 @@
             }
             
             // Display top cities
-            if (cityData.length > 0) {
-                const cityTable = document.createElement('div');
-                cityTable.className = 'table-container';
-                cityTable.style.marginTop = '25px';
-                cityTable.innerHTML = `
-                    <table>
-                        <thead><tr><th>Top Cities</th><th>Percentage</th></tr></thead>
-                        <tbody>
-                            ${cityData.slice(0, 10).map(city => 
-                                `<tr><td><strong>${city.city}</strong></td><td>${city.percentage}%</td></tr>`
-                            ).join('')}
-                        </tbody>
-                    </table>
-                `;
-                card.appendChild(cityTable);
-            }
-        }
-        
-        function processFile(file) {
-            // Handle audience files specially due to their custom formats
-            if (file.name === 'IG_Audience.csv') {
-                // Instagram audience file is UTF-16 encoded
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const arrayBuffer = e.target.result;
-                    const decoder = new TextDecoder('utf-16le');
-                    const content = decoder.decode(arrayBuffer);
-                    processedData[file.name] = content;
-                    checkAllFilesProcessed();
-                };
-                reader.readAsArrayBuffer(file);
-            } else if (file.name === 'FB_Audience.csv') {
-                // Facebook audience file has custom format, read as text
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    processedData[file.name] = e.target.result;
-                    checkAllFilesProcessed();
-                };
-                reader.readAsText(file);
-            } else {
-                // Regular CSV processing for other files
-                Papa.parse(file, {
-                    header: true,
-                    dynamicTyping: true,
-                    skipEmptyLines: true,
-                    encoding: 'utf-8',
-                    complete: (results) => {
-                        processedData[file.name] = results.data;
-                        checkAllFilesProcessed();
-                    },
-                    error: (error) => {
-                        console.log(`Error parsing ${file.name}:`, error);
-                        checkAllFilesProcessed();
-                    }
-                });
-            }
-        }
-        
-        function checkAllFilesProcessed() {
-            if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
-                generateDashboard();
-            }
-        }
-        
-        function setDefaultDates() {
-            const dateRange = getDataDateRange();
-            const startDateInput = document.getElementById('startDate');
-            const endDateInput = document.getElementById('endDate');
-            const dateRangeInfo = document.getElementById('dateRangeInfo');
-            
-            if (dateRange.min && dateRange.max) {
-                startDateInput.min = dateRange.min.toISOString().split('T')[0];
-                startDateInput.max = dateRange.max.toISOString().split('T')[0];
-                endDateInput.min = dateRange.min.toISOString().split('T')[0];
-                endDateInput.max = dateRange.max.toISOString().split('T')[0];
+            if (cityData.length > 0 || countryData.length > 0) {
+                const tablesContainer = document.createElement('div');
+                tablesContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px;';
                 
-                const minDateStr = dateRange.min.toLocaleDateString();
-                const maxDateStr = dateRange.max.toLocaleDateString();
-                dateRangeInfo.innerHTML = `📅 Data available from ${minDateStr} to ${maxDateStr}`;
-                
-                const daysDiff = (dateRange.max - dateRange.min) / (1000 * 60 * 60 * 24);
-                if (daysDiff <= 30) {
-                    startDateInput.value = dateRange.min.toISOString().split('T')[0];
-                    endDateInput.value = dateRange.max.toISOString().split('T')[0];
-                } else {
-                    const thirtyDaysAgo = new Date(dateRange.max.getTime() - (30 * 24 * 60 * 60 * 1000));
-                    startDateInput.value = Math.max(thirtyDaysAgo, dateRange.min).toISOString().split('T')[0];
-                    endDateInput.value = dateRange.max.toISOString().split('T')[0];
-                }
-            } else {
-                const today = new Date();
-                const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
-                
-                endDateInput.value = today.toISOString().split('T')[0];
-                startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
-                dateRangeInfo.innerHTML = `⚠️ No date data found in files - using current date`;
-            }
-        }
-        
-        function getDataDateRange() {
-            let minDate = null;
-            let maxDate = null;
-            
-            ['GA_Demographics.csv', 'GA_Traffic_Acquisition.csv', 'GA_Pages_And_Screens.csv', 'GA_UTMs.csv'].forEach(fileName => {
-                if (processedData[fileName]) {
-                    processedData[fileName].forEach(row => {
-                        const dateField = row['Date + hour (YYYYMMDDHH)'];
-                        if (dateField) {
-                            const date = parseDate(dateField);
-                            if (!isNaN(date.getTime())) {
-                                if (!minDate || date < minDate) minDate = date;
-                                if (!maxDate || date > maxDate) maxDate = date;
-                            }
-                        }
-                    });
-                }
-            });
-            
-            ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Link_clicks.csv', 'FB_Views.csv', 'FB_Visits.csv',
-             'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv', 'IG_Link_clicks.csv', 'IG_Views.csv', 'IG_Visits.csv'].forEach(fileName => {
-                if (processedData[fileName]) {
-                    processedData[fileName].forEach(row => {
-                        if (row.Date) {
-                            const date = new Date(row.Date);
-                            if (!isNaN(date.getTime())) {
-                                if (!minDate || date < minDate) minDate = date;
-                                if (!maxDate || date > maxDate) maxDate = date;
-                            }
-                        }
-                    });
-                }
-            });
-            
-            if (processedData['IG_Posts.csv']) {
-                processedData['IG_Posts.csv'].forEach(row => {
-                    if (row['Publish time']) {
-                        const date = new Date(row['Publish time']);
-                        if (!isNaN(date.getTime())) {
-                            if (!minDate || date < minDate) minDate = date;
-                            if (!maxDate || date > maxDate) maxDate = date;
-                        }
-                    }
-                });
-            }
-            
-            if (processedData['YouTube_Content.csv']) {
-                processedData['YouTube_Content.csv'].forEach(row => {
-                    if (row['Video publish time']) {
-                        const date = new Date(row['Video publish time']);
-                        if (!isNaN(date.getTime())) {
-                            if (!minDate || date < minDate) minDate = date;
-                            if (!maxDate || date > maxDate) maxDate = date;
-                        }
-                    }
-                });
-            }
-            
-            if (processedData['FB_Videos.csv']) {
-                processedData['FB_Videos.csv'].forEach(row => {
-                    if (row.Date) {
-                        const date = new Date(row.Date);
-                        if (!isNaN(date.getTime())) {
-                            if (!minDate || date < minDate) minDate = date;
-                            if (!maxDate || date > maxDate) maxDate = date;
-                        }
-                    }
-                });
-            }
-            
-            return { min: minDate, max: maxDate };
-        }
-        
-        function selectFullRange() {
-            const dateRange = getDataDateRange();
-            if (dateRange.min && dateRange.max) {
-                document.getElementById('startDate').value = dateRange.min.toISOString().split('T')[0];
-                document.getElementById('endDate').value = dateRange.max.toISOString().split('T')[0];
-                updateDashboard();
-            }
-        }
-        
-        function parsePercentage(str) {
-            if (str === null || str === undefined || str === '') return 0;
-            if (typeof str === 'number') return isNaN(str) ? 0 : str;
-            if (typeof str === 'string') {
-                const cleaned = str.replace(/[%,\s]/g, '');
-                if (cleaned === '') return 0;
-                const parsed = parseFloat(cleaned);
-                return isNaN(parsed) ? 0 : parsed;
-            }
-            return 0;
-        }
-        
-        function parseNumber(str) {
-            if (str === null || str === undefined || str === '') return 0;
-            if (typeof str === 'number') return isNaN(str) ? 0 : str;
-            if (typeof str === 'string') {
-                const cleaned = str.replace(/[,\s]/g, '');
-                if (cleaned === '') return 0;
-                const parsed = parseFloat(cleaned);
-                return isNaN(parsed) ? 0 : parsed;
-            }
-            return 0;
-        }
-        
-        function parseDate(dateStr) {
-            if (typeof dateStr === 'number' && dateStr.toString().length === 10) {
-                const str = dateStr.toString();
-                const year = str.substring(0, 4);
-                const month = str.substring(4, 6);
-                const day = str.substring(6, 8);
-                const hour = str.substring(8, 10);
-                return new Date(year, month - 1, day, hour);
-            } else if (typeof dateStr === 'string') {
-                return new Date(dateStr);
-            }
-            return new Date(dateStr);
-        }
-        
-        function filterDataByDate(data, dateField, startDate, endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            
-            return data.filter(row => {
-                const date = parseDate(row[dateField]);
-                return date >= start && date <= end;
-            });
-        }
-        
-        function generateDashboard(startDate = null, endDate = null, compareType = 'none') {
-            const dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = '';
-            
-            // Add data overview section
-            const dataOverview = createDataOverview(startDate, endDate);
-            dashboard.appendChild(dataOverview);
-            
-            // Web Analytics Section
-            if (processedData['GA_Demographics.csv'] || processedData['GA_Traffic_Acquisition.csv']) {
-                dashboard.appendChild(createSectionHeader('🌐 Web Analytics'));
-                generateWebAnalytics(dashboard, startDate, endDate, compareType);
-            }
-            
-            // Social Media Section
-            if (processedData['FB_Interactions.csv'] || processedData['IG_Posts.csv'] || processedData['FB_Videos.csv'] || 
-                processedData['FB_Audience.csv'] || processedData['IG_Audience.csv']) {
-                dashboard.appendChild(createSectionHeader('📱 Social Media Analytics'));
-                generateSocialAnalytics(dashboard, startDate, endDate, compareType);
-            }
-            
-            // Email Section
-            if (processedData['Email_Campaign_Performance.csv']) {
-                dashboard.appendChild(createSectionHeader('📧 Email Marketing Analytics'));
-                generateEmailAnalytics(dashboard, startDate, endDate, compareType);
-            }
-            
-            // YouTube Section
-            if (processedData['YouTube_Content.csv']) {
-                dashboard.appendChild(createSectionHeader('🎥 YouTube Analytics'));
-                generateYouTubeAnalytics(dashboard, startDate, endDate, compareType);
-            }
-        }
-        
-        function createDataOverview(startDate, endDate) {
-            const overviewCard = createCard('📋 Data Overview & Status');
-            
-            const dataTypes = {
-                'Web Analytics': ['GA_Demographics.csv', 'GA_Traffic_Acquisition.csv', 'GA_Pages_And_Screens.csv', 'GA_UTMs.csv'],
-                'Facebook': ['FB_Interactions.csv', 'FB_Reach.csv', 'FB_Follows.csv', 'FB_Videos.csv', 'FB_Posts.csv', 'FB_Audience.csv'],
-                'Instagram': ['IG_Posts.csv', 'IG_Interactions.csv', 'IG_Reach.csv', 'IG_Follows.csv', 'IG_Audience.csv'],
-                'Email': ['Email_Campaign_Performance.csv'],
-                'YouTube': ['YouTube_Content.csv', 'YouTube_Age.csv', 'YouTube_Gender.csv', 'YouTube_Geography.csv']
-            };
-            
-            let overviewHTML = `<div class="data-overview-grid">`;
-            
-            Object.entries(dataTypes).forEach(([category, files]) => {
-                const loadedFiles = files.filter(file => processedData[file]);
-                const totalFiles = files.length;
-                const loadedCount = loadedFiles.length;
-                
-                let statusColor = loadedCount === 0 ? '#dc2626' : loadedCount === totalFiles ? 'var(--duke-green)' : 'var(--duke-orange)';
-                let statusIcon = loadedCount === 0 ? '❌' : loadedCount === totalFiles ? '✅' : '⚠️';
-                
-                overviewHTML += `
-                    <div class="data-status-card" style="border-left-color: ${statusColor};">
-                        <h4>${statusIcon} ${category}</h4>
-                        <p>${loadedCount}/${totalFiles} files loaded</p>
-                        ${loadedFiles.length > 0 ? `<small>Loaded: ${loadedFiles.join(', ')}</small>` : ''}
-                    </div>
-                `;
-            });
-            
-            overviewHTML += '</div>';
-            
-            // Add specific Instagram posts info
-            if (processedData['IG_Posts.csv']) {
-                const totalPosts = processedData['IG_Posts.csv'].length;
-                let postsInRange = totalPosts;
-                
-                // Add audience analytics info
-            const audienceFiles = ['FB_Audience.csv', 'IG_Audience.csv'].filter(file => processedData[file]);
-            if (audienceFiles.length > 0) {
-                overviewHTML += `
-                    <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-green); box-shadow: 0 4px 15px rgba(5, 150, 105, 0.1);">
-                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">👥 Audience Demographics Available</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
-                            Loaded: <strong>${audienceFiles.join(', ')}</strong><br>
-                            <small>Age, gender, and location demographics are displayed in the Social Media section</small>
-                        </p>
-                    </div>
-                `;
-            }
-            
-            if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    postsInRange = processedData['IG_Posts.csv'].filter(post => {
-                        if (post['Publish time']) {
-                            const postDate = new Date(post['Publish time']);
-                            return postDate >= start && postDate <= end;
-                        } else if (post['Date']) {
-                            const postDate = new Date(post['Date']);
-                            return postDate >= start && postDate <= end;
-                        }
-                        return true;
-                    }).length;
-                }
-                
-                overviewHTML += `
-                    <div style="background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);">
-                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">📷 Instagram Posts Details</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
-                            Total posts in dataset: <strong>${totalPosts}</strong><br>
-                            Posts in selected date range: <strong>${postsInRange}</strong>
-                        </p>
-                    </div>
-                `;
-            }
-            
-            if (startDate && endDate) {
-                overviewHTML += `
-                    <div style="background: linear-gradient(135deg, #fef3cd, #fef3cd); padding: 20px; border-radius: 20px; margin-top: 20px; border-left: 4px solid var(--duke-orange); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.1);">
-                        <h4 style="margin: 0 0 10px 0; color: var(--duke-navy); font-family: 'Montserrat', sans-serif; font-weight: 700;">📅 Date Range Filter Active</h4>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--duke-gray); font-family: 'Montserrat', sans-serif;">
-                            Showing data from <strong>${new Date(startDate).toLocaleDateString()}</strong> to <strong>${new Date(endDate).toLocaleDateString()}</strong>
-                        </p>
-                    </div>
-                `;
-            }
-            
-            overviewCard.innerHTML += overviewHTML;
-            return overviewCard;
-        }
-        
-        function createSectionHeader(title) {
-            const header = document.createElement('div');
-            header.className = 'section-header';
-            header.textContent = title;
-            return header;
-        }
-        
-        function generateWebAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
-            const container = document.createElement('div');
-            container.className = 'dashboard';
-            
-            // Enhanced Demographics Card
-            if (processedData['GA_Demographics.csv']) {
-                let demographics = processedData['GA_Demographics.csv'];
-                
-                if (startDate && endDate) {
-                    demographics = filterDataByDate(demographics, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
-                }
-                
-                const comparisonDemographics = getComparisonData(
-                    processedData['GA_Demographics.csv'], 
-                    'Date + hour (YYYYMMDDHH)', 
-                    startDate, endDate, compareType
-                );
-                
-                const card = createCard('🌍 Demographics & User Insights');
-                
-                // Enhanced metrics
-                const totalUsers = demographics.reduce((sum, row) => sum + parseNumber(row['Total users']), 0);
-                const newUsers = demographics.reduce((sum, row) => sum + parseNumber(row['New users']), 0);
-                const returningUsers = demographics.reduce((sum, row) => sum + parseNumber(row['Returning users']), 0);
-                const totalSessions = demographics.reduce((sum, row) => sum + parseNumber(row.Sessions), 0);
-                const avgEngagement = demographics.length > 0 ? 
-                    demographics.reduce((sum, row) => sum + parseNumber(row['Engagement rate']), 0) / demographics.length : 0;
-                const avgEngagementTime = demographics.length > 0 ? 
-                    demographics.reduce((sum, row) => sum + parseNumber(row['Average engagement time per session']), 0) / demographics.length : 0;
-                
-                let comparisonUsers = null, comparisonNewUsers = null, comparisonSessions = null, comparisonEngagement = null;
-                if (comparisonDemographics) {
-                    comparisonUsers = comparisonDemographics.reduce((sum, row) => sum + parseNumber(row['Total users']), 0);
-                    comparisonNewUsers = comparisonDemographics.reduce((sum, row) => sum + parseNumber(row['New users']), 0);
-                    comparisonSessions = comparisonDemographics.reduce((sum, row) => sum + parseNumber(row.Sessions), 0);
-                    comparisonEngagement = comparisonDemographics.length > 0 ? 
-                        comparisonDemographics.reduce((sum, row) => sum + parseNumber(row['Engagement rate']), 0) / comparisonDemographics.length : 0;
-                }
-                
-                const metricsGrid = document.createElement('div');
-                metricsGrid.className = 'metric-grid';
-                metricsGrid.innerHTML = `
-                    ${createMetricWithComparison(totalUsers, 'Total Users', comparisonUsers)}
-                    ${createMetricWithComparison(newUsers, 'New Users', comparisonNewUsers)}
-                    ${createMetricWithComparison(Math.round((newUsers/totalUsers) * 100) + '%', 'New User %', comparisonNewUsers && comparisonUsers ? Math.round((comparisonNewUsers/comparisonUsers) * 100) : null)}
-                    ${createMetricWithComparison(totalSessions, 'Sessions', comparisonSessions)}
-                    ${createMetricWithComparison((avgEngagement * 100).toFixed(1) + '%', 'Engagement Rate', comparisonEngagement ? comparisonEngagement * 100 : null)}
-                    ${createMetricWithComparison(Math.round(avgEngagementTime) + 's', 'Avg. Session Time', null)}
-                `;
-                card.appendChild(metricsGrid);
-                
-                // Top countries and cities
-                const locationData = demographics.reduce((acc, row) => {
-                    const country = row.Country || 'Unknown';
-                    const city = row.City || 'Unknown';
-                    if (!acc[country]) acc[country] = { sessions: 0, cities: {} };
-                    acc[country].sessions += parseNumber(row.Sessions);
-                    if (!acc[country].cities[city]) acc[country].cities[city] = 0;
-                    acc[country].cities[city] += parseNumber(row.Sessions);
-                    return acc;
-                }, {});
-                
-                const topCountries = Object.entries(locationData)
-                    .sort(([,a], [,b]) => b.sessions - a.sessions)
-                    .slice(0, 5);
-                
-                const tableContainer = document.createElement('div');
-                tableContainer.className = 'table-container';
-                tableContainer.innerHTML = `
-                    <table>
-                        <thead>
-                            <tr><th>Country</th><th>Sessions</th><th>Top City</th><th>City Sessions</th></tr>
-                        </thead>
-                        <tbody>
-                            ${topCountries.map(([country, data]) => {
-                                const topCity = Object.entries(data.cities).sort(([,a], [,b]) => b - a)[0];
-                                return `<tr>
-                                    <td><strong>${country}</strong></td>
-                                    <td>${data.sessions.toLocaleString()}</td>
-                                    <td>${topCity ? topCity[0] : 'N/A'}</td>
-                                    <td>${topCity ? topCity[1].toLocaleString() : '0'}</td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                `;
-                card.appendChild(tableContainer);
-                container.appendChild(card);
-            }
-            
-            // Enhanced Traffic Sources with Campaigns
-            if (processedData['GA_Traffic_Acquisition.csv']) {
-                let traffic = processedData['GA_Traffic_Acquisition.csv'];
-                
-                if (startDate && endDate) {
-                    traffic = filterDataByDate(traffic, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
-                }
-                
-                const card = createCard('🚀 Traffic Sources & Channels');
-                
-                const channelData = traffic.reduce((acc, row) => {
-                    const channel = row['Session primary channel group (Default Channel Group)'] || 'Unknown';
-                    if (!acc[channel]) {
-                        acc[channel] = { 
-                            sessions: 0, 
-                            engagedSessions: 0, 
-                            keyEvents: 0,
-                            avgEngagementTime: 0,
-                            count: 0
-                        };
-                    }
-                    acc[channel].sessions += parseNumber(row.Sessions);
-                    acc[channel].engagedSessions += parseNumber(row['Engaged sessions']);
-                    acc[channel].keyEvents += parseNumber(row['Key events']);
-                    acc[channel].avgEngagementTime += parseNumber(row['Average engagement time per session']);
-                    acc[channel].count++;
-                    return acc;
-                }, {});
-                
-                // Calculate averages
-                Object.keys(channelData).forEach(channel => {
-                    channelData[channel].avgEngagementTime = channelData[channel].avgEngagementTime / channelData[channel].count;
-                    channelData[channel].engagementRate = channelData[channel].sessions > 0 ? 
-                        (channelData[channel].engagedSessions / channelData[channel].sessions) * 100 : 0;
-                });
-                
-                const chartContainer = document.createElement('div');
-                chartContainer.className = 'chart-container';
-                const canvas = document.createElement('canvas');
-                chartContainer.appendChild(canvas);
-                card.appendChild(chartContainer);
-                
-                setTimeout(() => {
-                    new Chart(canvas, {
-                        type: 'doughnut',
-                        data: {
-                            labels: Object.keys(channelData),
-                            datasets: [{
-                                data: Object.values(channelData).map(d => d.sessions),
-                                backgroundColor: [
-                                    '#1a365d', '#2563eb', '#ea580c', '#f59e0b',
-                                    '#0891b2', '#059669', '#7c3aed', '#a3a3a3',
-                                    '#6b7280', '#f3f4f6'
-                                ]
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        padding: 20,
-                                        usePointStyle: true,
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }, 100);
-                
-                // Traffic performance table
-                const trafficTableContainer = document.createElement('div');
-                trafficTableContainer.className = 'table-container';
-                const sortedChannels = Object.entries(channelData).sort(([,a], [,b]) => b.sessions - a.sessions);
-                trafficTableContainer.innerHTML = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Channel</th>
-                                <th>Sessions</th>
-                                <th>Engagement Rate</th>
-                                <th>Key Events</th>
-                                <th>Avg. Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${sortedChannels.map(([channel, data]) => 
-                                `<tr>
-                                    <td><strong>${channel}</strong></td>
-                                    <td>${data.sessions.toLocaleString()}</td>
-                                    <td>${data.engagementRate.toFixed(1)}%</td>
-                                    <td>${data.keyEvents.toLocaleString()}</td>
-                                    <td>${Math.round(data.avgEngagementTime)}s</td>
-                                </tr>`
-                            ).join('')}
-                        </tbody>
-                    </table>
-                `;
-                card.appendChild(trafficTableContainer);
-                container.appendChild(card);
-            }
-            
-            // Enhanced Landing Pages Analysis
-            if (processedData['GA_Pages_And_Screens.csv']) {
-                let pages = processedData['GA_Pages_And_Screens.csv'];
-                
-                if (startDate && endDate) {
-                    pages = filterDataByDate(pages, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
-                }
-                
-                const card = createCard('📄 Top Landing Pages & Content');
-                
-                const pageData = pages.reduce((acc, row) => {
-                    const path = row['Page path and screen class'] || 'Unknown';
-                    const title = row['Page title and screen class'] || 'Unknown';
-                    if (!acc[path]) {
-                        acc[path] = { 
-                            views: 0, 
-                            users: 0, 
-                            keyEvents: 0, 
-                            title: title,
-                            eventCount: 0 
-                        };
-                    }
-                    acc[path].views += parseNumber(row.Views);
-                    acc[path].users += parseNumber(row['Active users']);
-                    acc[path].keyEvents += parseNumber(row['Key events']);
-                    acc[path].eventCount += parseNumber(row['Event count']);
-                    return acc;
-                }, {});
-                
-                const topPages = Object.entries(pageData)
-                    .sort(([,a], [,b]) => b.views - a.views)
-                    .slice(0, 10);
-                
-                const tableContainer = document.createElement('div');
-                tableContainer.className = 'table-container';
-                tableContainer.innerHTML = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Page Path</th>
-                                <th>Views</th>
-                                <th>Users</th>
-                                <th>Key Events</th>
-                                <th>Events/View</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${topPages.map(([page, data]) => 
-                                `<tr>
-                                    <td><strong>${page}</strong></td>
-                                    <td>${data.views.toLocaleString()}</td>
-                                    <td>${data.users.toLocaleString()}</td>
-                                    <td>${data.keyEvents.toLocaleString()}</td>
-                                    <td>${data.views > 0 ? (data.eventCount / data.views).toFixed(2) : '0'}</td>
-                                </tr>`
-                            ).join('')}
-                        </tbody>
-                    </table>
-                `;
-                card.appendChild(tableContainer);
-                container.appendChild(card);
-            }
-            
-            // Campaign Performance (UTM tracking)
-            if (processedData['GA_UTMs.csv']) {
-                let utms = processedData['GA_UTMs.csv'];
-                
-                if (startDate && endDate) {
-                    utms = filterDataByDate(utms, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
-                }
-                
-                const card = createCard('🎯 Campaign Performance (UTM)');
-                
-                const campaignData = utms.reduce((acc, row) => {
-                    const campaign = row['Manual campaign name'] || 'Unknown';
-                    const source = row['Manual source / medium'] || 'Unknown';
-                    const key = `${campaign} (${source})`;
-                    
-                    if (!acc[key]) {
-                        acc[key] = { 
-                            sessions: 0, 
-                            engagedSessions: 0, 
-                            keyEvents: 0, 
-                            eventValue: 0 
-                        };
-                    }
-                    acc[key].sessions += parseNumber(row.Sessions);
-                    acc[key].engagedSessions += parseNumber(row['Engaged sessions']);
-                    acc[key].keyEvents += parseNumber(row['Key events']);
-                    acc[key].eventValue += parseNumber(row['Event value']);
-                    return acc;
-                }, {});
-                
-                const topCampaigns = Object.entries(campaignData)
-                    .sort(([,a], [,b]) => b.sessions - a.sessions)
-                    .slice(0, 8);
-                
-                if (topCampaigns.length > 0) {
-                    const tableContainer = document.createElement('div');
-                    tableContainer.className = 'table-container';
-                    tableContainer.innerHTML = `
+                if (cityData.length > 0) {
+                    const cityTable = document.createElement('div');
+                    cityTable.className = 'table-container';
+                    cityTable.innerHTML = `
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>Campaign (Source)</th>
-                                    <th>Sessions</th>
-                                    <th>Engaged</th>
-                                    <th>Events</th>
-                                    <th>Event Value</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Top Cities</th><th>Percentage</th></tr></thead>
                             <tbody>
-                                ${topCampaigns.map(([campaign, data]) => 
-                                    `<tr>
-                                        <td><strong>${campaign}</strong></td>
-                                        <td>${data.sessions.toLocaleString()}</td>
-                                        <td>${data.engagedSessions.toLocaleString()}</td>
-                                        <td>${data.keyEvents.toLocaleString()}</td>
-                                        <td>$${data.eventValue.toLocaleString()}</td>
-                                    </tr>`
+                                ${cityData.slice(0, 10).map(city => 
+                                    `<tr><td><strong>${city.city}</strong></td><td>${city.percentage}%</td></tr>`
                                 ).join('')}
                             </tbody>
                         </table>
                     `;
-                    card.appendChild(tableContainer);
-                } else {
-                    card.innerHTML += '<p style="color: var(--duke-gray); text-align: center; padding: 20px;">No UTM campaign data available for selected period.</p>';
-                }
-                container.appendChild(card);
-            }
-            
-            dashboard.appendChild(container);
-        }
-        
-        function generateSocialAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
-            const container = document.createElement('div');
-            container.className = 'dashboard';
-            
-            // Social Media Audience Demographics
-            generateAudienceDemographics(container);
-            
-            // Add a note if no audience data is available
-            if (!processedData['FB_Audience.csv'] && !processedData['IG_Audience.csv']) {
-                const noteCard = createCard('💡 Demographics Note');
-                noteCard.innerHTML += `
-                    <div style="text-align: center; padding: 20px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;">
-                        📊 Upload FB_Audience.csv and/or IG_Audience.csv files to see audience demographics<br>
-                        <small style="margin-top: 10px; display: block;">Age, gender, and location breakdowns will appear here</small>
-                    </div>
-                `;
-                container.appendChild(noteCard);
-            }
-            
-            // Facebook Analytics Overview
-            if (processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv']) {
-                const card = createCard('📘 Facebook Performance');
-                const metricsGrid = document.createElement('div');
-                metricsGrid.className = 'metric-grid';
-                
-                let fbReach = 0, fbInteractions = 0, fbFollows = 0, fbViews = 0, fbVisits = 0, fbLinkClicks = 0;
-                let compReach = null, compInteractions = null, compFollows = null;
-                
-                // Calculate Facebook metrics
-                if (processedData['FB_Reach.csv']) {
-                    let reachData = processedData['FB_Reach.csv'];
-                    if (startDate && endDate) {
-                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
-                    }
-                    fbReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                    
-                    const comparisonReach = getComparisonData(processedData['FB_Reach.csv'], 'Date', startDate, endDate, compareType);
-                    if (comparisonReach) {
-                        compReach = comparisonReach.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                    }
+                    tablesContainer.appendChild(cityTable);
                 }
                 
-                if (processedData['FB_Interactions.csv']) {
-                    let interactionData = processedData['FB_Interactions.csv'];
-                    if (startDate && endDate) {
-                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
-                    }
-                    fbInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Follows.csv']) {
-                    let followData = processedData['FB_Follows.csv'];
-                    if (startDate && endDate) {
-                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
-                    }
-                    fbFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Views.csv']) {
-                    let viewData = processedData['FB_Views.csv'];
-                    if (startDate && endDate) {
-                        viewData = filterDataByDate(viewData, 'Date', startDate, endDate);
-                    }
-                    fbViews = viewData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Visits.csv']) {
-                    let visitData = processedData['FB_Visits.csv'];
-                    if (startDate && endDate) {
-                        visitData = filterDataByDate(visitData, 'Date', startDate, endDate);
-                    }
-                    fbVisits = visitData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Link_clicks.csv']) {
-                    let linkData = processedData['FB_Link_clicks.csv'];
-                    if (startDate && endDate) {
-                        linkData = filterDataByDate(linkData, 'Date', startDate, endDate);
-                    }
-                    fbLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                metricsGrid.innerHTML = `
-                    ${createMetricWithComparison(fbReach, 'Total Reach', compReach)}
-                    ${createMetricWithComparison(fbInteractions, 'Interactions', compInteractions)}
-                    ${createMetricWithComparison(fbFollows, 'New Follows', compFollows)}
-                    ${createMetricWithComparison(fbViews, 'Profile Views', null)}
-                    ${createMetricWithComparison(fbVisits, 'Page Visits', null)}
-                    ${createMetricWithComparison(fbLinkClicks, 'Link Clicks', null)}
-                `;
-                
-                card.appendChild(metricsGrid);
-                container.appendChild(card);
-            }
-            
-            // Instagram Analytics Overview  
-            if (processedData['IG_Interactions.csv'] || processedData['IG_Reach.csv']) {
-                const card = createCard('📷 Instagram Performance');
-                const metricsGrid = document.createElement('div');
-                metricsGrid.className = 'metric-grid';
-                
-                let igReach = 0, igInteractions = 0, igFollows = 0, igViews = 0, igVisits = 0, igLinkClicks = 0;
-                
-                if (processedData['IG_Reach.csv']) {
-                    let reachData = processedData['IG_Reach.csv'];
-                    if (startDate && endDate) {
-                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
-                    }
-                    igReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['IG_Interactions.csv']) {
-                    let interactionData = processedData['IG_Interactions.csv'];
-                    if (startDate && endDate) {
-                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
-                    }
-                    igInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['IG_Follows.csv']) {
-                    let followData = processedData['IG_Follows.csv'];
-                    if (startDate && endDate) {
-                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
-                    }
-                    igFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['IG_Views.csv']) {
-                    let viewData = processedData['IG_Views.csv'];
-                    if (startDate && endDate) {
-                        viewData = filterDataByDate(viewData, 'Date', startDate, endDate);
-                    }
-                    igViews = viewData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['IG_Visits.csv']) {
-                    let visitData = processedData['IG_Visits.csv'];
-                    if (startDate && endDate) {
-                        visitData = filterDataByDate(visitData, 'Date', startDate, endDate);
-                    }
-                    igVisits = visitData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['IG_Link_clicks.csv']) {
-                    let linkData = processedData['IG_Link_clicks.csv'];
-                    if (startDate && endDate) {
-                        linkData = filterDataByDate(linkData, 'Date', startDate, endDate);
-                    }
-                    igLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                metricsGrid.innerHTML = `
-                    ${createMetricWithComparison(igReach, 'Total Reach', null)}
-                    ${createMetricWithComparison(igInteractions, 'Interactions', null)}
-                    ${createMetricWithComparison(igFollows, 'New Follows', null)}
-                    ${createMetricWithComparison(igViews, 'Profile Views', null)}
-                    ${createMetricWithComparison(igVisits, 'Page Visits', null)}
-                    ${createMetricWithComparison(igLinkClicks, 'Link Clicks', null)}
-                `;
-                
-                card.appendChild(metricsGrid);
-                container.appendChild(card);
-            }
-            
-            // Top Instagram Posts Analysis
-            if (processedData['IG_Posts.csv']) {
-                let posts = processedData['IG_Posts.csv'];
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    posts = posts.filter(post => {
-                        if (post['Publish time']) {
-                            const postDate = new Date(post['Publish time']);
-                            return postDate >= start && postDate <= end;
-                        } else if (post['Date']) {
-                            const postDate = new Date(post['Date']);
-                            return postDate >= start && postDate <= end;
-                        }
-                        return true;
-                    });
-                }
-                
-                const card = createCard('🏆 Top Instagram Posts Performance');
-                
-                // Add data info
-                const dataInfo = document.createElement('div');
-                dataInfo.style.cssText = 'background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 16px; margin-bottom: 20px; font-size: 0.9rem; color: var(--duke-gray); border-left: 4px solid var(--duke-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);';
-                dataInfo.innerHTML = `
-                    📊 <strong>Data Summary:</strong> ${processedData['IG_Posts.csv'].length} total posts in dataset, 
-                    ${posts.length} posts in selected date range
-                `;
-                card.appendChild(dataInfo);
-                
-                // Create tabs for different sorting options
-                const tabContainer = document.createElement('div');
-                tabContainer.className = 'tab-container';
-                
-                ['Reach', 'Likes', 'Comments', 'Saves', 'Shares'].forEach((metric, index) => {
-                    const tab = document.createElement('button');
-                    tab.className = 'tab-button';
-                    if (index === 0) tab.classList.add('active');
-                    tab.textContent = `Top by ${metric}`;
-                    tab.onclick = () => displayTopPosts(metric, posts, card);
-                    tabContainer.appendChild(tab);
-                });
-                
-                card.appendChild(tabContainer);
-                
-                // Initial display
-                displayTopPosts('Reach', posts, card);
-                container.appendChild(card);
-            }
-            
-            // Facebook Posts Analysis (if available)
-            if (processedData['FB_Posts.csv']) {
-                let fbPosts = processedData['FB_Posts.csv'];
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    fbPosts = fbPosts.filter(post => {
-                        if (post['Publish time']) {
-                            const postDate = new Date(post['Publish time']);
-                            return postDate >= start && postDate <= end;
-                        } else if (post['Date']) {
-                            const postDate = new Date(post['Date']);
-                            return postDate >= start && postDate <= end;
-                        }
-                        return true;
-                    });
-                }
-                
-                const fbCard = createCard('📘 Top Facebook Posts Performance');
-                
-                // Add data info for Facebook
-                const fbDataInfo = document.createElement('div');
-                fbDataInfo.style.cssText = 'background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 20px; border-radius: 16px; margin-bottom: 20px; font-size: 0.9rem; color: var(--duke-gray); border-left: 4px solid var(--duke-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);';
-                fbDataInfo.innerHTML = `
-                    📊 <strong>Data Summary:</strong> ${processedData['FB_Posts.csv'].length} total posts in dataset, 
-                    ${fbPosts.length} posts in selected date range
-                `;
-                fbCard.appendChild(fbDataInfo);
-                
-                // Create tabs for Facebook posts
-                const fbTabContainer = document.createElement('div');
-                fbTabContainer.className = 'tab-container';
-                
-                ['Reach', 'Likes', 'Comments', 'Shares'].forEach((metric, index) => {
-                    const tab = document.createElement('button');
-                    tab.className = 'tab-button';
-                    if (index === 0) tab.classList.add('active');
-                    tab.textContent = `Top by ${metric}`;
-                    tab.onclick = () => displayTopFacebookPosts(metric, fbPosts, fbCard);
-                    fbTabContainer.appendChild(tab);
-                });
-                
-                fbCard.appendChild(fbTabContainer);
-                
-                // Initial display
-                displayTopFacebookPosts('Reach', fbPosts, fbCard);
-                container.appendChild(fbCard);
-            }
-            
-            // Facebook Videos Performance
-            if (processedData['FB_Videos.csv']) {
-                let videos = processedData['FB_Videos.csv'];
-                
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    videos = videos.filter(video => {
-                        if (video.Date) {
-                            const videoDate = new Date(video.Date);
-                            return videoDate >= start && videoDate <= end;
-                        }
-                        return true;
-                    });
-                }
-                
-                if (videos.length > 0) {
-                    const card = createCard('🎬 Facebook Video Performance');
-                    
-                    const topVideos = videos
-                        .filter(video => parseNumber(video.Reach) > 0)
-                        .sort((a, b) => parseNumber(b.Reach) - parseNumber(a.Reach))
-                        .slice(0, 5);
-                    
-                    const tableContainer = document.createElement('div');
-                    tableContainer.className = 'table-container';
-                    tableContainer.innerHTML = `
+                if (countryData.length > 0) {
+                    const countryTable = document.createElement('div');
+                    countryTable.className = 'table-container';
+                    countryTable.innerHTML = `
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>Video Title</th>
-                                    <th>Reach</th>
-                                    <th>3s Views</th>
-                                    <th>1m Views</th>
-                                    <th>Engagement</th>
-                                    <th>Watch Time (hrs)</th>
-                                    <th>Link</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Top Countries</th><th>Percentage</th></tr></thead>
                             <tbody>
-                                ${topVideos.map(video => 
-                                    `<tr>
-                                        <td><strong>${(video.Title || '').substring(0, 40)}...</strong></td>
-                                        <td>${parseNumber(video.Reach).toLocaleString()}</td>
-                                        <td>${parseNumber(video['3-second video views']).toLocaleString()}</td>
-                                        <td>${parseNumber(video['1-minute video views']).toLocaleString()}</td>
-                                        <td>${parseNumber(video['Reactions, Comments and Shares']).toLocaleString()}</td>
-                                        <td>${(parseNumber(video['Seconds viewed']) / 3600).toFixed(1)}</td>
-                                        <td>${video['Universal video ID'] ? `<a href="https://www.facebook.com/watch/?v=${video['Universal video ID']}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
-                                    </tr>`
+                                ${countryData.slice(0, 10).map(country => 
+                                    `<tr><td><strong>${country.country}</strong></td><td>${country.percentage}%</td></tr>`
                                 ).join('')}
                             </tbody>
                         </table>
                     `;
-                    card.appendChild(tableContainer);
-                    container.appendChild(card);
+                    tablesContainer.appendChild(countryTable);
                 }
+                
+                card.appendChild(tablesContainer);
             }
-            
-            dashboard.appendChild(container);
         }
         
         function displayTopPosts(metric, posts, card) {
@@ -2091,68 +2031,17 @@
                 }
             });
             
-            // More lenient filtering - include posts with any positive metrics
+            // Sort posts by selected metric
             const topPosts = posts
-                .filter(post => 
-                    parseNumber(post[metric] || 0) > 0 || 
-                    parseNumber(post.Reach || 0) > 0 || 
-                    parseNumber(post.Likes || 0) > 0 ||
-                    parseNumber(post.Comments || 0) > 0 ||
-                    parseNumber(post.Shares || 0) > 0 ||
-                    parseNumber(post.Saves || 0) > 0
-                )
+                .filter(post => parseNumber(post[metric] || 0) > 0 || parseNumber(post.Reach || 0) > 0)
                 .sort((a, b) => parseNumber(b[metric] || 0) - parseNumber(a[metric] || 0))
                 .slice(0, 5);
             
             if (topPosts.length === 0) {
-                // Show all posts if none meet the criteria
-                const allPosts = posts.slice(0, 5);
-                if (allPosts.length > 0) {
-                    const tableContainer = document.createElement('div');
-                    tableContainer.className = 'table-container';
-                    tableContainer.innerHTML = `
-                        <p style="color: var(--duke-gray); text-align: center; padding: 15px; font-style: italic; background: rgba(107, 114, 128, 0.1); border-radius: 12px; margin-bottom: 15px;">
-                            📊 Showing all available posts (no posts with ${metric} > 0 found)
-                        </p>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Post</th>
-                                    <th>${metric}</th>
-                                    <th>Reach</th>
-                                    <th>Likes</th>
-                                    <th>Comments</th>
-                                    <th>Shares</th>
-                                    <th>Saves</th>
-                                    <th>Link</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${allPosts.map(post => 
-                                    `<tr>
-                                        <td><strong>${(post.Description || 'No description').substring(0, 40)}...</strong></td>
-                                        <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
-                                        <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Saves || 0).toLocaleString()}</td>
-                                        <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
-                                    </tr>`
-                                ).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                    card.appendChild(tableContainer);
-                } else {
-                    const noDataDiv = document.createElement('div');
-                    noDataDiv.style.cssText = 'text-align: center; padding: 50px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;';
-                    noDataDiv.innerHTML = `
-                        📭 No Instagram posts found for the selected time period.<br>
-                        <small style="margin-top: 10px; display: block;">Try expanding your date range or check if the posts data was uploaded correctly.</small>
-                    `;
-                    card.appendChild(noDataDiv);
-                }
+                const noDataDiv = document.createElement('div');
+                noDataDiv.className = 'no-data-message';
+                noDataDiv.innerHTML = `📭 No Instagram posts found with ${metric} data for the selected time period.`;
+                card.appendChild(noDataDiv);
                 return;
             }
             
@@ -2202,70 +2091,22 @@
             const tabs = card.querySelectorAll('.tab-button');
             tabs.forEach((tab) => {
                 tab.classList.remove('active');
-                if (tab.textContent.includes(metric)) {
+                if (tab.textContent.includes(metric.includes('Total clicks') ? 'Clicks' : metric)) {
                     tab.classList.add('active');
                 }
             });
             
-            // More lenient filtering for Facebook posts
+            // Sort posts by selected metric
             const topPosts = posts
-                .filter(post => 
-                    parseNumber(post[metric] || 0) > 0 || 
-                    parseNumber(post.Reach || 0) > 0 || 
-                    parseNumber(post.Likes || 0) > 0 ||
-                    parseNumber(post.Comments || 0) > 0 ||
-                    parseNumber(post.Shares || 0) > 0
-                )
+                .filter(post => parseNumber(post[metric] || 0) > 0 || parseNumber(post.Reach || 0) > 0)
                 .sort((a, b) => parseNumber(b[metric] || 0) - parseNumber(a[metric] || 0))
                 .slice(0, 5);
             
             if (topPosts.length === 0) {
-                // Show all posts if none meet the criteria
-                const allPosts = posts.slice(0, 5);
-                if (allPosts.length > 0) {
-                    const tableContainer = document.createElement('div');
-                    tableContainer.className = 'table-container';
-                    tableContainer.innerHTML = `
-                        <p style="color: var(--duke-gray); text-align: center; padding: 15px; font-style: italic; background: rgba(107, 114, 128, 0.1); border-radius: 12px; margin-bottom: 15px;">
-                            📊 Showing all available posts (no posts with ${metric} > 0 found)
-                        </p>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Post</th>
-                                    <th>${metric}</th>
-                                    <th>Reach</th>
-                                    <th>Likes</th>
-                                    <th>Comments</th>
-                                    <th>Shares</th>
-                                    <th>Link</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${allPosts.map(post => 
-                                    `<tr>
-                                        <td><strong>${(post.Message || post.Description || 'No description').substring(0, 40)}...</strong></td>
-                                        <td><strong>${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
-                                        <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
-                                        <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
-                                        <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
-                                    </tr>`
-                                ).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                    card.appendChild(tableContainer);
-                } else {
-                    const noDataDiv = document.createElement('div');
-                    noDataDiv.style.cssText = 'text-align: center; padding: 50px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;';
-                    noDataDiv.innerHTML = `
-                        📭 No Facebook posts found for the selected time period.<br>
-                        <small style="margin-top: 10px; display: block;">Try expanding your date range or check if the posts data was uploaded correctly.</small>
-                    `;
-                    card.appendChild(noDataDiv);
-                }
+                const noDataDiv = document.createElement('div');
+                noDataDiv.className = 'no-data-message';
+                noDataDiv.innerHTML = `📭 No Facebook posts found with ${metric} data for the selected time period.`;
+                card.appendChild(noDataDiv);
                 return;
             }
             
@@ -2276,9 +2117,9 @@
                     <thead>
                         <tr>
                             <th>Post</th>
-                            <th>${metric}</th>
+                            <th>${metric.includes('Total clicks') ? 'Clicks' : metric}</th>
                             <th>Reach</th>
-                            <th>Likes</th>
+                            <th>Reactions</th>
                             <th>Comments</th>
                             <th>Shares</th>
                             <th>Link</th>
@@ -2287,13 +2128,13 @@
                     <tbody>
                         ${topPosts.map(post => 
                             `<tr>
-                                <td><strong>${(post.Message || post.Description || 'No description').substring(0, 40)}...</strong></td>
+                                <td><strong>${(post.Description || post.Title || 'No description').substring(0, 40)}...</strong></td>
                                 <td><strong style="color: var(--duke-blue);">${parseNumber(post[metric] || 0).toLocaleString()}</strong></td>
                                 <td>${parseNumber(post.Reach || 0).toLocaleString()}</td>
-                                <td>${parseNumber(post.Likes || 0).toLocaleString()}</td>
+                                <td>${parseNumber(post.Reactions || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Comments || 0).toLocaleString()}</td>
                                 <td>${parseNumber(post.Shares || 0).toLocaleString()}</td>
-                                <td>${post.Permalink || post.Link ? `<a href="${post.Permalink || post.Link}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
+                                <td>${post.Permalink ? `<a href="${post.Permalink}" target="_blank" style="color: var(--duke-blue); text-decoration: none; font-weight: bold;">🔗 View</a>` : 'N/A'}</td>
                             </tr>`
                         ).join('')}
                     </tbody>
@@ -2303,13 +2144,15 @@
         }
         
         function generateEmailAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
+            if (!processedData['Email_Campaign_Performance.csv']) return;
+            
             let emailData = processedData['Email_Campaign_Performance.csv'];
             
             const container = document.createElement('div');
             container.className = 'dashboard';
             
-            // Enhanced Email Overview
-            const overviewCard = createCard('📊 Email Campaign Overview');
+            // Email Overview with Subscriber Metrics
+            const overviewCard = createCard('📊 Email Campaign Overview & Subscriber Metrics');
             const metricsGrid = document.createElement('div');
             metricsGrid.className = 'metric-grid';
             
@@ -2320,51 +2163,52 @@
             const totalBounced = emailData.reduce((sum, row) => sum + parseNumber(row['Email bounces']), 0);
             const totalUnsubscribed = emailData.reduce((sum, row) => sum + parseNumber(row['Email unsubscribes']), 0);
             
+            // Find unique email addresses (approximate subscriber count)
+            const avgEmailsPerCampaign = totalSent / emailData.length;
+            const estimatedSubscribers = Math.round(avgEmailsPerCampaign);
+            
             const overallOpenRate = totalDelivered > 0 ? (totalOpened / totalDelivered) * 100 : 0;
             const overallClickRate = totalDelivered > 0 ? (totalClicked / totalDelivered) * 100 : 0;
             const overallBounceRate = totalSent > 0 ? (totalBounced / totalSent) * 100 : 0;
             const clickToOpenRate = totalOpened > 0 ? (totalClicked / totalOpened) * 100 : 0;
             
             // Calculate subscriber engagement percentages
-            const activeSubscribers = totalDelivered;
-            const nonOpeners = activeSubscribers - totalOpened;
+            const nonOpeners = totalDelivered - totalOpened;
             const openersWhoDidntClick = totalOpened - totalClicked;
-            const nonOpenerPercentage = activeSubscribers > 0 ? (nonOpeners / activeSubscribers) * 100 : 0;
-            const openerNoClickPercentage = activeSubscribers > 0 ? (openersWhoDidntClick / activeSubscribers) * 100 : 0;
+            const nonOpenerPercentage = totalDelivered > 0 ? (nonOpeners / totalDelivered) * 100 : 0;
+            const openerNoClickPercentage = totalDelivered > 0 ? (openersWhoDidntClick / totalDelivered) * 100 : 0;
             
             metricsGrid.innerHTML = `
-                <div class="metric">
-                    <div class="metric-value">${totalSent.toLocaleString()}</div>
-                    <div class="metric-label">Total Sent</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${overallOpenRate.toFixed(1)}%</div>
-                    <div class="metric-label">Overall Open Rate</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${overallClickRate.toFixed(1)}%</div>
-                    <div class="metric-label">Overall Click Rate</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${clickToOpenRate.toFixed(1)}%</div>
-                    <div class="metric-label">Click-to-Open Rate</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${nonOpenerPercentage.toFixed(1)}%</div>
-                    <div class="metric-label">Non-Openers</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${openerNoClickPercentage.toFixed(1)}%</div>
-                    <div class="metric-label">Opened, No Click</div>
-                </div>
+                ${createMetric(estimatedSubscribers, 'Est. Subscriber Count')}
+                ${createMetric(totalSent.toLocaleString(), 'Total Emails Sent')}
+                ${createMetric(overallOpenRate.toFixed(1) + '%', 'Overall Open Rate')}
+                ${createMetric(overallClickRate.toFixed(1) + '%', 'Overall Click Rate')}
+                ${createMetric(nonOpenerPercentage.toFixed(1) + '%', 'Never Opened %')}
+                ${createMetric(openerNoClickPercentage.toFixed(1) + '%', 'Opened, No Click %')}
             `;
             
             overviewCard.appendChild(metricsGrid);
+            
+            // Add subscriber note
+            const subscriberNote = document.createElement('div');
+            subscriberNote.className = 'subscriber-note';
+            subscriberNote.innerHTML = `
+                <strong>📊 Subscriber Count Note:</strong> The estimated subscriber count (${estimatedSubscribers.toLocaleString()}) is based on the average emails sent per campaign. 
+                Exact subscriber counts and demographics would require additional data from your email platform.
+                <br><br>
+                <strong>Engagement Breakdown:</strong><br>
+                • Active Clickers: ${(overallClickRate).toFixed(1)}%<br>
+                • Opened but didn't click: ${openerNoClickPercentage.toFixed(1)}%<br>
+                • Never opened: ${nonOpenerPercentage.toFixed(1)}%
+            `;
+            overviewCard.appendChild(subscriberNote);
+            
             container.appendChild(overviewCard);
             
             // Top Campaigns by Open Rate
             const topOpenCard = createCard('🏆 Top 5 Campaigns by Open Rate');
             const topOpenCampaigns = emailData
+                .filter(campaign => parseNumber(campaign['Emails sent']) > 100) // Filter out small campaigns
                 .sort((a, b) => parsePercentage(b['Email open rate (MPP excluded)']) - parsePercentage(a['Email open rate (MPP excluded)']))
                 .slice(0, 5);
             
@@ -2400,6 +2244,7 @@
             // Top Campaigns by Click Rate
             const topClickCard = createCard('🎯 Top 5 Campaigns by Click Rate');
             const topClickCampaigns = emailData
+                .filter(campaign => parseNumber(campaign['Emails sent']) > 100) // Filter out small campaigns
                 .sort((a, b) => parsePercentage(b['Email click rate']) - parsePercentage(a['Email click rate']))
                 .slice(0, 5);
             
@@ -2432,32 +2277,24 @@
             topClickCard.appendChild(clickTableContainer);
             container.appendChild(topClickCard);
             
-            // Email Performance Metrics
-            const performanceCard = createCard('📈 Email Performance Metrics');
-            const performanceGrid = document.createElement('div');
-            performanceGrid.className = 'metric-grid';
-            
-            performanceGrid.innerHTML = `
-                <div class="metric">
-                    <div class="metric-value">${overallBounceRate.toFixed(2)}%</div>
-                    <div class="metric-label">Bounce Rate</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${totalUnsubscribed.toLocaleString()}</div>
-                    <div class="metric-label">Total Unsubscribes</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${emailData.length}</div>
-                    <div class="metric-label">Total Campaigns</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">${Math.round(totalSent / emailData.length).toLocaleString()}</div>
-                    <div class="metric-label">Avg. Emails/Campaign</div>
+            // Best Performing Links Note
+            const linksCard = createCard('🔗 Best-Performing Links Information');
+            linksCard.innerHTML += `
+                <div class="subscriber-note">
+                    <strong>📈 Link Performance Data:</strong> Individual link click data (such as event registrations, donation pages, etc.) 
+                    is not included in the standard email campaign export. 
+                    <br><br>
+                    <strong>To get this data:</strong><br>
+                    • Check your email platform's link tracking reports<br>
+                    • Look for UTM campaign data in Google Analytics<br>
+                    • Export individual campaign link performance reports<br>
+                    <br>
+                    <strong>Available Metrics:</strong><br>
+                    • Total link clicks across all campaigns: ${parseNumber(emailData.reduce((sum, row) => sum + parseNumber(row['Email total clicks']), 0)).toLocaleString()}<br>
+                    • Average clicks per campaign: ${Math.round(parseNumber(emailData.reduce((sum, row) => sum + parseNumber(row['Email total clicks']), 0)) / emailData.length).toLocaleString()}
                 </div>
             `;
-            
-            performanceCard.appendChild(performanceGrid);
-            container.appendChild(performanceCard);
+            container.appendChild(linksCard);
             
             dashboard.appendChild(container);
         }
@@ -2466,7 +2303,7 @@
             const container = document.createElement('div');
             container.className = 'dashboard';
             
-            // Enhanced YouTube Overview
+            // YouTube Overview
             if (processedData['YouTube_Content.csv']) {
                 let content = processedData['YouTube_Content.csv'];
                 
@@ -2482,8 +2319,6 @@
                     });
                 }
                 
-                const comparisonContent = getYouTubeComparisonData(content, startDate, endDate, compareType);
-                
                 const overviewCard = createCard('🎥 YouTube Channel Overview');
                 const metricsGrid = document.createElement('div');
                 metricsGrid.className = 'metric-grid';
@@ -2498,24 +2333,20 @@
                 const totalLikes = content.reduce((sum, row) => sum + parseNumber(row.Likes), 0);
                 const totalShares = content.reduce((sum, row) => sum + parseNumber(row.Shares), 0);
                 
-                let compViews = null, compWatchTime = null, compSubscribers = null;
-                if (comparisonContent) {
-                    compViews = comparisonContent.reduce((sum, row) => sum + parseNumber(row.Views), 0);
-                    compWatchTime = comparisonContent.reduce((sum, row) => sum + parseNumber(row['Watch time (hours)']), 0);
-                    compSubscribers = comparisonContent.reduce((sum, row) => sum + parseNumber(row.Subscribers), 0);
-                }
-                
                 metricsGrid.innerHTML = `
-                    ${createMetricWithComparison(totalViews, 'Total Views', compViews)}
-                    ${createMetricWithComparison(Math.round(totalWatchTime), 'Watch Hours', compWatchTime ? Math.round(compWatchTime) : null)}
-                    ${createMetricWithComparison(totalSubscribers, 'Subscribers Gained', compSubscribers)}
-                    ${createMetricWithComparison(avgCTR.toFixed(1) + '%', 'Avg CTR', null)}
-                    ${createMetricWithComparison(totalImpressions, 'Total Impressions', null)}
-                    ${createMetricWithComparison(totalComments + totalLikes + totalShares, 'Total Engagement', null)}
+                    ${createMetric(totalViews, 'Total Views')}
+                    ${createMetric(Math.round(totalWatchTime), 'Watch Hours')}
+                    ${createMetric(totalSubscribers, 'Subscribers Gained')}
+                    ${createMetric(avgCTR.toFixed(1) + '%', 'Avg CTR')}
+                    ${createMetric(totalImpressions, 'Total Impressions')}
+                    ${createMetric(totalComments + totalLikes + totalShares, 'Total Engagement')}
                 `;
                 
                 overviewCard.appendChild(metricsGrid);
                 container.appendChild(overviewCard);
+                
+                // Demographics Section
+                generateYouTubeDemographics(container);
                 
                 // Top Videos Analysis
                 const topVideosCard = createCard('🏆 Top 5 Videos by Performance');
@@ -2527,7 +2358,7 @@
                     const tab = document.createElement('button');
                     tab.className = 'tab-button';
                     if (index === 0) tab.classList.add('active');
-                    tab.textContent = `Top by ${metric === 'Comments added' ? 'Comments' : metric === 'Watch time (hours)' ? 'Watch Time' : metric}`;
+                    tab.textContent = `By ${metric === 'Comments added' ? 'Comments' : metric === 'Watch time (hours)' ? 'Watch Time' : metric}`;
                     tab.onclick = () => displayTopYouTubeVideos(metric, content, topVideosCard);
                     tabContainer.appendChild(tab);
                 });
@@ -2540,7 +2371,7 @@
             // Subscriber vs Non-Subscriber Analysis
             if (processedData['YouTube_Subscription_Status.csv']) {
                 const subData = processedData['YouTube_Subscription_Status.csv'];
-                const subCard = createCard('👥 Subscriber vs Non-Subscriber Analysis');
+                const subCard = createCard('👥 Viewer Analysis: Subscribers vs Non-Subscribers');
                 
                 const subMetricsGrid = document.createElement('div');
                 subMetricsGrid.className = 'metric-grid';
@@ -2556,22 +2387,10 @@
                 const nonSubscriberPercentage = totalSubViews > 0 ? (nonSubscriberViews / totalSubViews) * 100 : 0;
                 
                 subMetricsGrid.innerHTML = `
-                    <div class="metric">
-                        <div class="metric-value">${subscriberPercentage.toFixed(1)}%</div>
-                        <div class="metric-label">Subscriber Views</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${nonSubscriberPercentage.toFixed(1)}%</div>
-                        <div class="metric-label">Non-Subscriber Views</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${subscriberViews.toLocaleString()}</div>
-                        <div class="metric-label">Subscriber View Count</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value">${nonSubscriberViews.toLocaleString()}</div>
-                        <div class="metric-label">Non-Sub View Count</div>
-                    </div>
+                    ${createMetric(subscriberPercentage.toFixed(1) + '%', 'Subscriber Views %')}
+                    ${createMetric(nonSubscriberPercentage.toFixed(1) + '%', 'Non-Subscriber Views %')}
+                    ${createMetric(subscriberViews.toLocaleString(), 'Subscriber Views')}
+                    ${createMetric(nonSubscriberViews.toLocaleString(), 'Non-Subscriber Views')}
                 `;
                 
                 subCard.appendChild(subMetricsGrid);
@@ -2605,6 +2424,15 @@
                                             family: 'Montserrat'
                                         }
                                     }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Views by Subscription Status',
+                                    font: {
+                                        family: 'Montserrat',
+                                        weight: 700,
+                                        size: 16
+                                    }
                                 }
                             }
                         }
@@ -2612,101 +2440,6 @@
                 }, 100);
                 
                 container.appendChild(subCard);
-            }
-            
-            // Demographics Analysis
-            if (processedData['YouTube_Age.csv'] && processedData['YouTube_Gender.csv']) {
-                const demoCard = createCard('👥 YouTube Audience Demographics');
-                
-                const ageData = processedData['YouTube_Age.csv'];
-                const genderData = processedData['YouTube_Gender.csv'];
-                
-                // Age demographics chart
-                const ageChartContainer = document.createElement('div');
-                ageChartContainer.style.cssText = 'width: 100%; height: 250px; margin: 20px 0;';
-                const ageCanvas = document.createElement('canvas');
-                ageChartContainer.appendChild(ageCanvas);
-                demoCard.appendChild(ageChartContainer);
-                
-                setTimeout(() => {
-                    new Chart(ageCanvas, {
-                        type: 'bar',
-                        data: {
-                            labels: ageData.map(row => row['Viewer age']),
-                            datasets: [{
-                                label: 'Views (%)',
-                                data: ageData.map(row => parseNumber(row['Views (%)'])),
-                                backgroundColor: 'var(--duke-blue)',
-                                borderRadius: 8,
-                                borderSkipped: false,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                title: {
-                                    display: true,
-                                    text: 'Views by Age Group',
-                                    font: {
-                                        family: 'Montserrat',
-                                        weight: 700,
-                                        size: 16
-                                    },
-                                    color: 'var(--duke-navy)'
-                                },
-                                legend: {
-                                    labels: {
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Percentage of Views',
-                                        font: {
-                                            family: 'Montserrat',
-                                            weight: 600
-                                        }
-                                    },
-                                    ticks: {
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
-                                    }
-                                },
-                                x: {
-                                    ticks: {
-                                        font: {
-                                            family: 'Montserrat'
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }, 100);
-                
-                // Gender demographics as metrics
-                const genderGrid = document.createElement('div');
-                genderGrid.className = 'metric-grid';
-                genderGrid.style.marginTop = '25px';
-                
-                const genderMetrics = genderData.map(row => 
-                    `<div class="metric">
-                        <div class="metric-value">${parseNumber(row['Views (%)']).toFixed(1)}%</div>
-                        <div class="metric-label">${row['Viewer gender']} Viewers</div>
-                    </div>`
-                ).join('');
-                
-                genderGrid.innerHTML = genderMetrics;
-                demoCard.appendChild(genderGrid);
-                container.appendChild(demoCard);
             }
             
             // Geographic Performance
@@ -2749,6 +2482,109 @@
             dashboard.appendChild(container);
         }
         
+        function generateYouTubeDemographics(container) {
+            // Age and Gender Demographics
+            if (processedData['YouTube_Age.csv'] || processedData['YouTube_Gender.csv']) {
+                const demoCard = createCard('👥 YouTube Audience Demographics');
+                
+                // Age demographics
+                if (processedData['YouTube_Age.csv']) {
+                    const ageData = processedData['YouTube_Age.csv'];
+                    
+                    const ageChartContainer = document.createElement('div');
+                    ageChartContainer.style.cssText = 'width: 100%; height: 250px; margin: 20px 0;';
+                    const ageCanvas = document.createElement('canvas');
+                    ageChartContainer.appendChild(ageCanvas);
+                    demoCard.appendChild(ageChartContainer);
+                    
+                    setTimeout(() => {
+                        new Chart(ageCanvas, {
+                            type: 'bar',
+                            data: {
+                                labels: ageData.map(row => row['Viewer age']),
+                                datasets: [{
+                                    label: 'Views (%)',
+                                    data: ageData.map(row => parseNumber(row['Views (%)'])),
+                                    backgroundColor: 'var(--duke-blue)',
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: 'Views by Age Group',
+                                        font: {
+                                            family: 'Montserrat',
+                                            weight: 700,
+                                            size: 16
+                                        },
+                                        color: 'var(--duke-navy)'
+                                    },
+                                    legend: {
+                                        labels: {
+                                            font: {
+                                                family: 'Montserrat'
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Percentage of Views',
+                                            font: {
+                                                family: 'Montserrat',
+                                                weight: 600
+                                            }
+                                        },
+                                        ticks: {
+                                            font: {
+                                                family: 'Montserrat'
+                                            }
+                                        }
+                                    },
+                                    x: {
+                                        ticks: {
+                                            font: {
+                                                family: 'Montserrat'
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }, 100);
+                }
+                
+                // Gender demographics
+                if (processedData['YouTube_Gender.csv']) {
+                    const genderData = processedData['YouTube_Gender.csv'];
+                    
+                    const genderGrid = document.createElement('div');
+                    genderGrid.className = 'metric-grid';
+                    genderGrid.style.marginTop = '25px';
+                    
+                    const genderMetrics = genderData.map(row => 
+                        `<div class="metric">
+                            <div class="metric-value">${parseNumber(row['Views (%)']).toFixed(1)}%</div>
+                            <div class="metric-label">${row['Viewer gender']} Viewers</div>
+                        </div>`
+                    ).join('');
+                    
+                    genderGrid.innerHTML = genderMetrics;
+                    demoCard.appendChild(genderGrid);
+                }
+                
+                container.appendChild(demoCard);
+            }
+        }
+        
         function displayTopYouTubeVideos(metric, content, card) {
             const existingTable = card.querySelector('.table-container');
             if (existingTable) {
@@ -2760,7 +2596,7 @@
                 tab.classList.remove('active');
                 const tabMetric = tab.textContent.includes('Comments') ? 'Comments added' : 
                                tab.textContent.includes('Watch Time') ? 'Watch time (hours)' : 
-                               tab.textContent.replace('Top by ', '');
+                               tab.textContent.replace('By ', '');
                                
                 if (tabMetric === metric || (tabMetric === 'Comments' && metric === 'Comments added') || 
                     (tabMetric === 'Watch Time' && metric === 'Watch time (hours)')) {
@@ -2772,6 +2608,14 @@
                 .filter(video => parseNumber(video[metric]) > 0)
                 .sort((a, b) => parseNumber(b[metric]) - parseNumber(a[metric]))
                 .slice(0, 5);
+            
+            if (topVideos.length === 0) {
+                const noDataDiv = document.createElement('div');
+                noDataDiv.className = 'no-data-message';
+                noDataDiv.innerHTML = `📭 No videos found with ${metric} data for the selected time period.`;
+                card.appendChild(noDataDiv);
+                return;
+            }
             
             const tableContainer = document.createElement('div');
             tableContainer.className = 'table-container';
@@ -2808,53 +2652,13 @@
             card.appendChild(tableContainer);
         }
         
-        function getYouTubeComparisonData(content, startDate, endDate, compareType) {
-            if (compareType === 'none' || !processedData['YouTube_Content.csv']) return null;
-            
-            const comparisonDates = getComparisonPeriod(startDate, endDate, compareType);
-            if (!comparisonDates) return null;
-            
-            return processedData['YouTube_Content.csv'].filter(video => {
-                if (video['Video publish time']) {
-                    const publishDate = new Date(video['Video publish time']);
-                    return publishDate >= comparisonDates.start && publishDate <= comparisonDates.end;
-                }
-                return true;
-            });
-        }
-        
-        function createMetricWithComparison(value, label, comparisonValue = null) {
-            let changeIndicator = '';
-            
-            if (comparisonValue !== null && comparisonValue !== 0) {
-                const numValue = typeof value === 'string' ? parseFloat(value.replace(/[,%]/g, '')) : value;
-                const change = ((numValue - comparisonValue) / comparisonValue) * 100;
-                const changeIcon = change > 0 ? '📈' : change < 0 ? '📉' : '➡️';
-                const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-                changeIndicator = `<div class="metric-change ${changeClass}">
-                    ${changeIcon} ${change > 0 ? '+' : ''}${change.toFixed(1)}% vs previous
-                </div>`;
-            }
-            
+        function createMetric(value, label) {
             return `
                 <div class="metric">
                     <div class="metric-value">${typeof value === 'number' ? value.toLocaleString() : value}</div>
                     <div class="metric-label">${label}</div>
-                    ${changeIndicator}
                 </div>
             `;
-        }
-        
-        function getComparisonData(data, dateField, startDate, endDate, compareType) {
-            if (compareType === 'none') return null;
-            
-            const comparisonDates = getComparisonPeriod(startDate, endDate, compareType);
-            if (!comparisonDates) return null;
-            
-            return filterDataByDate(data, dateField, 
-                comparisonDates.start.toISOString().split('T')[0], 
-                comparisonDates.end.toISOString().split('T')[0]
-            );
         }
         
         function createCard(title) {
@@ -2885,140 +2689,11 @@
                     rangeText += ` (Available: ${dataRange.min.toLocaleDateString()} - ${dataRange.max.toLocaleDateString()})`;
                 }
                 
-                if (compareType !== 'none') {
-                    const comparisonDates = getComparisonPeriod(startDate, endDate, compareType);
-                    if (comparisonDates) {
-                        rangeText += ` | 📊 vs ${comparisonDates.start.toLocaleDateString()} - ${comparisonDates.end.toLocaleDateString()}`;
-                    }
-                }
-                
                 dateRangeInfo.innerHTML = rangeText;
                 generateDashboard(startDate, endDate, compareType);
             } else {
                 generateDashboard();
             }
-        }
-        
-        function getComparisonPeriod(startDate, endDate, compareType) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-            
-            if (compareType === 'previous') {
-                const comparisonEnd = new Date(start.getTime() - (24 * 60 * 60 * 1000));
-                const comparisonStart = new Date(comparisonEnd.getTime() - (daysDiff - 1) * (24 * 60 * 60 * 1000));
-                return {
-                    start: comparisonStart,
-                    end: comparisonEnd
-                };
-            } else if (compareType === 'year') {
-                const comparisonStart = new Date(start.getFullYear() - 1, start.getMonth(), start.getDate());
-                const comparisonEnd = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
-                return {
-                    start: comparisonStart,
-                    end: comparisonEnd
-                };
-            }
-            return null;
-        }
-        
-        // Continue with all the social analytics functions
-        function generateSocialAnalytics(dashboard, startDate = null, endDate = null, compareType = 'none') {
-            const container = document.createElement('div');
-            container.className = 'dashboard';
-            
-            // Social Media Audience Demographics
-            generateAudienceDemographics(container);
-            
-            // Add a note if no audience data is available
-            if (!processedData['FB_Audience.csv'] && !processedData['IG_Audience.csv']) {
-                const noteCard = createCard('💡 Demographics Note');
-                noteCard.innerHTML += `
-                    <div style="text-align: center; padding: 20px; color: var(--duke-gray); font-style: italic; background: rgba(107, 114, 128, 0.05); border-radius: 16px;">
-                        📊 Upload FB_Audience.csv and/or IG_Audience.csv files to see audience demographics<br>
-                        <small style="margin-top: 10px; display: block;">Age, gender, and location breakdowns will appear here</small>
-                    </div>
-                `;
-                container.appendChild(noteCard);
-            }
-            
-            // Facebook Analytics Overview
-            if (processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv']) {
-                const card = createCard('📘 Facebook Performance');
-                const metricsGrid = document.createElement('div');
-                metricsGrid.className = 'metric-grid';
-                
-                let fbReach = 0, fbInteractions = 0, fbFollows = 0, fbViews = 0, fbVisits = 0, fbLinkClicks = 0;
-                let compReach = null, compInteractions = null, compFollows = null;
-                
-                // Calculate Facebook metrics
-                if (processedData['FB_Reach.csv']) {
-                    let reachData = processedData['FB_Reach.csv'];
-                    if (startDate && endDate) {
-                        reachData = filterDataByDate(reachData, 'Date', startDate, endDate);
-                    }
-                    fbReach = reachData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                    
-                    const comparisonReach = getComparisonData(processedData['FB_Reach.csv'], 'Date', startDate, endDate, compareType);
-                    if (comparisonReach) {
-                        compReach = comparisonReach.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                    }
-                }
-                
-                if (processedData['FB_Interactions.csv']) {
-                    let interactionData = processedData['FB_Interactions.csv'];
-                    if (startDate && endDate) {
-                        interactionData = filterDataByDate(interactionData, 'Date', startDate, endDate);
-                    }
-                    fbInteractions = interactionData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Follows.csv']) {
-                    let followData = processedData['FB_Follows.csv'];
-                    if (startDate && endDate) {
-                        followData = filterDataByDate(followData, 'Date', startDate, endDate);
-                    }
-                    fbFollows = followData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Views.csv']) {
-                    let viewData = processedData['FB_Views.csv'];
-                    if (startDate && endDate) {
-                        viewData = filterDataByDate(viewData, 'Date', startDate, endDate);
-                    }
-                    fbViews = viewData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Visits.csv']) {
-                    let visitData = processedData['FB_Visits.csv'];
-                    if (startDate && endDate) {
-                        visitData = filterDataByDate(visitData, 'Date', startDate, endDate);
-                    }
-                    fbVisits = visitData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                if (processedData['FB_Link_clicks.csv']) {
-                    let linkData = processedData['FB_Link_clicks.csv'];
-                    if (startDate && endDate) {
-                        linkData = filterDataByDate(linkData, 'Date', startDate, endDate);
-                    }
-                    fbLinkClicks = linkData.reduce((sum, row) => sum + parseNumber(row.Primary), 0);
-                }
-                
-                metricsGrid.innerHTML = `
-                    ${createMetricWithComparison(fbReach, 'Total Reach', compReach)}
-                    ${createMetricWithComparison(fbInteractions, 'Interactions', compInteractions)}
-                    ${createMetricWithComparison(fbFollows, 'New Follows', compFollows)}
-                    ${createMetricWithComparison(fbViews, 'Profile Views', null)}
-                    ${createMetricWithComparison(fbVisits, 'Page Visits', null)}
-                    ${createMetricWithComparison(fbLinkClicks, 'Link Clicks', null)}
-                `;
-                
-                card.appendChild(metricsGrid);
-                container.appendChild(card);
-            }
-            
-            dashboard.appendChild(container);
         }
     </script>
 </body>
