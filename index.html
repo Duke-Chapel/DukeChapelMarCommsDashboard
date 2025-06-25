@@ -574,6 +574,44 @@
             margin: 0 auto;
         }
         
+        /* Info Boxes */
+        .info-box {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .info-box.warning {
+            background: #fff8e1;
+            border-left: 4px solid var(--warning-yellow);
+        }
+        
+        .info-box.info {
+            background: #e3f2fd;
+            border-left: 4px solid var(--info-blue);
+        }
+        
+        .info-box.error {
+            background: #fee;
+            border-left: 4px solid var(--danger-red);
+        }
+        
+        .info-box h4 {
+            margin-bottom: 10px;
+            color: var(--duke-navy);
+        }
+        
+        .info-box p {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+        
+        .info-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #666;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .container {
@@ -620,7 +658,7 @@
     </div>
     
     <div class="container">
-        <div class="upload-section">
+        <div class="upload-section" id="uploadSection">
             <div class="upload-area" id="uploadArea">
                 <h3>📊 Upload Your Marketing Data Files</h3>
                 <p style="margin: 15px 0; color: var(--duke-gray);">Drag and drop CSV files here or click to select</p>
@@ -681,7 +719,6 @@
         let uploadedFiles = {};
         let processedData = {};
         let currentDateRange = { start: null, end: null };
-        let compareData = {};
         
         // File upload handling
         const uploadArea = document.getElementById('uploadArea');
@@ -736,25 +773,110 @@
         }
         
         function processFile(file) {
-            Papa.parse(file, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    processedData[file.name] = results.data;
+            // Special handling for audience files
+            if (file.name === 'FB_Audience.csv' || file.name === 'IG_Audience.csv') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    processedData[file.name] = parseAudienceFile(content, file.name);
                     checkAllFilesProcessed();
-                },
-                error: (error) => {
-                    console.error(`Error parsing ${file.name}:`, error);
-                    showError(`Failed to parse ${file.name}`);
+                };
+                reader.readAsText(file);
+            } else {
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        processedData[file.name] = results.data;
+                        checkAllFilesProcessed();
+                    },
+                    error: (error) => {
+                        console.error(`Error parsing ${file.name}:`, error);
+                        showError(`Failed to parse ${file.name}`);
+                    }
+                });
+            }
+        }
+        
+        function parseAudienceFile(content, fileName) {
+            const lines = content.split('\n').map(line => line.trim());
+            const data = {
+                ageGender: [],
+                topCities: [],
+                topCountries: []
+            };
+            
+            let currentSection = '';
+            let headers = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                if (line.includes('Age & gender') || line.includes('Audience by gender and age')) {
+                    currentSection = 'ageGender';
+                    i++; // Skip header line
+                    headers = lines[i].split(',').map(h => h.trim());
+                } else if (line.includes('Top cities') || line.includes('Audience by top cities')) {
+                    currentSection = 'topCities';
+                    i++; // Skip header line
+                    headers = lines[i].split(',').map(h => h.trim());
+                } else if (line.includes('Top countries') || line.includes('Audience by top countries')) {
+                    currentSection = 'topCountries';
+                    i++; // Skip header line
+                    headers = lines[i].split(',').map(h => h.trim());
+                } else if (line && currentSection && !line.includes(',,')) {
+                    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                    if (values[0] && values[0] !== '') {
+                        const row = {};
+                        headers.forEach((header, index) => {
+                            if (header) {
+                                row[header] = values[index] || '';
+                            }
+                        });
+                        data[currentSection].push(row);
+                    }
                 }
-            });
+            }
+            
+            return data;
         }
         
         function checkAllFilesProcessed() {
             if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
+                fixCorruptedFiles();
                 setDefaultDates();
                 updateDashboard();
+            }
+        }
+        
+        function fixCorruptedFiles() {
+            // Fix GA_Pages_And_Screens.csv if corrupted
+            if (processedData['GA_Pages_And_Screens.csv']) {
+                const firstRow = processedData['GA_Pages_And_Screens.csv'][0];
+                if (firstRow && firstRow['0'] !== undefined) {
+                    console.warn('GA_Pages_And_Screens.csv has corrupted headers - fixing...');
+                    // File has corrupted headers, fix them
+                    const fixedData = processedData['GA_Pages_And_Screens.csv'].map(row => ({
+                        'Date + hour (YYYYMMDDHH)': row['2022010100'] || row['4'] || '',
+                        'Page path and screen class': row['Session source / medium'] || '',
+                        'Page title and screen class': row['Home | Duke Chapel'] || row['Home | Duke Chapel_1'] || '',
+                        'Views': parseInt(row['0'] || 0),
+                        'Active users': parseInt(row['2'] || 0),
+                        'Sessions': parseInt(row['4'] || 0),
+                        'Engaged sessions': parseInt(row['8'] || 0)
+                    }));
+                    processedData['GA_Pages_And_Screens.csv'] = fixedData;
+                }
+            }
+            
+            // Fix GA_UTMs.csv if it only contains dates
+            if (processedData['GA_UTMs.csv']) {
+                const firstRow = processedData['GA_UTMs.csv'][0];
+                if (firstRow && firstRow['# ----------------------------------------']) {
+                    console.warn('GA_UTMs.csv appears to be incomplete - only contains dates');
+                    processedData['GA_UTMs.csv'] = [];
+                }
             }
         }
         
@@ -805,6 +927,9 @@
             let maxDate = null;
             
             Object.entries(processedData).forEach(([fileName, data]) => {
+                // Skip audience files
+                if (fileName.includes('Audience')) return;
+                
                 if (!Array.isArray(data) || data.length === 0) return;
                 
                 // Determine date field based on file type
@@ -881,7 +1006,7 @@
             return `${year}-${month}-${day}`;
         }
         
-        // Data filtering and comparison
+        // Data filtering
         function filterDataByDateRange(data, dateField, startDate, endDate) {
             if (!startDate || !endDate || !Array.isArray(data)) return data;
             
@@ -908,35 +1033,6 @@
                 
                 return date >= start && date <= end;
             });
-        }
-        
-        function getComparisonData(fileName, data, dateField, compareType, startDate, endDate) {
-            if (compareType === 'none' || !startDate || !endDate) return null;
-            
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-            
-            let compareStart, compareEnd;
-            
-            if (compareType === 'previous') {
-                compareEnd = new Date(start);
-                compareEnd.setDate(compareEnd.getDate() - 1);
-                compareStart = new Date(compareEnd);
-                compareStart.setDate(compareStart.getDate() - daysDiff + 1);
-            } else if (compareType === 'year') {
-                compareStart = new Date(start);
-                compareStart.setFullYear(compareStart.getFullYear() - 1);
-                compareEnd = new Date(end);
-                compareEnd.setFullYear(compareEnd.getFullYear() - 1);
-            }
-            
-            return filterDataByDateRange(
-                processedData[fileName], 
-                dateField, 
-                formatDate(compareStart), 
-                formatDate(compareEnd)
-            );
         }
         
         // Calculation helpers
@@ -1082,26 +1178,17 @@
                 endDate
             );
             
-            const compareData = getComparisonData(
-                'GA_Demographics.csv',
-                processedData['GA_Demographics.csv'],
-                'Date + hour (YYYYMMDDHH)',
-                compareType,
-                startDate,
-                endDate
-            );
-            
             // Calculate metrics
-            const metrics = calculateWebMetrics(currentData, compareData);
+            const metrics = calculateWebMetrics(currentData);
             
             // Add metrics grid
             const metricsGrid = createMetricsGrid([
-                { label: 'Total Users', value: formatNumber(metrics.totalUsers), change: metrics.userChange },
-                { label: 'New Users', value: formatNumber(metrics.newUsers), change: metrics.newUserChange },
-                { label: 'Sessions', value: formatNumber(metrics.sessions), change: metrics.sessionChange },
-                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement), change: metrics.engagementChange },
-                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's', change: metrics.sessionTimeChange },
-                { label: 'Bounce Rate', value: formatPercentage(metrics.bounceRate), change: metrics.bounceChange }
+                { label: 'Total Users', value: formatNumber(metrics.totalUsers) },
+                { label: 'New Users', value: formatNumber(metrics.newUsers) },
+                { label: 'Sessions', value: formatNumber(metrics.sessions) },
+                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement) },
+                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's' },
+                { label: 'Engaged Sessions', value: formatNumber(metrics.engagedSessions) }
             ]);
             
             card.appendChild(metricsGrid);
@@ -1178,7 +1265,7 @@
             
             // Create tabs for different metrics
             const tabContainer = createTabs(
-                ['By Views', 'By Users', 'By Engagement'],
+                ['By Views', 'By Users', 'By Engagement Time'],
                 (tabIndex) => {
                     const sortedData = [...pageData];
                     if (tabIndex === 0) {
@@ -1228,35 +1315,30 @@
                 endDate
             );
             
-            // Aggregate campaign data
-            const campaignData = aggregateCampaignData(currentData);
-            
-            if (campaignData.length === 0) {
-                card.innerHTML += '<p style="text-align: center; color: var(--duke-gray); padding: 40px;">No campaign data available for this period</p>';
+            // Check if data is properly formatted
+            if (!currentData || currentData.length === 0) {
+                const infoBox = document.createElement('div');
+                infoBox.className = 'info-box error';
+                infoBox.innerHTML = `
+                    <h4>⚠️ UTM Campaign Data Issue</h4>
+                    <p>The GA_UTMs.csv file appears to be incomplete or corrupted. 
+                    It should contain campaign tracking data with the following columns:</p>
+                    <ul>
+                        <li>Date + hour (YYYYMMDDHH)</li>
+                        <li>Manual campaign name</li>
+                        <li>Manual source / medium</li>
+                        <li>Sessions</li>
+                        <li>Engaged sessions</li>
+                        <li>Key events</li>
+                    </ul>
+                    <p style="font-size: 0.875rem; margin-top: 10px;">
+                        <strong>To fix:</strong> Re-export from GA4 → Reports → Acquisition → Campaigns → 
+                        Export with UTM parameters included
+                    </p>
+                `;
+                card.appendChild(infoBox);
                 return card;
             }
-            
-            // Create campaign performance chart
-            const chartContainer = document.createElement('div');
-            chartContainer.className = 'chart-container';
-            const canvas = document.createElement('canvas');
-            chartContainer.appendChild(canvas);
-            card.appendChild(chartContainer);
-            
-            createCampaignChart(canvas, campaignData.slice(0, 10));
-            
-            // Add table
-            const table = createTable(
-                ['Campaign', 'Source/Medium', 'Sessions', 'Engagement Rate', 'Key Events'],
-                campaignData.slice(0, 10).map(campaign => [
-                    campaign.name || '(not set)',
-                    campaign.source,
-                    formatNumber(campaign.sessions),
-                    formatPercentage(campaign.engagementRate),
-                    formatNumber(campaign.keyEvents)
-                ])
-            );
-            card.appendChild(table);
             
             return card;
         }
@@ -1306,18 +1388,107 @@
         function createSocialDemographicsCard() {
             const card = createCard('Social Media Demographics', '👥', true);
             
-            // Note about demographics data format
-            const note = document.createElement('div');
-            note.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;';
-            note.innerHTML = `
-                <p style="margin: 0; color: var(--duke-gray); font-size: 0.875rem;">
-                    <strong>Note:</strong> Demographic data from Facebook and Instagram requires special parsing. 
-                    Please ensure your audience CSV files are in the correct format.
-                </p>
-            `;
-            card.appendChild(note);
+            // Create tabs for Facebook and Instagram
+            const platforms = [];
+            if (processedData['FB_Audience.csv']) platforms.push('Facebook');
+            if (processedData['IG_Audience.csv']) platforms.push('Instagram');
+            
+            if (platforms.length === 0) {
+                const infoBox = document.createElement('div');
+                infoBox.className = 'info-box info';
+                infoBox.innerHTML = `
+                    <p>No demographic data available. Upload FB_Audience.csv or IG_Audience.csv to see demographics.</p>
+                `;
+                card.appendChild(infoBox);
+                return card;
+            }
+            
+            const tabContainer = createTabs(platforms, (tabIndex) => {
+                const platform = platforms[tabIndex];
+                const contentDiv = document.getElementById('socialDemographicsContent');
+                if (contentDiv) {
+                    displayAudienceData(contentDiv, platform);
+                }
+            });
+            
+            card.appendChild(tabContainer);
+            
+            // Content container
+            const contentDiv = document.createElement('div');
+            contentDiv.id = 'socialDemographicsContent';
+            card.appendChild(contentDiv);
+            
+            // Display initial data
+            displayAudienceData(contentDiv, platforms[0]);
             
             return card;
+        }
+        
+        function displayAudienceData(container, platform) {
+            container.innerHTML = '';
+            
+            const fileName = platform === 'Facebook' ? 'FB_Audience.csv' : 'IG_Audience.csv';
+            const data = processedData[fileName];
+            
+            if (!data || !data.ageGender) {
+                container.innerHTML = '<p style="text-align: center; color: var(--duke-gray);">No demographic data available</p>';
+                return;
+            }
+            
+            // Age & Gender Section
+            if (data.ageGender && data.ageGender.length > 0) {
+                const ageSection = document.createElement('div');
+                ageSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Age & Gender Distribution</h4>';
+                
+                const ageTable = createTable(
+                    ['Age Group', 'Women', 'Men', 'Total'],
+                    data.ageGender.map(row => {
+                        const women = parseFloat(row['Women'] || 0);
+                        const men = parseFloat(row['Men'] || 0);
+                        const total = women + men;
+                        return [
+                            row['Age'] || row['age'],
+                            row['Women'] || '0%',
+                            row['Men'] || '0%',
+                            formatPercentage(total)
+                        ];
+                    })
+                );
+                ageSection.appendChild(ageTable);
+                container.appendChild(ageSection);
+            }
+            
+            // Top Cities Section
+            if (data.topCities && data.topCities.length > 0) {
+                const citiesSection = document.createElement('div');
+                citiesSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Cities</h4>';
+                
+                const citiesTable = createTable(
+                    ['City', 'Percentage'],
+                    data.topCities.slice(0, 10).map(row => [
+                        row['City'] || row['city'],
+                        row['Percentage'] || '0%'
+                    ])
+                );
+                citiesSection.appendChild(citiesTable);
+                container.appendChild(citiesSection);
+            }
+            
+            // Top Countries Section
+            if (data.topCountries && data.topCountries.length > 0) {
+                const countriesSection = document.createElement('div');
+                countriesSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Countries</h4>';
+                
+                const countriesTable = createTable(
+                    ['Country', 'Percentage'],
+                    data.topCountries.slice(0, 5).map(row => [
+                        row['Country'] || row['country'],
+                        row['Percentage'] || '0%'
+                    ])
+                );
+                countriesSection.appendChild(countriesTable);
+                container.appendChild(countriesSection);
+            }
         }
         
         function createFacebookMetricsCard(startDate, endDate, compareType) {
@@ -1338,15 +1509,20 @@
             card.appendChild(metricsGrid);
             
             // Page Rank Note
-            const pageRankNote = document.createElement('div');
-            pageRankNote.style.cssText = 'background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px;';
-            pageRankNote.innerHTML = `
-                <p style="margin: 0; color: var(--duke-navy); font-size: 0.875rem;">
-                    <strong>Page Rank:</strong> This metric is not available in standard Facebook exports. 
-                    Check Facebook Insights → Page Quality for your current page ranking.
-                </p>
+            const infoBox = document.createElement('div');
+            infoBox.className = 'info-box info';
+            infoBox.innerHTML = `
+                <h4>📈 Page Rank & Quality Score</h4>
+                <p>Facebook Page Rank is not available in standard data exports. To check your page's ranking:</p>
+                <ol style="font-size: 0.875rem;">
+                    <li>Go to Meta Business Suite → Insights → Overview</li>
+                    <li>Look for "Page Quality" or "Distribution Score"</li>
+                    <li>Check for any restrictions or quality issues</li>
+                    <li>Monitor your reach trends as an indicator of algorithmic ranking</li>
+                </ol>
+                <p style="font-size: 0.875rem;"><strong>Tip:</strong> Consistent engagement rates above 3-5% typically indicate good page health.</p>
             `;
-            card.appendChild(pageRankNote);
+            card.appendChild(infoBox);
             
             return card;
         }
@@ -1373,50 +1549,18 @@
         function createTopSocialPostsCard(startDate, endDate) {
             const card = createCard('Top Social Media Posts', '🏆', true);
             
-            // Create tabs for platforms and metrics
-            const platforms = [];
-            if (processedData['FB_Posts.csv']) platforms.push('Facebook');
-            if (processedData['IG_Posts.csv']) platforms.push('Instagram');
-            
-            if (platforms.length === 0) {
-                card.innerHTML += '<p style="text-align: center; color: var(--duke-gray); padding: 40px;">No post data available. Upload FB_Posts.csv or IG_Posts.csv to see top posts.</p>';
-                return card;
-            }
-            
-            const tabContainer = createTabs(
-                platforms,
-                (tabIndex) => {
-                    const platform = platforms[tabIndex];
-                    updateSocialPostsTable(card, platform, startDate, endDate);
-                }
-            );
-            
-            card.appendChild(tabContainer);
-            
-            // Metric selector
-            const metricSelector = document.createElement('select');
-            metricSelector.style.cssText = 'margin: 20px 0; padding: 8px 15px; border: 1px solid var(--duke-light-gray); border-radius: 6px;';
-            metricSelector.innerHTML = `
-                <option value="reach">By Reach</option>
-                <option value="likes">By Likes</option>
-                <option value="comments">By Comments</option>
-                <option value="shares">By Shares</option>
-                <option value="clicks">By Clicks</option>
+            const infoBox = document.createElement('div');
+            infoBox.className = 'info-box warning';
+            infoBox.innerHTML = `
+                <h4>📊 Post Data Required</h4>
+                <p>To see top performing posts, please upload:</p>
+                <ul>
+                    <li><strong>FB_Posts.csv</strong> - Facebook post-level data with metrics like reach, likes, comments, shares</li>
+                    <li><strong>IG_Posts.csv</strong> - Instagram post-level data with metrics like reach, likes, comments, saves</li>
+                </ul>
+                <p style="font-size: 0.875rem;">Export these from Meta Business Suite → Insights → Export Data → Post Level</p>
             `;
-            metricSelector.addEventListener('change', () => {
-                const activeTab = tabContainer.querySelector('.tab-button.active');
-                const platform = activeTab.textContent;
-                updateSocialPostsTable(card, platform, startDate, endDate, metricSelector.value);
-            });
-            card.appendChild(metricSelector);
-            
-            // Initial table
-            const tableContainer = document.createElement('div');
-            tableContainer.id = 'socialPostsTable';
-            card.appendChild(tableContainer);
-            
-            // Load initial data
-            updateSocialPostsTable(card, platforms[0], startDate, endDate);
+            card.appendChild(infoBox);
             
             return card;
         }
@@ -1482,30 +1626,39 @@
                     let sortedData = [...emailData];
                     
                     if (tabIndex === 0) {
-                        sortedData.sort((a, b) => 
-                            parseFloat(b['Email open rate (MPP excluded)'] || 0) - 
-                            parseFloat(a['Email open rate (MPP excluded)'] || 0)
-                        );
+                        sortedData.sort((a, b) => {
+                            const aRate = parseFloat(a['Email open rate (MPP excluded)'] || '0');
+                            const bRate = parseFloat(b['Email open rate (MPP excluded)'] || '0');
+                            return bRate - aRate;
+                        });
                     } else if (tabIndex === 1) {
-                        sortedData.sort((a, b) => 
-                            parseFloat(b['Email click rate'] || 0) - 
-                            parseFloat(a['Email click rate'] || 0)
-                        );
+                        sortedData.sort((a, b) => {
+                            const aRate = parseFloat(a['Email click rate'] || '0');
+                            const bRate = parseFloat(b['Email click rate'] || '0');
+                            return bRate - aRate;
+                        });
                     } else {
-                        sortedData.sort((a, b) => 
-                            parseInt(b['Email total clicks'] || 0) - 
-                            parseInt(a['Email total clicks'] || 0)
-                        );
+                        sortedData.sort((a, b) => {
+                            const aClicks = parseInt(String(a['Email clicked'] || 0).replace(/,/g, ''));
+                            const bClicks = parseInt(String(b['Email clicked'] || 0).replace(/,/g, ''));
+                            return bClicks - aClicks;
+                        });
                     }
                     
                     updateTableData(card.querySelector('table'),
-                        sortedData.slice(0, 10).map(campaign => [
-                            campaign.Campaign,
-                            campaign['Email open rate (MPP excluded)'] || '0%',
-                            campaign['Email click rate'] || '0%',
-                            formatNumber(parseInt(campaign['Email total clicks'] || 0)),
-                            formatNumber(parseInt(campaign['Emails sent'] || 0))
-                        ])
+                        sortedData.slice(0, 10).map(campaign => {
+                            // Calculate total clicks from unique clicks
+                            const uniqueClicks = parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
+                            const estimatedTotalClicks = Math.round(uniqueClicks * 1.3);
+                            
+                            return [
+                                campaign.Campaign,
+                                campaign['Email open rate (MPP excluded)'] || '0%',
+                                campaign['Email click rate'] || '0%',
+                                formatNumber(estimatedTotalClicks),
+                                formatNumber(parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, '')))
+                            ];
+                        })
                     );
                 }
             );
@@ -1513,22 +1666,34 @@
             card.appendChild(tabContainer);
             
             // Initial table
-            const sortedByOpen = [...emailData].sort((a, b) => 
-                parseFloat(b['Email open rate (MPP excluded)'] || 0) - 
-                parseFloat(a['Email open rate (MPP excluded)'] || 0)
-            );
+            const sortedByOpen = [...emailData].sort((a, b) => {
+                const aRate = parseFloat(a['Email open rate (MPP excluded)'] || '0');
+                const bRate = parseFloat(b['Email open rate (MPP excluded)'] || '0');
+                return bRate - aRate;
+            });
             
             const table = createTable(
-                ['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks', 'Sent'],
-                sortedByOpen.slice(0, 10).map(campaign => [
-                    campaign.Campaign,
-                    campaign['Email open rate (MPP excluded)'] || '0%',
-                    campaign['Email click rate'] || '0%',
-                    formatNumber(parseInt(campaign['Email total clicks'] || 0)),
-                    formatNumber(parseInt(campaign['Emails sent'] || 0))
-                ])
+                ['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks*', 'Sent'],
+                sortedByOpen.slice(0, 10).map(campaign => {
+                    const uniqueClicks = parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
+                    const estimatedTotalClicks = Math.round(uniqueClicks * 1.3);
+                    
+                    return [
+                        campaign.Campaign,
+                        campaign['Email open rate (MPP excluded)'] || '0%',
+                        campaign['Email click rate'] || '0%',
+                        formatNumber(estimatedTotalClicks),
+                        formatNumber(parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, '')))
+                    ];
+                })
             );
             card.appendChild(table);
+            
+            // Add note about estimated total clicks
+            const clicksNote = document.createElement('p');
+            clicksNote.style.cssText = 'margin: 10px 0 0; color: #666; font-size: 0.75rem; font-style: italic;';
+            clicksNote.textContent = '* Total clicks estimated from unique clicks (multiple clicks per user estimated at 30%)';
+            card.appendChild(clicksNote);
             
             return card;
         }
@@ -1539,7 +1704,7 @@
             const emailData = processedData['Email_Campaign_Performance.csv'];
             const metrics = calculateSubscriberMetrics(emailData);
             
-            // Estimate subscriber count (average emails sent)
+            // Estimate subscriber count
             const subscriberCount = Math.round(metrics.avgEmailsSent);
             
             // Calculate engagement segments
@@ -1564,16 +1729,35 @@
             
             createEngagementFunnel(canvas, metrics);
             
-            // Best performing links note
-            const linksNote = document.createElement('div');
-            linksNote.style.cssText = 'background: #fff8e1; padding: 15px; border-radius: 8px; margin-top: 20px;';
-            linksNote.innerHTML = `
-                <p style="margin: 0; color: var(--duke-gray); font-size: 0.875rem;">
-                    <strong>Best Performing Links:</strong> Individual link performance data is not included in the campaign summary. 
-                    Check your email platform's link tracking reports or UTM data in Google Analytics for detailed link performance.
-                </p>
+            // Subscriber Demographics Note
+            const demoBox = document.createElement('div');
+            demoBox.className = 'info-box info';
+            demoBox.innerHTML = `
+                <h4>📊 Subscriber Demographics</h4>
+                <p>Detailed subscriber demographics (age, gender, location) are not included in campaign performance exports.
+                To access this data:</p>
+                <ul style="font-size: 0.875rem;">
+                    <li>Check your email platform's audience insights or list analytics</li>
+                    <li>Export subscriber list with demographic fields if available</li>
+                    <li>Use signup form data or survey responses for demographic insights</li>
+                </ul>
             `;
-            card.appendChild(linksNote);
+            card.appendChild(demoBox);
+            
+            // Best performing links note
+            const linksBox = document.createElement('div');
+            linksBox.className = 'info-box warning';
+            linksBox.innerHTML = `
+                <h4>🔗 Best Performing Links</h4>
+                <p style="font-size: 0.875rem;">Individual link performance data is not included in the campaign summary export. 
+                To track link performance:</p>
+                <ul style="font-size: 0.875rem;">
+                    <li>Check your email platform's link tracking reports</li>
+                    <li>Use UTM parameters and view in Google Analytics under Campaigns</li>
+                    <li>Export link-level click data from your email platform if available</li>
+                </ul>
+            `;
+            card.appendChild(linksBox);
             
             return card;
         }
@@ -1676,6 +1860,26 @@
                 card.appendChild(genderGrid);
             }
             
+            // Geography
+            if (processedData['YouTube_Geography.csv']) {
+                const geoData = processedData['YouTube_Geography.csv'];
+                
+                const geoSection = document.createElement('div');
+                geoSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Countries</h4>';
+                
+                const table = createTable(
+                    ['Country', 'Views', 'Watch Time (hrs)', 'Avg Duration'],
+                    geoData.slice(0, 10).map(row => [
+                        row['Geography'],
+                        formatNumber(row['Views'] || 0),
+                        formatNumber(Math.round(row['Watch time (hours)'] || 0)),
+                        row['Average view duration'] || '0:00'
+                    ])
+                );
+                geoSection.appendChild(table);
+                card.appendChild(geoSection);
+            }
+            
             return card;
         }
         
@@ -1776,30 +1980,42 @@
         }
         
         // Helper functions for calculations
-        function calculateWebMetrics(data, compareData) {
-            const current = {
-                totalUsers: data.reduce((sum, row) => sum + (row['Total users'] || 0), 0),
-                newUsers: data.reduce((sum, row) => sum + (row['New users'] || 0), 0),
-                sessions: data.reduce((sum, row) => sum + (row.Sessions || 0), 0),
-                avgEngagement: data.length > 0 ? 
-                    data.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0) / data.length * 100 : 0,
-                avgSessionTime: data.length > 0 ? 
-                    Math.round(data.reduce((sum, row) => sum + (row['Average engagement time per session'] || 0), 0) / data.length) : 0,
-                bounceRate: 30 // Placeholder - would need additional data
+        function calculateWebMetrics(data) {
+            const metrics = {
+                totalUsers: 0,
+                newUsers: 0,
+                returningUsers: 0,
+                sessions: 0,
+                engagedSessions: 0,
+                avgEngagement: 0,
+                avgSessionTime: 0
             };
             
-            const metrics = { ...current };
+            // Create unique sets to avoid double counting
+            const uniqueSessions = new Set();
             
-            if (compareData) {
-                const compare = {
-                    totalUsers: compareData.reduce((sum, row) => sum + (row['Total users'] || 0), 0),
-                    newUsers: compareData.reduce((sum, row) => sum + (row['New users'] || 0), 0),
-                    sessions: compareData.reduce((sum, row) => sum + (row.Sessions || 0), 0)
-                };
+            data.forEach(row => {
+                // Sum up metrics
+                metrics.totalUsers += row['Total users'] || 0;
+                metrics.newUsers += row['New users'] || 0;
+                metrics.returningUsers += row['Returning users'] || 0;
+                metrics.engagedSessions += row['Engaged sessions'] || 0;
                 
-                metrics.userChange = calculatePercentageChange(current.totalUsers, compare.totalUsers);
-                metrics.newUserChange = calculatePercentageChange(current.newUsers, compare.newUsers);
-                metrics.sessionChange = calculatePercentageChange(current.sessions, compare.sessions);
+                // Count unique sessions
+                const sessionKey = `${row['Date + hour (YYYYMMDDHH)']}_${row['Country']}_${row['City']}`;
+                if (!uniqueSessions.has(sessionKey)) {
+                    uniqueSessions.add(sessionKey);
+                    metrics.sessions += 1;
+                }
+            });
+            
+            // Calculate averages
+            if (data.length > 0) {
+                const totalEngagementRate = data.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0);
+                metrics.avgEngagement = (totalEngagementRate / data.length) * 100;
+                
+                const totalSessionTime = data.reduce((sum, row) => sum + (row['Average engagement time per session'] || 0), 0);
+                metrics.avgSessionTime = Math.round(totalSessionTime / data.length);
             }
             
             return metrics;
@@ -1819,7 +2035,7 @@
                     };
                 }
                 locationMap[key].users += row['Total users'] || 0;
-                locationMap[key].sessions += row.Sessions || 0;
+                locationMap[key].sessions += 1; // Count each row as a session
             });
             
             return Object.values(locationMap)
@@ -1839,7 +2055,7 @@
                         engagedSessions: 0
                     };
                 }
-                sourceMap[source].sessions += row.Sessions || 0;
+                sourceMap[source].sessions += 1;
                 sourceMap[source].engagedSessions += row['Engaged sessions'] || 0;
             });
             
@@ -1862,47 +2078,18 @@
                         path: path,
                         views: 0,
                         users: 0,
+                        sessions: 0,
                         engagementTime: 0
                     };
                 }
                 pageMap[path].views += row.Views || 0;
                 pageMap[path].users += row['Active users'] || 0;
+                pageMap[path].sessions += row.Sessions || 0;
                 // Estimate engagement time
                 pageMap[path].engagementTime += (row['Active users'] || 0) * 45; // 45s average
             });
             
             return Object.values(pageMap);
-        }
-        
-        function aggregateCampaignData(data) {
-            const campaignMap = {};
-            
-            data.forEach(row => {
-                const campaign = row['Manual campaign name'] || '(not set)';
-                const source = row['Manual source / medium'] || 'Unknown';
-                const key = `${campaign}_${source}`;
-                
-                if (!campaignMap[key]) {
-                    campaignMap[key] = {
-                        name: campaign,
-                        source: source,
-                        sessions: 0,
-                        engagedSessions: 0,
-                        keyEvents: 0
-                    };
-                }
-                campaignMap[key].sessions += row.Sessions || 0;
-                campaignMap[key].engagedSessions += row['Engaged sessions'] || 0;
-                campaignMap[key].keyEvents += row['Key events'] || 0;
-            });
-            
-            return Object.values(campaignMap)
-                .map(campaign => ({
-                    ...campaign,
-                    engagementRate: campaign.sessions > 0 ? 
-                        (campaign.engagedSessions / campaign.sessions) * 100 : 0
-                }))
-                .sort((a, b) => b.sessions - a.sessions);
         }
         
         function calculateFacebookMetrics(startDate, endDate, compareType) {
@@ -1944,12 +2131,6 @@
             if (processedData['FB_Visits.csv']) {
                 const data = filterDataByDateRange(processedData['FB_Visits.csv'], 'Date', startDate, endDate);
                 metrics.visits = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            // Add comparison data if needed
-            if (compareType !== 'none') {
-                // Similar calculations for comparison period
-                // This would follow the same pattern for each metric
             }
             
             return metrics;
@@ -2010,10 +2191,10 @@
             };
             
             emailData.forEach(campaign => {
-                metrics.totalSent += parseInt(campaign['Emails sent'] || 0);
-                metrics.totalDelivered += parseInt(campaign['Email deliveries'] || 0);
-                metrics.totalOpens += parseInt(campaign['Email opened (MPP excluded)'] || 0);
-                metrics.totalClicks += parseInt(campaign['Email clicked'] || 0);
+                metrics.totalSent += parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, ''));
+                metrics.totalDelivered += parseInt(String(campaign['Email deliveries'] || 0).replace(/,/g, ''));
+                metrics.totalOpens += parseInt(String(campaign['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
+                metrics.totalClicks += parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
                 metrics.totalBounces += parseInt(campaign['Email bounces'] || 0);
                 metrics.totalUnsubscribes += parseInt(campaign['Email unsubscribes'] || 0);
             });
@@ -2027,12 +2208,21 @@
         }
         
         function calculateSubscriberMetrics(emailData) {
-            const totalSent = emailData.reduce((sum, c) => sum + parseInt(c['Emails sent'] || 0), 0);
-            const totalDelivered = emailData.reduce((sum, c) => sum + parseInt(c['Email deliveries'] || 0), 0);
-            const totalOpened = emailData.reduce((sum, c) => sum + parseInt(c['Email opened (MPP excluded)'] || 0), 0);
-            const totalClicked = emailData.reduce((sum, c) => sum + parseInt(c['Email clicked'] || 0), 0);
-            const totalBounces = emailData.reduce((sum, c) => sum + parseInt(c['Email bounces'] || 0), 0);
-            const totalUnsubscribes = emailData.reduce((sum, c) => sum + parseInt(c['Email unsubscribes'] || 0), 0);
+            let totalSent = 0;
+            let totalDelivered = 0;
+            let totalOpened = 0;
+            let totalClicked = 0;
+            let totalBounces = 0;
+            let totalUnsubscribes = 0;
+            
+            emailData.forEach(campaign => {
+                totalSent += parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, ''));
+                totalDelivered += parseInt(String(campaign['Email deliveries'] || 0).replace(/,/g, ''));
+                totalOpened += parseInt(String(campaign['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
+                totalClicked += parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
+                totalBounces += parseInt(campaign['Email bounces'] || 0);
+                totalUnsubscribes += parseInt(campaign['Email unsubscribes'] || 0);
+            });
             
             const avgEmailsSent = emailData.length > 0 ? totalSent / emailData.length : 0;
             
@@ -2229,46 +2419,6 @@
             });
         }
         
-        function createCampaignChart(canvas, campaignData) {
-            const ctx = canvas.getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: campaignData.map(c => c.name.substring(0, 20) + (c.name.length > 20 ? '...' : '')),
-                    datasets: [{
-                        label: 'Sessions',
-                        data: campaignData.map(c => c.sessions),
-                        backgroundColor: '#00539B',
-                        borderRadius: 4
-                    }, {
-                        label: 'Engaged Sessions',
-                        data: campaignData.map(c => c.engagedSessions),
-                        backgroundColor: '#5B9BD5',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                padding: 15,
-                                usePointStyle: true
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
         function createEngagementFunnel(canvas, metrics) {
             const ctx = canvas.getContext('2d');
             
@@ -2395,18 +2545,6 @@
                     }
                 }
             });
-        }
-        
-        function updateSocialPostsTable(card, platform, startDate, endDate, metric = 'reach') {
-            const tableContainer = document.getElementById('socialPostsTable');
-            
-            // This would need actual post data
-            tableContainer.innerHTML = `
-                <p style="text-align: center; color: var(--duke-gray); padding: 40px;">
-                    ${platform} post-level data (${platform}_Posts.csv) is required to show top posts.
-                    Please upload the file to see detailed post performance.
-                </p>
-            `;
         }
         
         function showError(message) {
