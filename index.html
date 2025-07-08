@@ -1189,8 +1189,19 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, setting up event listeners');
+            
             // Set up the connect button event listener
-            document.getElementById('connectBtn').addEventListener('click', connectToSheets);
+            const connectBtn = document.getElementById('connectBtn');
+            if (connectBtn) {
+                console.log('Connect button found, adding event listener');
+                connectBtn.addEventListener('click', function() {
+                    console.log('Connect button clicked!');
+                    connectToSheets();
+                });
+            } else {
+                console.error('Connect button not found!');
+            }
             
             // Check if there are saved credentials
             const savedFolderId = localStorage.getItem('dukeChapel_folderId');
@@ -1205,6 +1216,7 @@
             
             // Auto-connect if both are present
             if (savedFolderId && savedApiKey) {
+                console.log('Auto-connecting with saved credentials');
                 setTimeout(connectToSheets, 1000);
             }
         });
