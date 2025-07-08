@@ -1178,6 +1178,15 @@
             }, 5000);
         }
         
+        // Save credentials to localStorage when connecting
+        function saveCredentials() {
+            const folderId = document.getElementById('folderId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            if (folderId) localStorage.setItem('dukeChapel_folderId', folderId);
+            if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
+        }
+        
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             // Check if there are saved credentials
@@ -1193,25 +1202,9 @@
             
             // Auto-connect if both are present
             if (savedFolderId && savedApiKey) {
-                connectToSheets();
+                window.connectToSheets();
             }
         });
-        
-        // Save credentials to localStorage when connecting
-        function saveCredentials() {
-            const folderId = document.getElementById('folderId').value.trim();
-            const apiKey = document.getElementById('apiKey').value.trim();
-            
-            if (folderId) localStorage.setItem('dukeChapel_folderId', folderId);
-            if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
-        }
-        
-        // Update the connectToSheets function to save credentials
-        const originalConnectToSheets = connectToSheets;
-        connectToSheets = async function() {
-            saveCredentials();
-            return originalConnectToSheets();
-        };
     </script>
 </body>
 </html>
@@ -2061,8 +2054,10 @@
             }
         };
         
-        // Google Sheets connection
-        async function connectToSheets() {
+        // Google Sheets connection - make it globally accessible
+        window.connectToSheets = async function() {
+            saveCredentials(); // Save credentials first
+            
             const folderId = document.getElementById('folderId').value.trim();
             const apiKey = document.getElementById('apiKey').value.trim();
             
@@ -2135,7 +2130,7 @@
                 statusDiv.className = 'config-status disconnected';
                 statusDiv.textContent = '❌ Connection Failed';
             }
-        }
+        };
         
         // Load data from all discovered sheets
         async function loadAllSheetData() {
