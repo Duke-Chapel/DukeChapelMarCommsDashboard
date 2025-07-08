@@ -1998,6 +1998,23 @@
     </div>
 
     <script>
+        // DECLARE FUNCTION FIRST - GLOBAL SCOPE
+        function connectToSheets() {
+            console.log('connectToSheets called');
+            alert('Button clicked and function called!');
+            
+            const folderId = document.getElementById('folderId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            if (!folderId || !apiKey) {
+                alert('Please enter both Google Drive Folder ID and API Key');
+                return;
+            }
+            
+            alert('Starting connection...');
+            // Rest of function will go here
+        }
+        
         // Global state
         let processedData = {};
         let currentDateRange = { start: null, end: null };
@@ -2064,93 +2081,6 @@
             
             if (folderId) localStorage.setItem('dukeChapel_folderId', folderId);
             if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
-        }
-        
-        // Google Sheets connection function - GLOBAL
-        function connectToSheets() {
-            console.log('connectToSheets called'); // Debug log
-            saveCredentials(); // Save credentials first
-            
-            const folderId = document.getElementById('folderId').value.trim();
-            const apiKey = document.getElementById('apiKey').value.trim();
-            
-            if (!folderId || !apiKey) {
-                showError('Please enter both Google Drive Folder ID and API Key');
-                return;
-            }
-            
-            // Update UI to show connecting state
-            const connectBtn = document.getElementById('connectBtn');
-            const statusDiv = document.getElementById('connectionStatus');
-            
-            connectBtn.disabled = true;
-            connectBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
-            
-            // Test with a simple alert first
-            alert('Function is working! Now testing API...');
-            
-            setTimeout(async () => {
-                try {
-                    // Discover sheets in the folder
-                    const folderUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.spreadsheet'&key=${apiKey}`;
-                    console.log('Fetching folder:', folderUrl); // Debug log
-                    
-                    const folderResponse = await fetch(folderUrl);
-                    
-                    if (!folderResponse.ok) {
-                        throw new Error(`Failed to access folder: ${folderResponse.status} ${folderResponse.statusText}`);
-                    }
-                    
-                    const folderData = await folderResponse.json();
-                    console.log('Folder data:', folderData); // Debug log
-                    
-                    if (!folderData.files || folderData.files.length === 0) {
-                        throw new Error('No Google Sheets found in the specified folder');
-                    }
-                    
-                    // Map discovered sheets to expected names
-                    const discoveredSheets = {};
-                    folderData.files.forEach(file => {
-                        const fileName = file.name;
-                        if (EXPECTED_SHEETS[fileName]) {
-                            discoveredSheets[fileName] = file.id;
-                        }
-                    });
-                    
-                    console.log('Discovered sheets:', Object.keys(discoveredSheets));
-                    
-                    // Store configuration
-                    sheetsConfig = {
-                        folderId: folderId,
-                        apiKey: apiKey,
-                        connected: true,
-                        discoveredSheets: discoveredSheets
-                    };
-                    
-                    // Update UI
-                    statusDiv.className = 'config-status connected';
-                    statusDiv.textContent = `✅ Connected - Found ${Object.keys(discoveredSheets).length} sheets`;
-                    connectBtn.disabled = false;
-                    connectBtn.innerHTML = '<span>🔗</span> Connected to Google Drive';
-                    
-                    // Show controls and load data
-                    document.getElementById('controls').style.display = 'block';
-                    await loadAllSheetData();
-                    initializeDateControls();
-                    setDefaultDates();
-                    updateDashboard();
-                    
-                } catch (error) {
-                    console.error('Connection error:', error);
-                    showError('Failed to connect to Google Drive: ' + error.message);
-                    
-                    // Reset UI
-                    connectBtn.disabled = false;
-                    connectBtn.innerHTML = '<span>🔗</span> Connect to Google Drive Folder';
-                    statusDiv.className = 'config-status disconnected';
-                    statusDiv.textContent = '❌ Connection Failed';
-                }
-            }, 100);
         }
         
         // Load data from all discovered sheets
