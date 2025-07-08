@@ -1189,19 +1189,7 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded, setting up event listeners');
-            
-            // Set up the connect button event listener
-            const connectBtn = document.getElementById('connectBtn');
-            if (connectBtn) {
-                console.log('Connect button found, adding event listener');
-                connectBtn.addEventListener('click', function() {
-                    console.log('Connect button clicked!');
-                    connectToSheets();
-                });
-            } else {
-                console.error('Connect button not found!');
-            }
+            console.log('DOM loaded');
             
             // Check if there are saved credentials
             const savedFolderId = localStorage.getItem('dukeChapel_folderId');
@@ -1933,7 +1921,7 @@
                 </div>
             </div>
             
-            <button class="connect-btn" id="connectBtn">
+            <button class="connect-btn" id="connectBtn" onclick="connectToSheets()">
                 <span>🔗</span> Connect to Google Drive Folder
             </button>
             
@@ -2078,8 +2066,8 @@
             if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
         }
         
-        // Google Sheets connection function
-        async function connectToSheets() {
+        // Google Sheets connection function - GLOBAL
+        function connectToSheets() {
             console.log('connectToSheets called'); // Debug log
             saveCredentials(); // Save credentials first
             
@@ -2098,66 +2086,71 @@
             connectBtn.disabled = true;
             connectBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
             
-            try {
-                // Discover sheets in the folder
-                const folderUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.spreadsheet'&key=${apiKey}`;
-                console.log('Fetching folder:', folderUrl); // Debug log
-                
-                const folderResponse = await fetch(folderUrl);
-                
-                if (!folderResponse.ok) {
-                    throw new Error(`Failed to access folder: ${folderResponse.status} ${folderResponse.statusText}`);
-                }
-                
-                const folderData = await folderResponse.json();
-                console.log('Folder data:', folderData); // Debug log
-                
-                if (!folderData.files || folderData.files.length === 0) {
-                    throw new Error('No Google Sheets found in the specified folder');
-                }
-                
-                // Map discovered sheets to expected names
-                const discoveredSheets = {};
-                folderData.files.forEach(file => {
-                    const fileName = file.name;
-                    if (EXPECTED_SHEETS[fileName]) {
-                        discoveredSheets[fileName] = file.id;
+            // Test with a simple alert first
+            alert('Function is working! Now testing API...');
+            
+            setTimeout(async () => {
+                try {
+                    // Discover sheets in the folder
+                    const folderUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.spreadsheet'&key=${apiKey}`;
+                    console.log('Fetching folder:', folderUrl); // Debug log
+                    
+                    const folderResponse = await fetch(folderUrl);
+                    
+                    if (!folderResponse.ok) {
+                        throw new Error(`Failed to access folder: ${folderResponse.status} ${folderResponse.statusText}`);
                     }
-                });
-                
-                console.log('Discovered sheets:', Object.keys(discoveredSheets));
-                
-                // Store configuration
-                sheetsConfig = {
-                    folderId: folderId,
-                    apiKey: apiKey,
-                    connected: true,
-                    discoveredSheets: discoveredSheets
-                };
-                
-                // Update UI
-                statusDiv.className = 'config-status connected';
-                statusDiv.textContent = `✅ Connected - Found ${Object.keys(discoveredSheets).length} sheets`;
-                connectBtn.disabled = false;
-                connectBtn.innerHTML = '<span>🔗</span> Connected to Google Drive';
-                
-                // Show controls and load data
-                document.getElementById('controls').style.display = 'block';
-                await loadAllSheetData();
-                initializeDateControls();
-                setDefaultDates();
-                updateDashboard();
-                
-            } catch (error) {
-                console.error('Connection error:', error);
-                showError('Failed to connect to Google Drive: ' + error.message);
-                
-                // Reset UI
-                connectBtn.disabled = false;
-                connectBtn.innerHTML = '<span>🔗</span> Connect to Google Drive Folder';
-                statusDiv.className = 'config-status disconnected';
-                statusDiv.textContent = '❌ Connection Failed';
-            }
+                    
+                    const folderData = await folderResponse.json();
+                    console.log('Folder data:', folderData); // Debug log
+                    
+                    if (!folderData.files || folderData.files.length === 0) {
+                        throw new Error('No Google Sheets found in the specified folder');
+                    }
+                    
+                    // Map discovered sheets to expected names
+                    const discoveredSheets = {};
+                    folderData.files.forEach(file => {
+                        const fileName = file.name;
+                        if (EXPECTED_SHEETS[fileName]) {
+                            discoveredSheets[fileName] = file.id;
+                        }
+                    });
+                    
+                    console.log('Discovered sheets:', Object.keys(discoveredSheets));
+                    
+                    // Store configuration
+                    sheetsConfig = {
+                        folderId: folderId,
+                        apiKey: apiKey,
+                        connected: true,
+                        discoveredSheets: discoveredSheets
+                    };
+                    
+                    // Update UI
+                    statusDiv.className = 'config-status connected';
+                    statusDiv.textContent = `✅ Connected - Found ${Object.keys(discoveredSheets).length} sheets`;
+                    connectBtn.disabled = false;
+                    connectBtn.innerHTML = '<span>🔗</span> Connected to Google Drive';
+                    
+                    // Show controls and load data
+                    document.getElementById('controls').style.display = 'block';
+                    await loadAllSheetData();
+                    initializeDateControls();
+                    setDefaultDates();
+                    updateDashboard();
+                    
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    showError('Failed to connect to Google Drive: ' + error.message);
+                    
+                    // Reset UI
+                    connectBtn.disabled = false;
+                    connectBtn.innerHTML = '<span>🔗</span> Connect to Google Drive Folder';
+                    statusDiv.className = 'config-status disconnected';
+                    statusDiv.textContent = '❌ Connection Failed';
+                }
+            }, 100);
         }
         
         // Load data from all discovered sheets
