@@ -1189,6 +1189,9 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            // Set up the connect button event listener
+            document.getElementById('connectBtn').addEventListener('click', connectToSheets);
+            
             // Check if there are saved credentials
             const savedFolderId = localStorage.getItem('dukeChapel_folderId');
             const savedApiKey = localStorage.getItem('dukeChapel_apiKey');
@@ -1202,7 +1205,7 @@
             
             // Auto-connect if both are present
             if (savedFolderId && savedApiKey) {
-                setTimeout(() => window.connectToSheets(), 1000);
+                setTimeout(connectToSheets, 1000);
             }
         });
     </script>
@@ -1918,7 +1921,7 @@
                 </div>
             </div>
             
-            <button class="connect-btn" id="connectBtn" onclick="window.connectToSheets()">
+            <button class="connect-btn" id="connectBtn">
                 <span>🔗</span> Connect to Google Drive Folder
             </button>
             
@@ -2063,8 +2066,8 @@
             if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
         }
         
-        // Google Sheets connection - GLOBAL FUNCTION
-        window.connectToSheets = async function() {
+        // Google Sheets connection function
+        async function connectToSheets() {
             console.log('connectToSheets called'); // Debug log
             saveCredentials(); // Save credentials first
             
@@ -2143,7 +2146,7 @@
                 statusDiv.className = 'config-status disconnected';
                 statusDiv.textContent = '❌ Connection Failed';
             }
-        };
+        }
         
         // Load data from all discovered sheets
         async function loadAllSheetData() {
