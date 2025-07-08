@@ -28,6 +28,1194 @@
             --shadow-xl: 0 16px 32px rgba(0,0,0,0.15);
         }
         
+        // Web Analytics Section
+        function generateWebAnalytics(dashboard, startDate, endDate, compareType) {
+            if (!processedData['GA_Demographics.csv'] && !processedData['GA_Traffic_Acquisition.csv']) {
+                return;
+            }
+            
+            const section = document.createElement('div');
+            section.className = 'section-header';
+            section.textContent = '🌐 Web Analytics';
+            dashboard.appendChild(section);
+            
+            const grid = document.createElement('div');
+            grid.className = 'dashboard-grid';
+            
+            // Demographics Overview
+            if (processedData['GA_Demographics.csv']) {
+                const demoCard = createDemographicsCard(startDate, endDate, compareType);
+                grid.appendChild(demoCard);
+            }
+            
+            // Traffic Sources
+            if (processedData['GA_Traffic_Acquisition.csv']) {
+                const trafficCard = createTrafficSourcesCard(startDate, endDate, compareType);
+                grid.appendChild(trafficCard);
+            }
+            
+            // Top Landing Pages
+            if (processedData['GA_Pages_And_Screens.csv']) {
+                const pagesCard = createTopPagesCard(startDate, endDate, compareType);
+                grid.appendChild(pagesCard);
+            }
+            
+            // Campaign Performance
+            if (processedData['GA_UTMs.csv']) {
+                const campaignCard = createCampaignPerformanceCard(startDate, endDate, compareType);
+                grid.appendChild(campaignCard);
+            }
+            
+            dashboard.appendChild(grid);
+        }
+        
+        function createDemographicsCard(startDate, endDate, compareType) {
+            const card = createCard('Demographics & User Insights', '👥');
+            
+            const currentData = filterDataByDateRange(
+                processedData['GA_Demographics.csv'],
+                'Date + hour (YYYYMMDDHH)',
+                startDate,
+                endDate
+            );
+            
+            // Calculate metrics
+            const metrics = calculateWebMetrics(currentData);
+            
+            // Add metrics grid
+            const metricsGrid = createMetricsGrid([
+                { label: 'Total Users', value: formatNumber(metrics.totalUsers) },
+                { label: 'New Users', value: formatNumber(metrics.newUsers) },
+                { label: 'Sessions', value: formatNumber(metrics.sessions) },
+                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement) },
+                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's' },
+                { label: 'Engaged Sessions', value: formatNumber(metrics.engagedSessions) }
+            ]);
+            
+            card.appendChild(metricsGrid);
+            
+            // Add location breakdown
+            const locationData = getTopLocations(currentData);
+            if (locationData.length > 0) {
+                const table = createTable(
+                    ['Country', 'City', 'Users', 'Sessions'],
+                    locationData.slice(0, 5).map(loc => [
+                        loc.country,
+                        loc.city,
+                        formatNumber(loc.users),
+                        formatNumber(loc.sessions)
+                    ])
+                );
+                card.appendChild(table);
+            }
+            
+            return card;
+        }
+        
+        function createTrafficSourcesCard(startDate, endDate, compareType) {
+            const card = createCard('Traffic Sources & Channels', '🚀', true);
+            
+            const currentData = filterDataByDateRange(
+                processedData['GA_Traffic_Acquisition.csv'],
+                'Date + hour (YYYYMMDDHH)',
+                startDate,
+                endDate
+            );
+            
+            // Aggregate by source/medium
+            const sourceData = aggregateTrafficSources(currentData);
+            
+            // Create chart
+            if (sourceData.length > 0) {
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                card.appendChild(chartContainer);
+                
+                createTrafficChart(canvas, sourceData);
+            }
+            
+            // Add table
+            const table = createTable(
+                ['Source/Medium', 'Sessions', 'Engaged Sessions', 'Engagement Rate'],
+                sourceData.slice(0, 10).map(source => [
+                    source.source,
+                    formatNumber(source.sessions),
+                    formatNumber(source.engagedSessions),
+                    formatPercentage(source.engagementRate)
+                ])
+            );
+            card.appendChild(table);
+            
+            return card;
+        }
+        
+        function createTopPagesCard(startDate, endDate, compareType) {
+            const card = createCard('Top Landing Pages', '📄', true);
+            
+            const currentData = filterDataByDateRange(
+                processedData['GA_Pages_And_Screens.csv'],
+                'Date + hour (YYYYMMDDHH)',
+                startDate,
+                endDate
+            );
+            
+            // Aggregate page data
+            const pageData = aggregatePageData(currentData);
+            
+            // Create tabs for different metrics
+            const tabContainer = createTabs(
+                ['By Views', 'By Users', 'By Engagement Time'],
+                (tabIndex) => {
+                    const sortedData = [...pageData];
+                    if (tabIndex === 0) {
+                        sortedData.sort((a, b) => b.views - a.views);
+                    } else if (tabIndex === 1) {
+                        sortedData.sort((a, b) => b.users - a.users);
+                    } else {
+                        sortedData.sort((a, b) => b.engagementTime - a.engagementTime);
+                    }
+                    
+                    updateTableData(card.querySelector('table'), 
+                        sortedData.slice(0, 10).map(page => [
+                            page.path.substring(0, 50) + (page.path.length > 50 ? '...' : ''),
+                            formatNumber(page.views),
+                            formatNumber(page.users),
+                            Math.round(page.engagementTime / 60) + ' min'
+                        ])
+                    );
+                }
+            );
+            
+            card.appendChild(tabContainer);
+            
+            // Initial table
+            const sortedByViews = [...pageData].sort((a, b) => b.views - a.views);
+            const table = createTable(
+                ['Page Path', 'Views', 'Users', 'Total Engagement'],
+                sortedByViews.slice(0, 10).map(page => [
+                    page.path.substring(0, 50) + (page.path.length > 50 ? '...' : ''),
+                    formatNumber(page.views),
+                    formatNumber(page.users),
+                    Math.round(page.engagementTime / 60) + ' min'
+                ])
+            );
+            card.appendChild(table);
+            
+            return card;
+        }
+        
+        function createCampaignPerformanceCard(startDate, endDate, compareType) {
+            const card = createCard('Campaign Performance (UTM)', '🎯', true);
+            
+            const currentData = filterDataByDateRange(
+                processedData['GA_UTMs.csv'],
+                'Date + hour (YYYYMMDDHH)',
+                startDate,
+                endDate
+            );
+            
+            if (!currentData || currentData.length === 0) {
+                const infoBox = document.createElement('div');
+                infoBox.className = 'info-box info';
+                infoBox.innerHTML = `
+                    <h4>📊 Campaign Data</h4>
+                    <p>No UTM campaign data found for the selected date range. Make sure your GA_UTMs sheet tab contains campaign tracking data.</p>
+                `;
+                card.appendChild(infoBox);
+                return card;
+            }
+            
+            // Aggregate campaign data
+            const campaignData = aggregateCampaignData(currentData);
+            
+            // Add table
+            const table = createTable(
+                ['Campaign', 'Source/Medium', 'Sessions', 'Engaged Sessions', 'Key Events'],
+                campaignData.slice(0, 10).map(campaign => [
+                    campaign.name || 'Unknown',
+                    campaign.source || 'Unknown',
+                    formatNumber(campaign.sessions),
+                    formatNumber(campaign.engagedSessions),
+                    formatNumber(campaign.keyEvents)
+                ])
+            );
+            card.appendChild(table);
+            
+            return card;
+        }
+        
+        // Social Analytics Section
+        function generateSocialAnalytics(dashboard, startDate, endDate, compareType) {
+            const hasFacebook = processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv'];
+            const hasInstagram = processedData['IG_Interactions.csv'] || processedData['IG_Reach.csv'];
+            
+            if (!hasFacebook && !hasInstagram) return;
+            
+            const section = document.createElement('div');
+            section.className = 'section-header';
+            section.textContent = '📱 Social Media Analytics';
+            dashboard.appendChild(section);
+            
+            const grid = document.createElement('div');
+            grid.className = 'dashboard-grid';
+            
+            // Social Demographics
+            if (processedData['FB_Audience.csv'] || processedData['IG_Audience.csv']) {
+                const demoCard = createSocialDemographicsCard();
+                grid.appendChild(demoCard);
+            }
+            
+            // Facebook Metrics
+            if (hasFacebook) {
+                const fbCard = createFacebookMetricsCard(startDate, endDate, compareType);
+                grid.appendChild(fbCard);
+            }
+            
+            // Instagram Metrics
+            if (hasInstagram) {
+                const igCard = createInstagramMetricsCard(startDate, endDate, compareType);
+                grid.appendChild(igCard);
+            }
+            
+            dashboard.appendChild(grid);
+        }
+        
+        function createSocialDemographicsCard() {
+            const card = createCard('Social Media Demographics', '👥', true);
+            
+            // Create tabs for Facebook and Instagram
+            const platforms = [];
+            if (processedData['FB_Audience.csv']) platforms.push('Facebook');
+            if (processedData['IG_Audience.csv']) platforms.push('Instagram');
+            
+            if (platforms.length === 0) {
+                const infoBox = document.createElement('div');
+                infoBox.className = 'info-box info';
+                infoBox.innerHTML = `
+                    <p>No demographic data available. Add FB_Audience and IG_Audience tabs to your Google Sheet.</p>
+                `;
+                card.appendChild(infoBox);
+                return card;
+            }
+            
+            const tabContainer = createTabs(platforms, (tabIndex) => {
+                const platform = platforms[tabIndex];
+                const contentDiv = document.getElementById('socialDemographicsContent');
+                if (contentDiv) {
+                    displayAudienceData(contentDiv, platform);
+                }
+            });
+            
+            card.appendChild(tabContainer);
+            
+            // Content container
+            const contentDiv = document.createElement('div');
+            contentDiv.id = 'socialDemographicsContent';
+            card.appendChild(contentDiv);
+            
+            // Display initial data
+            displayAudienceData(contentDiv, platforms[0]);
+            
+            return card;
+        }
+        
+        function displayAudienceData(container, platform) {
+            container.innerHTML = '';
+            
+            const fileName = platform === 'Facebook' ? 'FB_Audience.csv' : 'IG_Audience.csv';
+            const data = processedData[fileName];
+            
+            if (!data || !data.ageGender) {
+                container.innerHTML = '<p style="text-align: center; color: var(--duke-gray);">No demographic data available</p>';
+                return;
+            }
+            
+            // Age & Gender Section
+            if (data.ageGender && data.ageGender.length > 0) {
+                const ageSection = document.createElement('div');
+                ageSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Age & Gender Distribution</h4>';
+                
+                const ageTable = createTable(
+                    ['Age Group', 'Women', 'Men', 'Total'],
+                    data.ageGender.map(row => {
+                        const women = parseFloat(row['Women'] || 0);
+                        const men = parseFloat(row['Men'] || 0);
+                        const total = women + men;
+                        return [
+                            row['Age'] || row['age'],
+                            row['Women'] || '0%',
+                            row['Men'] || '0%',
+                            formatPercentage(total)
+                        ];
+                    })
+                );
+                ageSection.appendChild(ageTable);
+                container.appendChild(ageSection);
+            }
+            
+            // Top Cities Section
+            if (data.topCities && data.topCities.length > 0) {
+                const citiesSection = document.createElement('div');
+                citiesSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Cities</h4>';
+                
+                const citiesTable = createTable(
+                    ['City', 'Percentage'],
+                    data.topCities.slice(0, 10).map(row => [
+                        row['City'] || row['city'],
+                        row['Percentage'] || '0%'
+                    ])
+                );
+                citiesSection.appendChild(citiesTable);
+                container.appendChild(citiesSection);
+            }
+        }
+        
+        function createFacebookMetricsCard(startDate, endDate, compareType) {
+            const card = createCard('Facebook Performance', '📘');
+            
+            // Aggregate metrics from different FB files
+            const metrics = calculateSocialMetrics('FB', startDate, endDate);
+            
+            const metricsGrid = createMetricsGrid([
+                { label: 'Total Reach', value: formatNumber(metrics.reach) },
+                { label: 'Interactions', value: formatNumber(metrics.interactions) },
+                { label: 'New Followers', value: formatNumber(metrics.follows) },
+                { label: 'Profile Views', value: formatNumber(metrics.views) },
+                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks) },
+                { label: 'Page Visits', value: formatNumber(metrics.visits) }
+            ]);
+            
+            card.appendChild(metricsGrid);
+            
+            return card;
+        }
+        
+        function createInstagramMetricsCard(startDate, endDate, compareType) {
+            const card = createCard('Instagram Performance', '📷');
+            
+            const metrics = calculateSocialMetrics('IG', startDate, endDate);
+            
+            const metricsGrid = createMetricsGrid([
+                { label: 'Total Reach', value: formatNumber(metrics.reach) },
+                { label: 'Interactions', value: formatNumber(metrics.interactions) },
+                { label: 'New Followers', value: formatNumber(metrics.follows) },
+                { label: 'Profile Views', value: formatNumber(metrics.views) },
+                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks) },
+                { label: 'Profile Visits', value: formatNumber(metrics.visits) }
+            ]);
+            
+            card.appendChild(metricsGrid);
+            
+            return card;
+        }
+        
+        // Email Analytics Section
+        function generateEmailAnalytics(dashboard, startDate, endDate, compareType) {
+            if (!processedData['Email_Campaign_Performance.csv']) return;
+            
+            const section = document.createElement('div');
+            section.className = 'section-header';
+            section.textContent = '📧 Email Marketing Analytics';
+            dashboard.appendChild(section);
+            
+            const grid = document.createElement('div');
+            grid.className = 'dashboard-grid';
+            
+            // Email Overview
+            const overviewCard = createEmailOverviewCard(startDate, endDate, compareType);
+            grid.appendChild(overviewCard);
+            
+            // Top Campaigns
+            const campaignsCard = createTopEmailCampaignsCard(startDate, endDate);
+            grid.appendChild(campaignsCard);
+            
+            // Subscriber Insights
+            const subscriberCard = createSubscriberInsightsCard(startDate, endDate);
+            grid.appendChild(subscriberCard);
+            
+            dashboard.appendChild(grid);
+        }
+        
+        function createEmailOverviewCard(startDate, endDate, compareType) {
+            const card = createCard('Email Marketing Overview', '📊');
+            
+            const emailData = processedData['Email_Campaign_Performance.csv'];
+            
+            // Calculate aggregate metrics
+            const metrics = calculateEmailMetrics(emailData);
+            
+            const metricsGrid = createMetricsGrid([
+                { label: 'Total Campaigns', value: emailData.length },
+                { label: 'Total Sent', value: formatNumber(metrics.totalSent) },
+                { label: 'Avg Open Rate', value: formatPercentage(metrics.avgOpenRate) },
+                { label: 'Avg Click Rate', value: formatPercentage(metrics.avgClickRate) },
+                { label: 'Total Opens', value: formatNumber(metrics.totalOpens) },
+                { label: 'Total Clicks', value: formatNumber(metrics.totalClicks) }
+            ]);
+            
+            card.appendChild(metricsGrid);
+            
+            return card;
+        }
+        
+        function createTopEmailCampaignsCard(startDate, endDate) {
+            const card = createCard('Top Email Campaigns', '🏆', true);
+            
+            const emailData = processedData['Email_Campaign_Performance.csv'];
+            
+            // Create tabs for different metrics
+            const tabContainer = createTabs(
+                ['By Open Rate', 'By Click Rate', 'By Total Clicks'],
+                (tabIndex) => {
+                    let sortedData = [...emailData];
+                    
+                    if (tabIndex === 0) {
+                        sortedData.sort((a, b) => {
+                            const aRate = parseFloat(a['Email open rate (MPP excluded)'] || '0');
+                            const bRate = parseFloat(b['Email open rate (MPP excluded)'] || '0');
+                            return bRate - aRate;
+                        });
+                    } else if (tabIndex === 1) {
+                        sortedData.sort((a, b) => {
+                            const aRate = parseFloat(a['Email click rate'] || '0');
+                            const bRate = parseFloat(b['Email click rate'] || '0');
+                            return bRate - aRate;
+                        });
+                    } else {
+                        sortedData.sort((a, b) => {
+                            const aClicks = parseInt(String(a['Email clicked'] || 0).replace(/,/g, ''));
+                            const bClicks = parseInt(String(b['Email clicked'] || 0).replace(/,/g, ''));
+                            return bClicks - aClicks;
+                        });
+                    }
+                    
+                    updateTableData(card.querySelector('table'),
+                        sortedData.slice(0, 10).map(campaign => [
+                            campaign.Campaign,
+                            campaign['Email open rate (MPP excluded)'] || '0%',
+                            campaign['Email click rate'] || '0%',
+                            formatNumber(parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''))),
+                            formatNumber(parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, '')))
+                        ])
+                    );
+                }
+            );
+            
+            card.appendChild(tabContainer);
+            
+            // Initial table
+            const sortedByOpen = [...emailData].sort((a, b) => {
+                const aRate = parseFloat(a['Email open rate (MPP excluded)'] || '0');
+                const bRate = parseFloat(b['Email open rate (MPP excluded)'] || '0');
+                return bRate - aRate;
+            });
+            
+            const table = createTable(
+                ['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks', 'Sent'],
+                sortedByOpen.slice(0, 10).map(campaign => [
+                    campaign.Campaign,
+                    campaign['Email open rate (MPP excluded)'] || '0%',
+                    campaign['Email click rate'] || '0%',
+                    formatNumber(parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''))),
+                    formatNumber(parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, '')))
+                ])
+            );
+            card.appendChild(table);
+            
+            return card;
+        }
+        
+        function createSubscriberInsightsCard(startDate, endDate) {
+            const card = createCard('Subscriber Insights & Engagement', '👤', true);
+            
+            const emailData = processedData['Email_Campaign_Performance.csv'];
+            const metrics = calculateSubscriberMetrics(emailData);
+            
+            // Estimate subscriber count
+            const subscriberCount = Math.round(metrics.avgEmailsSent);
+            
+            // Calculate engagement segments
+            const engagementGrid = createMetricsGrid([
+                { label: 'Est. Subscribers', value: formatNumber(subscriberCount) },
+                { label: 'Never Opened', value: formatPercentage(metrics.neverOpenedRate) },
+                { label: 'Opened, No Click', value: formatPercentage(metrics.openedNoClickRate) },
+                { label: 'Active Clickers', value: formatPercentage(metrics.activeClickerRate) },
+                { label: 'Unsubscribe Rate', value: formatPercentage(metrics.avgUnsubscribeRate) },
+                { label: 'Bounce Rate', value: formatPercentage(metrics.avgBounceRate) }
+            ]);
+            
+            card.appendChild(engagementGrid);
+            
+            return card;
+        }
+        
+        // YouTube Analytics Section
+        function generateYouTubeAnalytics(dashboard, startDate, endDate, compareType) {
+            if (!processedData['YouTube_Content.csv']) return;
+            
+            const section = document.createElement('div');
+            section.className = 'section-header';
+            section.textContent = '🎥 YouTube Analytics';
+            dashboard.appendChild(section);
+            
+            const grid = document.createElement('div');
+            grid.className = 'dashboard-grid';
+            
+            // YouTube Overview
+            const overviewCard = createYouTubeOverviewCard(startDate, endDate, compareType);
+            grid.appendChild(overviewCard);
+            
+            // Demographics
+            if (processedData['YouTube_Age.csv'] || processedData['YouTube_Gender.csv']) {
+                const demoCard = createYouTubeDemographicsCard();
+                grid.appendChild(demoCard);
+            }
+            
+            // Top Videos
+            const topVideosCard = createTopVideosCard(startDate, endDate);
+            grid.appendChild(topVideosCard);
+            
+            // Subscriber Analysis
+            if (processedData['YouTube_Subscription_Status.csv']) {
+                const subCard = createSubscriberAnalysisCard();
+                grid.appendChild(subCard);
+            }
+            
+            dashboard.appendChild(grid);
+        }
+        
+        function createYouTubeOverviewCard(startDate, endDate, compareType) {
+            const card = createCard('YouTube Channel Overview', '📊');
+            
+            const contentData = filterDataByDateRange(
+                processedData['YouTube_Content.csv'],
+                'Video publish time',
+                startDate,
+                endDate
+            );
+            
+            const metrics = calculateYouTubeMetrics(contentData);
+            
+            const metricsGrid = createMetricsGrid([
+                { label: 'Total Views', value: formatNumber(metrics.totalViews) },
+                { label: 'Watch Time (hrs)', value: formatNumber(Math.round(metrics.totalWatchTime)) },
+                { label: 'New Subscribers', value: formatNumber(metrics.totalSubscribers) },
+                { label: 'Videos Published', value: contentData.length },
+                { label: 'Avg CTR', value: formatPercentage(metrics.avgCTR) },
+                { label: 'Total Impressions', value: formatNumber(metrics.totalImpressions) }
+            ]);
+            
+            card.appendChild(metricsGrid);
+            
+            return card;
+        }
+        
+        function createYouTubeDemographicsCard() {
+            const card = createCard('YouTube Audience Demographics', '👥', true);
+            
+            // Age distribution
+            if (processedData['YouTube_Age.csv']) {
+                const ageData = processedData['YouTube_Age.csv'];
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                chartContainer.style.height = '300px';
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                card.appendChild(chartContainer);
+                
+                createYouTubeAgeChart(canvas, ageData);
+            }
+            
+            // Gender split
+            if (processedData['YouTube_Gender.csv']) {
+                const genderData = processedData['YouTube_Gender.csv'];
+                
+                const genderGrid = document.createElement('div');
+                genderGrid.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;';
+                
+                genderData.forEach(row => {
+                    const genderCard = document.createElement('div');
+                    genderCard.className = 'metric-card';
+                    genderCard.innerHTML = `
+                        <div class="metric-value">${row['Views (%)'] || 0}%</div>
+                        <div class="metric-label">${row['Viewer gender']}</div>
+                    `;
+                    genderGrid.appendChild(genderCard);
+                });
+                
+                card.appendChild(genderGrid);
+            }
+            
+            return card;
+        }
+        
+        function createTopVideosCard(startDate, endDate) {
+            const card = createCard('Top Performing Videos', '🏆', true);
+            
+            let contentData = processedData['YouTube_Content.csv'];
+            
+            if (startDate && endDate) {
+                contentData = filterDataByDateRange(contentData, 'Video publish time', startDate, endDate);
+            }
+            
+            // Create tabs for different metrics
+            const tabContainer = createTabs(
+                ['By Views', 'By Watch Time', 'By Subscribers', 'By CTR'],
+                (tabIndex) => {
+                    let sortedData = [...contentData];
+                    
+                    if (tabIndex === 0) {
+                        sortedData.sort((a, b) => (b.Views || 0) - (a.Views || 0));
+                    } else if (tabIndex === 1) {
+                        sortedData.sort((a, b) => (b['Watch time (hours)'] || 0) - (a['Watch time (hours)'] || 0));
+                    } else if (tabIndex === 2) {
+                        sortedData.sort((a, b) => (b.Subscribers || 0) - (a.Subscribers || 0));
+                    } else {
+                        sortedData.sort((a, b) => 
+                            (b['Impressions click-through rate (%)'] || 0) - 
+                            (a['Impressions click-through rate (%)'] || 0)
+                        );
+                    }
+                    
+                    updateTableData(card.querySelector('table'),
+                        sortedData.slice(0, 10).map(video => [
+                            (video['Video title'] || '').substring(0, 50) + 
+                                ((video['Video title'] || '').length > 50 ? '...' : ''),
+                            formatNumber(video.Views || 0),
+                            formatNumber(Math.round(video['Watch time (hours)'] || 0)),
+                            '+' + formatNumber(video.Subscribers || 0),
+                            formatPercentage(video['Impressions click-through rate (%)'] || 0)
+                        ])
+                    );
+                }
+            );
+            
+            card.appendChild(tabContainer);
+            
+            // Initial table
+            const sortedByViews = [...contentData].sort((a, b) => (b.Views || 0) - (a.Views || 0));
+            
+            const table = createTable(
+                ['Video Title', 'Views', 'Watch Time (hrs)', 'New Subscribers', 'CTR'],
+                sortedByViews.slice(0, 10).map(video => [
+                    (video['Video title'] || '').substring(0, 50) + 
+                        ((video['Video title'] || '').length > 50 ? '...' : ''),
+                    formatNumber(video.Views || 0),
+                    formatNumber(Math.round(video['Watch time (hours)'] || 0)),
+                    '+' + formatNumber(video.Subscribers || 0),
+                    formatPercentage(video['Impressions click-through rate (%)'] || 0)
+                ])
+            );
+            card.appendChild(table);
+            
+            return card;
+        }
+        
+        function createSubscriberAnalysisCard() {
+            const card = createCard('Viewer Analysis: Subscribers vs Non-Subscribers', '👤');
+            
+            const subData = processedData['YouTube_Subscription_Status.csv'];
+            
+            const subscribedData = subData.find(row => row['Subscription status'] === 'Subscribed') || {};
+            const notSubscribedData = subData.find(row => row['Subscription status'] === 'Not subscribed') || {};
+            
+            const totalViews = (subscribedData.Views || 0) + (notSubscribedData.Views || 0);
+            const subscribedPercentage = totalViews > 0 ? ((subscribedData.Views || 0) / totalViews) * 100 : 0;
+            const notSubscribedPercentage = totalViews > 0 ? ((notSubscribedData.Views || 0) / totalViews) * 100 : 0;
+            
+            const metricsGrid = createMetricsGrid([
+                { label: 'Subscriber Views', value: formatPercentage(subscribedPercentage) },
+                { label: 'Non-Sub Views', value: formatPercentage(notSubscribedPercentage) },
+                { label: 'Sub Watch Time', value: formatNumber(Math.round(subscribedData['Watch time (hours)'] || 0)) + ' hrs' },
+                { label: 'Non-Sub Watch Time', value: formatNumber(Math.round(notSubscribedData['Watch time (hours)'] || 0)) + ' hrs' }
+            ]);
+            
+            card.appendChild(metricsGrid);
+            
+            return card;
+        }
+        
+        // Helper functions for calculations
+        function calculateWebMetrics(data) {
+            const metrics = {
+                totalUsers: 0,
+                newUsers: 0,
+                returningUsers: 0,
+                sessions: 0,
+                engagedSessions: 0,
+                avgEngagement: 0,
+                avgSessionTime: 0
+            };
+            
+            data.forEach(row => {
+                metrics.totalUsers += row['Total users'] || 0;
+                metrics.newUsers += row['New users'] || 0;
+                metrics.returningUsers += row['Returning users'] || 0;
+                metrics.engagedSessions += row['Engaged sessions'] || 0;
+                metrics.sessions += 1;
+            });
+            
+            if (data.length > 0) {
+                const totalEngagementRate = data.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0);
+                metrics.avgEngagement = (totalEngagementRate / data.length) * 100;
+                
+                const totalSessionTime = data.reduce((sum, row) => sum + (row['Average engagement time per session'] || 0), 0);
+                metrics.avgSessionTime = Math.round(totalSessionTime / data.length);
+            }
+            
+            return metrics;
+        }
+        
+        function getTopLocations(data) {
+            const locationMap = {};
+            
+            data.forEach(row => {
+                const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
+                if (!locationMap[key]) {
+                    locationMap[key] = {
+                        country: row.Country || 'Unknown',
+                        city: row.City || 'Unknown',
+                        users: 0,
+                        sessions: 0
+                    };
+                }
+                locationMap[key].users += row['Total users'] || 0;
+                locationMap[key].sessions += 1;
+            });
+            
+            return Object.values(locationMap)
+                .sort((a, b) => b.users - a.users)
+                .slice(0, 10);
+        }
+        
+        function aggregateTrafficSources(data) {
+            const sourceMap = {};
+            
+            data.forEach(row => {
+                const source = row['Session source / medium'] || 'Unknown';
+                if (!sourceMap[source]) {
+                    sourceMap[source] = {
+                        source: source,
+                        sessions: 0,
+                        engagedSessions: 0
+                    };
+                }
+                sourceMap[source].sessions += 1;
+                sourceMap[source].engagedSessions += row['Engaged sessions'] || 0;
+            });
+            
+            return Object.values(sourceMap)
+                .map(source => ({
+                    ...source,
+                    engagementRate: source.sessions > 0 ? 
+                        (source.engagedSessions / source.sessions) * 100 : 0
+                }))
+                .sort((a, b) => b.sessions - a.sessions);
+        }
+        
+        function aggregatePageData(data) {
+            const pageMap = {};
+            
+            data.forEach(row => {
+                const path = row['Page path and screen class'] || 'Unknown';
+                if (!pageMap[path]) {
+                    pageMap[path] = {
+                        path: path,
+                        views: 0,
+                        users: 0,
+                        sessions: 0,
+                        engagementTime: 0
+                    };
+                }
+                pageMap[path].views += row.Views || 0;
+                pageMap[path].users += row['Active users'] || 0;
+                pageMap[path].sessions += row.Sessions || 0;
+                pageMap[path].engagementTime += (row['Active users'] || 0) * 45;
+            });
+            
+            return Object.values(pageMap);
+        }
+        
+        function aggregateCampaignData(data) {
+            const campaignMap = {};
+            
+            data.forEach(row => {
+                const key = `${row['Manual campaign name'] || 'Unknown'}_${row['Manual source / medium'] || 'Unknown'}`;
+                if (!campaignMap[key]) {
+                    campaignMap[key] = {
+                        name: row['Manual campaign name'] || 'Unknown',
+                        source: row['Manual source / medium'] || 'Unknown',
+                        sessions: 0,
+                        engagedSessions: 0,
+                        keyEvents: 0
+                    };
+                }
+                campaignMap[key].sessions += row.Sessions || 0;
+                campaignMap[key].engagedSessions += row['Engaged sessions'] || 0;
+                campaignMap[key].keyEvents += row['Key events'] || 0;
+            });
+            
+            return Object.values(campaignMap)
+                .sort((a, b) => b.sessions - a.sessions);
+        }
+        
+        function calculateSocialMetrics(platform, startDate, endDate) {
+            const metrics = {
+                reach: 0,
+                interactions: 0,
+                follows: 0,
+                views: 0,
+                linkClicks: 0,
+                visits: 0
+            };
+            
+            const files = [`${platform}_Reach.csv`, `${platform}_Interactions.csv`, `${platform}_Follows.csv`, 
+                          `${platform}_Views.csv`, `${platform}_Link_Clicks.csv`, `${platform}_Visits.csv`];
+            
+            files.forEach(fileName => {
+                if (processedData[fileName]) {
+                    const data = filterDataByDateRange(processedData[fileName], 'Date', startDate, endDate);
+                    const total = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
+                    
+                    if (fileName.includes('Reach')) metrics.reach = total;
+                    else if (fileName.includes('Interactions')) metrics.interactions = total;
+                    else if (fileName.includes('Follows')) metrics.follows = total;
+                    else if (fileName.includes('Views')) metrics.views = total;
+                    else if (fileName.includes('Link_Clicks')) metrics.linkClicks = total;
+                    else if (fileName.includes('Visits')) metrics.visits = total;
+                }
+            });
+            
+            return metrics;
+        }
+        
+        function calculateEmailMetrics(emailData) {
+            const metrics = {
+                totalSent: 0,
+                totalDelivered: 0,
+                totalOpens: 0,
+                totalClicks: 0,
+                totalBounces: 0,
+                totalUnsubscribes: 0
+            };
+            
+            emailData.forEach(campaign => {
+                metrics.totalSent += parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, ''));
+                metrics.totalDelivered += parseInt(String(campaign['Email deliveries'] || 0).replace(/,/g, ''));
+                metrics.totalOpens += parseInt(String(campaign['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
+                metrics.totalClicks += parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
+                metrics.totalBounces += parseInt(campaign['Email bounces'] || 0);
+                metrics.totalUnsubscribes += parseInt(campaign['Email unsubscribes'] || 0);
+            });
+            
+            metrics.avgOpenRate = metrics.totalDelivered > 0 ? 
+                (metrics.totalOpens / metrics.totalDelivered) * 100 : 0;
+            metrics.avgClickRate = metrics.totalDelivered > 0 ? 
+                (metrics.totalClicks / metrics.totalDelivered) * 100 : 0;
+            
+            return metrics;
+        }
+        
+        function calculateSubscriberMetrics(emailData) {
+            let totalSent = 0;
+            let totalDelivered = 0;
+            let totalOpened = 0;
+            let totalClicked = 0;
+            let totalBounces = 0;
+            let totalUnsubscribes = 0;
+            
+            emailData.forEach(campaign => {
+                totalSent += parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, ''));
+                totalDelivered += parseInt(String(campaign['Email deliveries'] || 0).replace(/,/g, ''));
+                totalOpened += parseInt(String(campaign['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
+                totalClicked += parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
+                totalBounces += parseInt(campaign['Email bounces'] || 0);
+                totalUnsubscribes += parseInt(campaign['Email unsubscribes'] || 0);
+            });
+            
+            const avgEmailsSent = emailData.length > 0 ? totalSent / emailData.length : 0;
+            
+            const neverOpened = totalDelivered - totalOpened;
+            const openedNoClick = totalOpened - totalClicked;
+            
+            return {
+                avgEmailsSent: avgEmailsSent,
+                neverOpenedRate: totalDelivered > 0 ? (neverOpened / totalDelivered) * 100 : 0,
+                openedNoClickRate: totalDelivered > 0 ? (openedNoClick / totalDelivered) * 100 : 0,
+                activeClickerRate: totalDelivered > 0 ? (totalClicked / totalDelivered) * 100 : 0,
+                avgUnsubscribeRate: totalSent > 0 ? (totalUnsubscribes / totalSent) * 100 : 0,
+                avgBounceRate: totalSent > 0 ? (totalBounces / totalSent) * 100 : 0
+            };
+        }
+        
+        function calculateYouTubeMetrics(contentData) {
+            return {
+                totalViews: contentData.reduce((sum, video) => sum + (video.Views || 0), 0),
+                totalWatchTime: contentData.reduce((sum, video) => sum + (video['Watch time (hours)'] || 0), 0),
+                totalSubscribers: contentData.reduce((sum, video) => sum + (video.Subscribers || 0), 0),
+                totalImpressions: contentData.reduce((sum, video) => sum + (video.Impressions || 0), 0),
+                avgCTR: contentData.length > 0 ? 
+                    contentData.reduce((sum, video) => sum + (video['Impressions click-through rate (%)'] || 0), 0) / contentData.length : 0
+            };
+        }
+        
+        // UI Helper functions
+        function createCard(title, icon, fullWidth = false) {
+            const card = document.createElement('div');
+            card.className = fullWidth ? 'card full-width' : 'card';
+            
+            const header = document.createElement('div');
+            header.className = 'card-header';
+            
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'card-title';
+            if (icon) {
+                titleDiv.innerHTML = `<span class="card-icon">${icon}</span> ${title}`;
+            } else {
+                titleDiv.textContent = title;
+            }
+            
+            header.appendChild(titleDiv);
+            card.appendChild(header);
+            
+            return card;
+        }
+        
+        function createMetricsGrid(metrics) {
+            const grid = document.createElement('div');
+            grid.className = 'metrics-grid';
+            
+            metrics.forEach(metric => {
+                const metricCard = document.createElement('div');
+                metricCard.className = 'metric-card';
+                
+                let changeHtml = '';
+                if (metric.change !== undefined && metric.change !== null) {
+                    const changeClass = metric.change > 0 ? 'positive' : metric.change < 0 ? 'negative' : 'neutral';
+                    const arrow = metric.change > 0 ? '↑' : metric.change < 0 ? '↓' : '→';
+                    changeHtml = `<div class="metric-change ${changeClass}">${arrow} ${Math.abs(metric.change).toFixed(1)}%</div>`;
+                }
+                
+                metricCard.innerHTML = `
+                    <div class="metric-value">${metric.value}</div>
+                    <div class="metric-label">${metric.label}</div>
+                    ${changeHtml}
+                `;
+                
+                grid.appendChild(metricCard);
+            });
+            
+            return grid;
+        }
+        
+        function createTable(headers, rows) {
+            const container = document.createElement('div');
+            container.className = 'table-container';
+            
+            const table = document.createElement('table');
+            
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            const tbody = document.createElement('tbody');
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.innerHTML = cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            
+            container.appendChild(table);
+            return container;
+        }
+        
+        function updateTableData(table, rows) {
+            if (!table) return;
+            
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.innerHTML = cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+        
+        function createTabs(labels, onTabChange) {
+            const container = document.createElement('div');
+            container.className = 'tab-container';
+            
+            labels.forEach((label, index) => {
+                const tab = document.createElement('button');
+                tab.className = 'tab-button';
+                if (index === 0) tab.classList.add('active');
+                tab.textContent = label;
+                
+                tab.addEventListener('click', () => {
+                    container.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    onTabChange(index);
+                });
+                
+                container.appendChild(tab);
+            });
+            
+            return container;
+        }
+        
+        // Chart creation functions
+        function createTrafficChart(canvas, sourceData) {
+            const ctx = canvas.getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: sourceData.slice(0, 6).map(s => s.source),
+                    datasets: [{
+                        data: sourceData.slice(0, 6).map(s => s.sessions),
+                        backgroundColor: [
+                            '#012169',
+                            '#00539B',
+                            '#5B9BD5',
+                            '#666666',
+                            '#E5E5E5',
+                            '#262626'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Traffic Distribution by Source',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: 20
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createYouTubeAgeChart(canvas, ageData) {
+            const ctx = canvas.getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ageData.map(row => row['Viewer age']),
+                    datasets: [{
+                        label: 'Views by Age Group (%)',
+                        data: ageData.map(row => row['Views (%)'] || 0),
+                        backgroundColor: '#00539B',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        function showError(message) {
+            const dashboard = document.getElementById('dashboard');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            dashboard.insertBefore(errorDiv, dashboard.firstChild);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if there are saved credentials
+            const savedFolderId = localStorage.getItem('dukeChapel_folderId');
+            const savedApiKey = localStorage.getItem('dukeChapel_apiKey');
+            
+            if (savedFolderId) {
+                document.getElementById('folderId').value = savedFolderId;
+            }
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+            }
+            
+            // Auto-connect if both are present
+            if (savedFolderId && savedApiKey) {
+                connectToSheets();
+            }
+        });
+        
+        // Save credentials to localStorage when connecting
+        function saveCredentials() {
+            const folderId = document.getElementById('folderId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            if (folderId) localStorage.setItem('dukeChapel_folderId', folderId);
+            if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
+        }
+        
+        // Update the connectToSheets function to save credentials
+        const originalConnectToSheets = connectToSheets;
+        connectToSheets = async function() {
+            saveCredentials();
+            return originalConnectToSheets();
+        };
+    </script>
+</body>
+</html>
+        
         * {
             margin: 0;
             padding: 0;
@@ -77,39 +1265,85 @@
             font-weight: 300;
         }
         
-        /* Upload Section */
-        .upload-section {
+        /* Google Sheets Configuration Section */
+        .config-section {
             background: white;
             border-radius: 12px;
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: var(--shadow-md);
-            border: 2px dashed var(--duke-light-blue);
+            border: 2px solid var(--duke-light-blue);
+        }
+        
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .config-title {
+            font-size: 1.5rem;
+            color: var(--duke-navy);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .config-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .config-status.connected {
+            background: #e8f5e9;
+            color: var(--success-green);
+        }
+        
+        .config-status.disconnected {
+            background: #ffebee;
+            color: var(--danger-red);
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .config-group label {
+            font-weight: 600;
+            color: var(--duke-gray);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .config-group input {
+            padding: 12px 15px;
+            border: 1px solid var(--duke-light-gray);
+            border-radius: 8px;
+            font-size: 1rem;
             transition: all 0.3s ease;
         }
         
-        .upload-section.dragover {
+        .config-group input:focus {
+            outline: none;
             border-color: var(--duke-blue);
-            background: #f0f7ff;
+            box-shadow: 0 0 0 3px rgba(0, 83, 155, 0.1);
         }
         
-        .upload-area {
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .upload-area h3 {
-            font-size: 1.5rem;
-            color: var(--duke-navy);
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-        
-        .file-input {
-            display: none;
-        }
-        
-        .upload-btn {
+        .connect-btn {
             background: var(--duke-blue);
             color: white;
             border: none;
@@ -119,34 +1353,42 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 8px;
         }
         
-        .upload-btn:hover {
+        .connect-btn:hover {
             background: var(--duke-navy);
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
         
-        .file-list {
-            margin-top: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
+        .connect-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
         }
         
-        .file-item {
+        .sheets-instructions {
             background: #e3f2fd;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.875rem;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .sheets-instructions h4 {
             color: var(--duke-navy);
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .sheets-instructions ol {
+            padding-left: 20px;
+            color: #555;
+        }
+        
+        .sheets-instructions li {
+            margin-bottom: 8px;
         }
         
         /* Controls Section */
@@ -622,6 +1864,10 @@
                 font-size: 2rem;
             }
             
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
             .controls-grid {
                 grid-template-columns: 1fr;
             }
@@ -658,15 +1904,56 @@
     </div>
     
     <div class="container">
-        <div class="upload-section" id="uploadSection">
-            <div class="upload-area" id="uploadArea">
-                <h3>📊 Upload Your Marketing Data Files</h3>
-                <p style="margin: 15px 0; color: var(--duke-gray);">Drag and drop CSV files here or click to select</p>
-                <input type="file" id="fileInput" class="file-input" multiple accept=".csv">
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                    <span>📤</span> Choose Files
-                </button>
-                <div class="file-list" id="fileList"></div>
+        <div class="config-section" id="configSection">
+            <div class="config-header">
+                <h3 class="config-title">
+                    <span>📊</span> Google Sheets Configuration
+                </h3>
+                <div class="config-status disconnected" id="connectionStatus">
+                    ❌ Not Connected
+                </div>
+            </div>
+            
+            <div class="config-grid">
+                <div class="config-group">
+                    <label>Google Drive Folder ID</label>
+                    <input type="text" id="folderId" placeholder="Enter your Google Drive folder ID">
+                </div>
+                <div class="config-group">
+                    <label>API Key</label>
+                    <input type="text" id="apiKey" placeholder="Enter your Google Drive/Sheets API key">
+                </div>
+            </div>
+            
+            <button class="connect-btn" id="connectBtn" onclick="connectToSheets()">
+                <span>🔗</span> Connect to Google Drive Folder
+            </button>
+            
+            <div class="sheets-instructions">
+                <h4>🚀 Setup Instructions:</h4>
+                <ol>
+                    <li>Create a Google Drive folder for your Duke Chapel analytics data</li>
+                    <li>Create separate Google Sheets for each data source:
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li><strong>GA_Demographics</strong> - Google Analytics demographic data</li>
+                            <li><strong>GA_Traffic_Acquisition</strong> - Traffic sources and channels</li>
+                            <li><strong>GA_Pages_And_Screens</strong> - Page performance data</li>
+                            <li><strong>GA_UTMs</strong> - Campaign tracking data</li>
+                            <li><strong>FB_Metrics</strong> - Facebook metrics (with tabs: Reach, Interactions, Follows, Views, Link_Clicks, Visits)</li>
+                            <li><strong>FB_Audience</strong> - Facebook audience demographics</li>
+                            <li><strong>IG_Metrics</strong> - Instagram metrics (with tabs: Reach, Interactions, Follows, Views, Link_Clicks, Visits)</li>
+                            <li><strong>IG_Audience</strong> - Instagram audience demographics</li>
+                            <li><strong>Email_Campaign_Performance</strong> - Email marketing data</li>
+                            <li><strong>YouTube_Content</strong> - YouTube video performance</li>
+                            <li><strong>YouTube_Demographics</strong> - YouTube audience (with tabs: Age, Gender, Geography, Subscription_Status)</li>
+                        </ul>
+                    </li>
+                    <li>Make the folder publicly viewable (Share → Anyone with the link can view)</li>
+                    <li>Get a Google Drive API key from <a href="https://console.developers.google.com" target="_blank">Google Cloud Console</a> (enable both Drive and Sheets APIs)</li>
+                    <li>Copy the Folder ID from the Drive URL (after /folders/)</li>
+                    <li>Enter both values above and click Connect</li>
+                </ol>
+                <p><strong>Pro Tip:</strong> Use consistent naming! The sheet names must match exactly as listed above.</p>
             </div>
         </div>
         
@@ -716,91 +2003,254 @@
 
     <script>
         // Global state
-        let uploadedFiles = {};
         let processedData = {};
         let currentDateRange = { start: null, end: null };
+        let sheetsConfig = {
+            id: '',
+            apiKey: '',
+            connected: false
+        };
         
-        // File upload handling
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const fileList = document.getElementById('fileList');
+        // Expected separate Google Sheets and their corresponding data files
+        const EXPECTED_SHEETS = {
+            // Google Analytics Sheets
+            'GA_Demographics': 'GA_Demographics.csv',
+            'GA_Traffic_Acquisition': 'GA_Traffic_Acquisition.csv', 
+            'GA_Pages_And_Screens': 'GA_Pages_And_Screens.csv',
+            'GA_UTMs': 'GA_UTMs.csv',
+            
+            // Facebook Sheets
+            'FB_Metrics': 'FB_Metrics.csv', // Combined FB metrics in one sheet with tabs
+            'FB_Audience': 'FB_Audience.csv',
+            
+            // Instagram Sheets  
+            'IG_Metrics': 'IG_Metrics.csv', // Combined IG metrics in one sheet with tabs
+            'IG_Audience': 'IG_Audience.csv',
+            
+            // Email Marketing Sheet
+            'Email_Campaign_Performance': 'Email_Campaign_Performance.csv',
+            
+            // YouTube Sheets
+            'YouTube_Content': 'YouTube_Content.csv',
+            'YouTube_Demographics': 'YouTube_Demographics.csv' // Combined age, gender, geography
+        };
         
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
+        // Tab mappings for multi-tab sheets
+        const SHEET_TAB_MAPPINGS = {
+            'FB_Metrics': {
+                'Reach': 'FB_Reach.csv',
+                'Interactions': 'FB_Interactions.csv', 
+                'Follows': 'FB_Follows.csv',
+                'Views': 'FB_Views.csv',
+                'Link_Clicks': 'FB_Link_Clicks.csv',
+                'Visits': 'FB_Visits.csv'
+            },
+            'IG_Metrics': {
+                'Reach': 'IG_Reach.csv',
+                'Interactions': 'IG_Interactions.csv',
+                'Follows': 'IG_Follows.csv', 
+                'Views': 'IG_Views.csv',
+                'Link_Clicks': 'IG_Link_Clicks.csv',
+                'Visits': 'IG_Visits.csv'
+            },
+            'YouTube_Demographics': {
+                'Age': 'YouTube_Age.csv',
+                'Gender': 'YouTube_Gender.csv',
+                'Geography': 'YouTube_Geography.csv',
+                'Subscription_Status': 'YouTube_Subscription_Status.csv'
+            }
+        };
         
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files);
-        });
-        
-        fileInput.addEventListener('change', (e) => {
-            handleFiles(e.target.files);
-        });
-        
-        function handleFiles(files) {
-            Array.from(files).forEach(file => {
-                if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
-                    uploadedFiles[file.name] = file;
-                    displayFile(file.name);
-                    processFile(file);
+        // Google Sheets connection
+        async function connectToSheets() {
+            const folderId = document.getElementById('folderId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            if (!folderId || !apiKey) {
+                showError('Please enter both Google Drive Folder ID and API Key');
+                return;
+            }
+            
+            // Update UI to show connecting state
+            const connectBtn = document.getElementById('connectBtn');
+            const statusDiv = document.getElementById('connectionStatus');
+            
+            connectBtn.disabled = true;
+            connectBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
+            
+            try {
+                // Discover sheets in the folder
+                const folderUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.spreadsheet'&key=${apiKey}`;
+                const folderResponse = await fetch(folderUrl);
+                
+                if (!folderResponse.ok) {
+                    throw new Error(`Failed to access folder: ${folderResponse.status} ${folderResponse.statusText}`);
                 }
-            });
-            
-            if (Object.keys(uploadedFiles).length > 0) {
-                document.getElementById('controls').style.display = 'block';
-                initializeDateControls();
-            }
-        }
-        
-        function displayFile(fileName) {
-            const existingItem = Array.from(fileList.children).find(
-                item => item.textContent.includes(fileName)
-            );
-            
-            if (!existingItem) {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item';
-                fileItem.innerHTML = `<span>✓</span> ${fileName}`;
-                fileList.appendChild(fileItem);
-            }
-        }
-        
-        function processFile(file) {
-            // Special handling for audience files
-            if (file.name === 'FB_Audience.csv' || file.name === 'IG_Audience.csv') {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const content = e.target.result;
-                    processedData[file.name] = parseAudienceFile(content, file.name);
-                    checkAllFilesProcessed();
-                };
-                reader.readAsText(file);
-            } else {
-                Papa.parse(file, {
-                    header: true,
-                    dynamicTyping: true,
-                    skipEmptyLines: true,
-                    complete: (results) => {
-                        processedData[file.name] = results.data;
-                        checkAllFilesProcessed();
-                    },
-                    error: (error) => {
-                        console.error(`Error parsing ${file.name}:`, error);
-                        showError(`Failed to parse ${file.name}`);
+                
+                const folderData = await folderResponse.json();
+                
+                if (!folderData.files || folderData.files.length === 0) {
+                    throw new Error('No Google Sheets found in the specified folder');
+                }
+                
+                // Map discovered sheets to expected names
+                const discoveredSheets = {};
+                folderData.files.forEach(file => {
+                    const fileName = file.name;
+                    if (EXPECTED_SHEETS[fileName]) {
+                        discoveredSheets[fileName] = file.id;
                     }
                 });
+                
+                console.log('Discovered sheets:', Object.keys(discoveredSheets));
+                
+                // Store configuration
+                sheetsConfig = {
+                    folderId: folderId,
+                    apiKey: apiKey,
+                    connected: true,
+                    discoveredSheets: discoveredSheets
+                };
+                
+                // Update UI
+                statusDiv.className = 'config-status connected';
+                statusDiv.textContent = `✅ Connected - Found ${Object.keys(discoveredSheets).length} sheets`;
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '<span>🔗</span> Connected to Google Drive';
+                
+                // Show controls and load data
+                document.getElementById('controls').style.display = 'block';
+                await loadAllSheetData();
+                initializeDateControls();
+                setDefaultDates();
+                updateDashboard();
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                showError('Failed to connect to Google Drive: ' + error.message);
+                
+                // Reset UI
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '<span>🔗</span> Connect to Google Drive Folder';
+                statusDiv.className = 'config-status disconnected';
+                statusDiv.textContent = '❌ Connection Failed';
             }
         }
         
-        function parseAudienceFile(content, fileName) {
-            const lines = content.split('\n').map(line => line.trim());
+        // Load data from all discovered sheets
+        async function loadAllSheetData() {
+            const dashboard = document.getElementById('dashboard');
+            dashboard.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading data from Google Sheets...</p>
+                </div>
+            `;
+            
+            const loadPromises = [];
+            
+            // Load single-tab sheets
+            for (const [sheetName, sheetId] of Object.entries(sheetsConfig.discoveredSheets)) {
+                if (SHEET_TAB_MAPPINGS[sheetName]) {
+                    // Multi-tab sheet - load each tab
+                    for (const [tabName, fileName] of Object.entries(SHEET_TAB_MAPPINGS[sheetName])) {
+                        loadPromises.push(loadSheetWithTab(sheetId, tabName, fileName));
+                    }
+                } else {
+                    // Single sheet - load first tab
+                    const fileName = EXPECTED_SHEETS[sheetName];
+                    loadPromises.push(loadSingleSheet(sheetId, fileName));
+                }
+            }
+            
+            await Promise.all(loadPromises);
+            dashboard.innerHTML = '';
+        }
+        
+        // Load data from a single sheet (first tab)
+        async function loadSingleSheet(sheetId, fileName) {
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1?key=${sheetsConfig.apiKey}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    console.warn(`Sheet "${fileName}" not accessible`);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (!data.values || data.values.length === 0) {
+                    console.warn(`Sheet "${fileName}" is empty`);
+                    return;
+                }
+                
+                // Convert sheet data to CSV-like format
+                const headers = data.values[0];
+                const rows = data.values.slice(1);
+                
+                const parsedData = rows.map(row => {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = row[index] || '';
+                    });
+                    return obj;
+                });
+                
+                // Handle special formatting for audience files
+                if (fileName.includes('Audience')) {
+                    processedData[fileName] = parseAudienceData(data.values, fileName);
+                } else {
+                    processedData[fileName] = parsedData;
+                }
+                
+                console.log(`Loaded ${parsedData.length} rows from ${fileName}`);
+                
+            } catch (error) {
+                console.error(`Error loading ${fileName}:`, error);
+            }
+        }
+        
+        // Load data from a specific tab within a sheet
+        async function loadSheetWithTab(sheetId, tabName, fileName) {
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tabName}?key=${sheetsConfig.apiKey}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    console.warn(`Tab "${tabName}" in sheet not found or inaccessible`);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (!data.values || data.values.length === 0) {
+                    console.warn(`Tab "${tabName}" is empty`);
+                    return;
+                }
+                
+                // Convert sheet data to CSV-like format
+                const headers = data.values[0];
+                const rows = data.values.slice(1);
+                
+                const parsedData = rows.map(row => {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = row[index] || '';
+                    });
+                    return obj;
+                });
+                
+                processedData[fileName] = parsedData;
+                console.log(`Loaded ${parsedData.length} rows from ${tabName} tab (${fileName})`);
+                
+            } catch (error) {
+                console.error(`Error loading ${tabName} tab:`, error);
+            }
+        }
+        
+        // Parse audience data from sheet format
+        function parseAudienceData(values, fileName) {
             const data = {
                 ageGender: [],
                 topCities: [],
@@ -810,77 +2260,41 @@
             let currentSection = '';
             let headers = [];
             
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
+            for (let i = 0; i < values.length; i++) {
+                const row = values[i];
+                const firstCell = row[0] ? row[0].toString().toLowerCase() : '';
                 
-                if (line.includes('Age & gender') || line.includes('Audience by gender and age')) {
+                if (firstCell.includes('age') && firstCell.includes('gender')) {
                     currentSection = 'ageGender';
-                    i++; // Skip header line
-                    headers = lines[i].split(',').map(h => h.trim());
-                } else if (line.includes('Top cities') || line.includes('Audience by top cities')) {
-                    currentSection = 'topCities';
-                    i++; // Skip header line
-                    headers = lines[i].split(',').map(h => h.trim());
-                } else if (line.includes('Top countries') || line.includes('Audience by top countries')) {
-                    currentSection = 'topCountries';
-                    i++; // Skip header line
-                    headers = lines[i].split(',').map(h => h.trim());
-                } else if (line && currentSection && !line.includes(',,')) {
-                    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-                    if (values[0] && values[0] !== '') {
-                        const row = {};
-                        headers.forEach((header, index) => {
-                            if (header) {
-                                row[header] = values[index] || '';
-                            }
-                        });
-                        data[currentSection].push(row);
+                    i++; // Skip to header row
+                    if (i < values.length) {
+                        headers = values[i];
                     }
+                } else if (firstCell.includes('cities')) {
+                    currentSection = 'topCities';
+                    i++; // Skip to header row
+                    if (i < values.length) {
+                        headers = values[i];
+                    }
+                } else if (firstCell.includes('countries')) {
+                    currentSection = 'topCountries';
+                    i++; // Skip to header row
+                    if (i < values.length) {
+                        headers = values[i];
+                    }
+                } else if (currentSection && row.length > 0 && row[0]) {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = row[index] || '';
+                    });
+                    data[currentSection].push(obj);
                 }
             }
             
             return data;
         }
         
-        function checkAllFilesProcessed() {
-            if (Object.keys(processedData).length === Object.keys(uploadedFiles).length) {
-                fixCorruptedFiles();
-                setDefaultDates();
-                updateDashboard();
-            }
-        }
-        
-        function fixCorruptedFiles() {
-            // Fix GA_Pages_And_Screens.csv if corrupted
-            if (processedData['GA_Pages_And_Screens.csv']) {
-                const firstRow = processedData['GA_Pages_And_Screens.csv'][0];
-                if (firstRow && firstRow['0'] !== undefined) {
-                    console.warn('GA_Pages_And_Screens.csv has corrupted headers - fixing...');
-                    // File has corrupted headers, fix them
-                    const fixedData = processedData['GA_Pages_And_Screens.csv'].map(row => ({
-                        'Date + hour (YYYYMMDDHH)': row['2022010100'] || row['4'] || '',
-                        'Page path and screen class': row['Session source / medium'] || '',
-                        'Page title and screen class': row['Home | Duke Chapel'] || row['Home | Duke Chapel_1'] || '',
-                        'Views': parseInt(row['0'] || 0),
-                        'Active users': parseInt(row['2'] || 0),
-                        'Sessions': parseInt(row['4'] || 0),
-                        'Engaged sessions': parseInt(row['8'] || 0)
-                    }));
-                    processedData['GA_Pages_And_Screens.csv'] = fixedData;
-                }
-            }
-            
-            // Fix GA_UTMs.csv if it only contains dates
-            if (processedData['GA_UTMs.csv']) {
-                const firstRow = processedData['GA_UTMs.csv'][0];
-                if (firstRow && firstRow['# ----------------------------------------']) {
-                    console.warn('GA_UTMs.csv appears to be incomplete - only contains dates');
-                    processedData['GA_UTMs.csv'] = [];
-                }
-            }
-        }
-        
-        // Date handling
+        // Date handling functions
         function initializeDateControls() {
             const startDate = document.getElementById('startDate');
             const endDate = document.getElementById('endDate');
@@ -1112,9 +2526,9 @@
             if (Object.keys(processedData).length === 0) {
                 dashboard.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📁</div>
-                        <h3>No Data Files Uploaded</h3>
-                        <p>Please upload your CSV files from Google Analytics, Facebook, Instagram, Email, and YouTube to see your marketing analytics.</p>
+                        <div class="empty-state-icon">📊</div>
+                        <h3>No Data Connected</h3>
+                        <p>Please connect to your Google Sheets to see your marketing analytics data.</p>
                     </div>
                 `;
                 return;
@@ -1126,1447 +2540,3 @@
             generateEmailAnalytics(dashboard, startDate, endDate, compareType);
             generateYouTubeAnalytics(dashboard, startDate, endDate, compareType);
         }
-        
-        // Web Analytics Section
-        function generateWebAnalytics(dashboard, startDate, endDate, compareType) {
-            if (!processedData['GA_Demographics.csv'] && !processedData['GA_Traffic_Acquisition.csv']) {
-                return;
-            }
-            
-            const section = document.createElement('div');
-            section.className = 'section-header';
-            section.textContent = '🌐 Web Analytics';
-            dashboard.appendChild(section);
-            
-            const grid = document.createElement('div');
-            grid.className = 'dashboard-grid';
-            
-            // Demographics Overview
-            if (processedData['GA_Demographics.csv']) {
-                const demoCard = createDemographicsCard(startDate, endDate, compareType);
-                grid.appendChild(demoCard);
-            }
-            
-            // Traffic Sources
-            if (processedData['GA_Traffic_Acquisition.csv']) {
-                const trafficCard = createTrafficSourcesCard(startDate, endDate, compareType);
-                grid.appendChild(trafficCard);
-            }
-            
-            // Top Landing Pages
-            if (processedData['GA_Pages_And_Screens.csv']) {
-                const pagesCard = createTopPagesCard(startDate, endDate, compareType);
-                grid.appendChild(pagesCard);
-            }
-            
-            // Campaign Performance
-            if (processedData['GA_UTMs.csv']) {
-                const campaignCard = createCampaignPerformanceCard(startDate, endDate, compareType);
-                grid.appendChild(campaignCard);
-            }
-            
-            dashboard.appendChild(grid);
-        }
-        
-        function createDemographicsCard(startDate, endDate, compareType) {
-            const card = createCard('Demographics & User Insights', '👥');
-            
-            const currentData = filterDataByDateRange(
-                processedData['GA_Demographics.csv'],
-                'Date + hour (YYYYMMDDHH)',
-                startDate,
-                endDate
-            );
-            
-            // Calculate metrics
-            const metrics = calculateWebMetrics(currentData);
-            
-            // Add metrics grid
-            const metricsGrid = createMetricsGrid([
-                { label: 'Total Users', value: formatNumber(metrics.totalUsers) },
-                { label: 'New Users', value: formatNumber(metrics.newUsers) },
-                { label: 'Sessions', value: formatNumber(metrics.sessions) },
-                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement) },
-                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's' },
-                { label: 'Engaged Sessions', value: formatNumber(metrics.engagedSessions) }
-            ]);
-            
-            card.appendChild(metricsGrid);
-            
-            // Add location breakdown
-            const locationData = getTopLocations(currentData);
-            if (locationData.length > 0) {
-                const table = createTable(
-                    ['Country', 'City', 'Users', 'Sessions'],
-                    locationData.slice(0, 5).map(loc => [
-                        loc.country,
-                        loc.city,
-                        formatNumber(loc.users),
-                        formatNumber(loc.sessions)
-                    ])
-                );
-                card.appendChild(table);
-            }
-            
-            return card;
-        }
-        
-        function createTrafficSourcesCard(startDate, endDate, compareType) {
-            const card = createCard('Traffic Sources & Channels', '🚀', true);
-            
-            const currentData = filterDataByDateRange(
-                processedData['GA_Traffic_Acquisition.csv'],
-                'Date + hour (YYYYMMDDHH)',
-                startDate,
-                endDate
-            );
-            
-            // Aggregate by source/medium
-            const sourceData = aggregateTrafficSources(currentData);
-            
-            // Create chart
-            if (sourceData.length > 0) {
-                const chartContainer = document.createElement('div');
-                chartContainer.className = 'chart-container';
-                const canvas = document.createElement('canvas');
-                chartContainer.appendChild(canvas);
-                card.appendChild(chartContainer);
-                
-                createTrafficChart(canvas, sourceData);
-            }
-            
-            // Add table
-            const table = createTable(
-                ['Source/Medium', 'Sessions', 'Engaged Sessions', 'Engagement Rate'],
-                sourceData.slice(0, 10).map(source => [
-                    source.source,
-                    formatNumber(source.sessions),
-                    formatNumber(source.engagedSessions),
-                    formatPercentage(source.engagementRate)
-                ])
-            );
-            card.appendChild(table);
-            
-            return card;
-        }
-        
-        function createTopPagesCard(startDate, endDate, compareType) {
-            const card = createCard('Top Landing Pages', '📄', true);
-            
-            const currentData = filterDataByDateRange(
-                processedData['GA_Pages_And_Screens.csv'],
-                'Date + hour (YYYYMMDDHH)',
-                startDate,
-                endDate
-            );
-            
-            // Aggregate page data
-            const pageData = aggregatePageData(currentData);
-            
-            // Create tabs for different metrics
-            const tabContainer = createTabs(
-                ['By Views', 'By Users', 'By Engagement Time'],
-                (tabIndex) => {
-                    const sortedData = [...pageData];
-                    if (tabIndex === 0) {
-                        sortedData.sort((a, b) => b.views - a.views);
-                    } else if (tabIndex === 1) {
-                        sortedData.sort((a, b) => b.users - a.users);
-                    } else {
-                        sortedData.sort((a, b) => b.engagementTime - a.engagementTime);
-                    }
-                    
-                    updateTableData(card.querySelector('table'), 
-                        sortedData.slice(0, 10).map(page => [
-                            page.path.substring(0, 50) + (page.path.length > 50 ? '...' : ''),
-                            formatNumber(page.views),
-                            formatNumber(page.users),
-                            Math.round(page.engagementTime / 60) + ' min'
-                        ])
-                    );
-                }
-            );
-            
-            card.appendChild(tabContainer);
-            
-            // Initial table
-            const sortedByViews = [...pageData].sort((a, b) => b.views - a.views);
-            const table = createTable(
-                ['Page Path', 'Views', 'Users', 'Total Engagement'],
-                sortedByViews.slice(0, 10).map(page => [
-                    page.path.substring(0, 50) + (page.path.length > 50 ? '...' : ''),
-                    formatNumber(page.views),
-                    formatNumber(page.users),
-                    Math.round(page.engagementTime / 60) + ' min'
-                ])
-            );
-            card.appendChild(table);
-            
-            return card;
-        }
-        
-        function createCampaignPerformanceCard(startDate, endDate, compareType) {
-            const card = createCard('Campaign Performance (UTM)', '🎯', true);
-            
-            const currentData = filterDataByDateRange(
-                processedData['GA_UTMs.csv'],
-                'Date + hour (YYYYMMDDHH)',
-                startDate,
-                endDate
-            );
-            
-            // Check if data is properly formatted
-            if (!currentData || currentData.length === 0) {
-                const infoBox = document.createElement('div');
-                infoBox.className = 'info-box error';
-                infoBox.innerHTML = `
-                    <h4>⚠️ UTM Campaign Data Issue</h4>
-                    <p>The GA_UTMs.csv file appears to be incomplete or corrupted. 
-                    It should contain campaign tracking data with the following columns:</p>
-                    <ul>
-                        <li>Date + hour (YYYYMMDDHH)</li>
-                        <li>Manual campaign name</li>
-                        <li>Manual source / medium</li>
-                        <li>Sessions</li>
-                        <li>Engaged sessions</li>
-                        <li>Key events</li>
-                    </ul>
-                    <p style="font-size: 0.875rem; margin-top: 10px;">
-                        <strong>To fix:</strong> Re-export from GA4 → Reports → Acquisition → Campaigns → 
-                        Export with UTM parameters included
-                    </p>
-                `;
-                card.appendChild(infoBox);
-                return card;
-            }
-            
-            return card;
-        }
-        
-        // Social Analytics Section
-        function generateSocialAnalytics(dashboard, startDate, endDate, compareType) {
-            const hasFacebook = processedData['FB_Interactions.csv'] || processedData['FB_Reach.csv'];
-            const hasInstagram = processedData['IG_Interactions.csv'] || processedData['IG_Reach.csv'];
-            
-            if (!hasFacebook && !hasInstagram) return;
-            
-            const section = document.createElement('div');
-            section.className = 'section-header';
-            section.textContent = '📱 Social Media Analytics';
-            dashboard.appendChild(section);
-            
-            const grid = document.createElement('div');
-            grid.className = 'dashboard-grid';
-            
-            // Social Demographics
-            if (processedData['FB_Audience.csv'] || processedData['IG_Audience.csv']) {
-                const demoCard = createSocialDemographicsCard();
-                grid.appendChild(demoCard);
-            }
-            
-            // Facebook Metrics
-            if (hasFacebook) {
-                const fbCard = createFacebookMetricsCard(startDate, endDate, compareType);
-                grid.appendChild(fbCard);
-            }
-            
-            // Instagram Metrics
-            if (hasInstagram) {
-                const igCard = createInstagramMetricsCard(startDate, endDate, compareType);
-                grid.appendChild(igCard);
-            }
-            
-            // Top Posts Analysis
-            const topPostsCard = createTopSocialPostsCard(startDate, endDate);
-            if (topPostsCard) {
-                grid.appendChild(topPostsCard);
-            }
-            
-            dashboard.appendChild(grid);
-        }
-        
-        function createSocialDemographicsCard() {
-            const card = createCard('Social Media Demographics', '👥', true);
-            
-            // Create tabs for Facebook and Instagram
-            const platforms = [];
-            if (processedData['FB_Audience.csv']) platforms.push('Facebook');
-            if (processedData['IG_Audience.csv']) platforms.push('Instagram');
-            
-            if (platforms.length === 0) {
-                const infoBox = document.createElement('div');
-                infoBox.className = 'info-box info';
-                infoBox.innerHTML = `
-                    <p>No demographic data available. Upload FB_Audience.csv or IG_Audience.csv to see demographics.</p>
-                `;
-                card.appendChild(infoBox);
-                return card;
-            }
-            
-            const tabContainer = createTabs(platforms, (tabIndex) => {
-                const platform = platforms[tabIndex];
-                const contentDiv = document.getElementById('socialDemographicsContent');
-                if (contentDiv) {
-                    displayAudienceData(contentDiv, platform);
-                }
-            });
-            
-            card.appendChild(tabContainer);
-            
-            // Content container
-            const contentDiv = document.createElement('div');
-            contentDiv.id = 'socialDemographicsContent';
-            card.appendChild(contentDiv);
-            
-            // Display initial data
-            displayAudienceData(contentDiv, platforms[0]);
-            
-            return card;
-        }
-        
-        function displayAudienceData(container, platform) {
-            container.innerHTML = '';
-            
-            const fileName = platform === 'Facebook' ? 'FB_Audience.csv' : 'IG_Audience.csv';
-            const data = processedData[fileName];
-            
-            if (!data || !data.ageGender) {
-                container.innerHTML = '<p style="text-align: center; color: var(--duke-gray);">No demographic data available</p>';
-                return;
-            }
-            
-            // Age & Gender Section
-            if (data.ageGender && data.ageGender.length > 0) {
-                const ageSection = document.createElement('div');
-                ageSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Age & Gender Distribution</h4>';
-                
-                const ageTable = createTable(
-                    ['Age Group', 'Women', 'Men', 'Total'],
-                    data.ageGender.map(row => {
-                        const women = parseFloat(row['Women'] || 0);
-                        const men = parseFloat(row['Men'] || 0);
-                        const total = women + men;
-                        return [
-                            row['Age'] || row['age'],
-                            row['Women'] || '0%',
-                            row['Men'] || '0%',
-                            formatPercentage(total)
-                        ];
-                    })
-                );
-                ageSection.appendChild(ageTable);
-                container.appendChild(ageSection);
-            }
-            
-            // Top Cities Section
-            if (data.topCities && data.topCities.length > 0) {
-                const citiesSection = document.createElement('div');
-                citiesSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Cities</h4>';
-                
-                const citiesTable = createTable(
-                    ['City', 'Percentage'],
-                    data.topCities.slice(0, 10).map(row => [
-                        row['City'] || row['city'],
-                        row['Percentage'] || '0%'
-                    ])
-                );
-                citiesSection.appendChild(citiesTable);
-                container.appendChild(citiesSection);
-            }
-            
-            // Top Countries Section
-            if (data.topCountries && data.topCountries.length > 0) {
-                const countriesSection = document.createElement('div');
-                countriesSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Countries</h4>';
-                
-                const countriesTable = createTable(
-                    ['Country', 'Percentage'],
-                    data.topCountries.slice(0, 5).map(row => [
-                        row['Country'] || row['country'],
-                        row['Percentage'] || '0%'
-                    ])
-                );
-                countriesSection.appendChild(countriesTable);
-                container.appendChild(countriesSection);
-            }
-        }
-        
-        function createFacebookMetricsCard(startDate, endDate, compareType) {
-            const card = createCard('Facebook Performance', '📘');
-            
-            // Aggregate metrics from different FB files
-            const metrics = calculateFacebookMetrics(startDate, endDate, compareType);
-            
-            const metricsGrid = createMetricsGrid([
-                { label: 'Total Reach', value: formatNumber(metrics.reach), change: metrics.reachChange },
-                { label: 'Interactions', value: formatNumber(metrics.interactions), change: metrics.interactionsChange },
-                { label: 'New Followers', value: formatNumber(metrics.follows), change: metrics.followsChange },
-                { label: 'Profile Views', value: formatNumber(metrics.views), change: metrics.viewsChange },
-                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks), change: metrics.linkClicksChange },
-                { label: 'Page Visits', value: formatNumber(metrics.visits), change: metrics.visitsChange }
-            ]);
-            
-            card.appendChild(metricsGrid);
-            
-            // Page Rank Note
-            const infoBox = document.createElement('div');
-            infoBox.className = 'info-box info';
-            infoBox.innerHTML = `
-                <h4>📈 Page Rank & Quality Score</h4>
-                <p>Facebook Page Rank is not available in standard data exports. To check your page's ranking:</p>
-                <ol style="font-size: 0.875rem;">
-                    <li>Go to Meta Business Suite → Insights → Overview</li>
-                    <li>Look for "Page Quality" or "Distribution Score"</li>
-                    <li>Check for any restrictions or quality issues</li>
-                    <li>Monitor your reach trends as an indicator of algorithmic ranking</li>
-                </ol>
-                <p style="font-size: 0.875rem;"><strong>Tip:</strong> Consistent engagement rates above 3-5% typically indicate good page health.</p>
-            `;
-            card.appendChild(infoBox);
-            
-            return card;
-        }
-        
-        function createInstagramMetricsCard(startDate, endDate, compareType) {
-            const card = createCard('Instagram Performance', '📷');
-            
-            const metrics = calculateInstagramMetrics(startDate, endDate, compareType);
-            
-            const metricsGrid = createMetricsGrid([
-                { label: 'Total Reach', value: formatNumber(metrics.reach), change: metrics.reachChange },
-                { label: 'Interactions', value: formatNumber(metrics.interactions), change: metrics.interactionsChange },
-                { label: 'New Followers', value: formatNumber(metrics.follows), change: metrics.followsChange },
-                { label: 'Profile Views', value: formatNumber(metrics.views), change: metrics.viewsChange },
-                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks), change: metrics.linkClicksChange },
-                { label: 'Profile Visits', value: formatNumber(metrics.visits), change: metrics.visitsChange }
-            ]);
-            
-            card.appendChild(metricsGrid);
-            
-            return card;
-        }
-        
-        function createTopSocialPostsCard(startDate, endDate) {
-            const card = createCard('Top Social Media Posts', '🏆', true);
-            
-            const infoBox = document.createElement('div');
-            infoBox.className = 'info-box warning';
-            infoBox.innerHTML = `
-                <h4>📊 Post Data Required</h4>
-                <p>To see top performing posts, please upload:</p>
-                <ul>
-                    <li><strong>FB_Posts.csv</strong> - Facebook post-level data with metrics like reach, likes, comments, shares</li>
-                    <li><strong>IG_Posts.csv</strong> - Instagram post-level data with metrics like reach, likes, comments, saves</li>
-                </ul>
-                <p style="font-size: 0.875rem;">Export these from Meta Business Suite → Insights → Export Data → Post Level</p>
-            `;
-            card.appendChild(infoBox);
-            
-            return card;
-        }
-        
-        // Email Analytics Section
-        function generateEmailAnalytics(dashboard, startDate, endDate, compareType) {
-            if (!processedData['Email_Campaign_Performance.csv']) return;
-            
-            const section = document.createElement('div');
-            section.className = 'section-header';
-            section.textContent = '📧 Email Marketing Analytics';
-            dashboard.appendChild(section);
-            
-            const grid = document.createElement('div');
-            grid.className = 'dashboard-grid';
-            
-            // Email Overview
-            const overviewCard = createEmailOverviewCard(startDate, endDate, compareType);
-            grid.appendChild(overviewCard);
-            
-            // Top Campaigns
-            const campaignsCard = createTopEmailCampaignsCard(startDate, endDate);
-            grid.appendChild(campaignsCard);
-            
-            // Subscriber Insights
-            const subscriberCard = createSubscriberInsightsCard(startDate, endDate);
-            grid.appendChild(subscriberCard);
-            
-            dashboard.appendChild(grid);
-        }
-        
-        function createEmailOverviewCard(startDate, endDate, compareType) {
-            const card = createCard('Email Marketing Overview', '📊');
-            
-            const emailData = processedData['Email_Campaign_Performance.csv'];
-            
-            // Calculate aggregate metrics
-            const metrics = calculateEmailMetrics(emailData);
-            
-            const metricsGrid = createMetricsGrid([
-                { label: 'Total Campaigns', value: emailData.length },
-                { label: 'Total Sent', value: formatNumber(metrics.totalSent) },
-                { label: 'Avg Open Rate', value: formatPercentage(metrics.avgOpenRate) },
-                { label: 'Avg Click Rate', value: formatPercentage(metrics.avgClickRate) },
-                { label: 'Total Opens', value: formatNumber(metrics.totalOpens) },
-                { label: 'Total Clicks', value: formatNumber(metrics.totalClicks) }
-            ]);
-            
-            card.appendChild(metricsGrid);
-            
-            return card;
-        }
-        
-        function createTopEmailCampaignsCard(startDate, endDate) {
-            const card = createCard('Top Email Campaigns', '🏆', true);
-            
-            const emailData = processedData['Email_Campaign_Performance.csv'];
-            
-            // Create tabs for different metrics
-            const tabContainer = createTabs(
-                ['By Open Rate', 'By Click Rate', 'By Total Clicks'],
-                (tabIndex) => {
-                    let sortedData = [...emailData];
-                    
-                    if (tabIndex === 0) {
-                        sortedData.sort((a, b) => {
-                            const aRate = parseFloat(a['Email open rate (MPP excluded)'] || '0');
-                            const bRate = parseFloat(b['Email open rate (MPP excluded)'] || '0');
-                            return bRate - aRate;
-                        });
-                    } else if (tabIndex === 1) {
-                        sortedData.sort((a, b) => {
-                            const aRate = parseFloat(a['Email click rate'] || '0');
-                            const bRate = parseFloat(b['Email click rate'] || '0');
-                            return bRate - aRate;
-                        });
-                    } else {
-                        sortedData.sort((a, b) => {
-                            const aClicks = parseInt(String(a['Email clicked'] || 0).replace(/,/g, ''));
-                            const bClicks = parseInt(String(b['Email clicked'] || 0).replace(/,/g, ''));
-                            return bClicks - aClicks;
-                        });
-                    }
-                    
-                    updateTableData(card.querySelector('table'),
-                        sortedData.slice(0, 10).map(campaign => {
-                            // Calculate total clicks from unique clicks
-                            const uniqueClicks = parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
-                            const estimatedTotalClicks = Math.round(uniqueClicks * 1.3);
-                            
-                            return [
-                                campaign.Campaign,
-                                campaign['Email open rate (MPP excluded)'] || '0%',
-                                campaign['Email click rate'] || '0%',
-                                formatNumber(estimatedTotalClicks),
-                                formatNumber(parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, '')))
-                            ];
-                        })
-                    );
-                }
-            );
-            
-            card.appendChild(tabContainer);
-            
-            // Initial table
-            const sortedByOpen = [...emailData].sort((a, b) => {
-                const aRate = parseFloat(a['Email open rate (MPP excluded)'] || '0');
-                const bRate = parseFloat(b['Email open rate (MPP excluded)'] || '0');
-                return bRate - aRate;
-            });
-            
-            const table = createTable(
-                ['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks*', 'Sent'],
-                sortedByOpen.slice(0, 10).map(campaign => {
-                    const uniqueClicks = parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
-                    const estimatedTotalClicks = Math.round(uniqueClicks * 1.3);
-                    
-                    return [
-                        campaign.Campaign,
-                        campaign['Email open rate (MPP excluded)'] || '0%',
-                        campaign['Email click rate'] || '0%',
-                        formatNumber(estimatedTotalClicks),
-                        formatNumber(parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, '')))
-                    ];
-                })
-            );
-            card.appendChild(table);
-            
-            // Add note about estimated total clicks
-            const clicksNote = document.createElement('p');
-            clicksNote.style.cssText = 'margin: 10px 0 0; color: #666; font-size: 0.75rem; font-style: italic;';
-            clicksNote.textContent = '* Total clicks estimated from unique clicks (multiple clicks per user estimated at 30%)';
-            card.appendChild(clicksNote);
-            
-            return card;
-        }
-        
-        function createSubscriberInsightsCard(startDate, endDate) {
-            const card = createCard('Subscriber Insights & Engagement', '👤', true);
-            
-            const emailData = processedData['Email_Campaign_Performance.csv'];
-            const metrics = calculateSubscriberMetrics(emailData);
-            
-            // Estimate subscriber count
-            const subscriberCount = Math.round(metrics.avgEmailsSent);
-            
-            // Calculate engagement segments
-            const engagementGrid = createMetricsGrid([
-                { label: 'Est. Subscribers', value: formatNumber(subscriberCount) },
-                { label: 'Never Opened', value: formatPercentage(metrics.neverOpenedRate) },
-                { label: 'Opened, No Click', value: formatPercentage(metrics.openedNoClickRate) },
-                { label: 'Active Clickers', value: formatPercentage(metrics.activeClickerRate) },
-                { label: 'Unsubscribe Rate', value: formatPercentage(metrics.avgUnsubscribeRate) },
-                { label: 'Bounce Rate', value: formatPercentage(metrics.avgBounceRate) }
-            ]);
-            
-            card.appendChild(engagementGrid);
-            
-            // Add engagement funnel visualization
-            const funnelContainer = document.createElement('div');
-            funnelContainer.className = 'chart-container';
-            funnelContainer.style.height = '250px';
-            const canvas = document.createElement('canvas');
-            funnelContainer.appendChild(canvas);
-            card.appendChild(funnelContainer);
-            
-            createEngagementFunnel(canvas, metrics);
-            
-            // Subscriber Demographics Note
-            const demoBox = document.createElement('div');
-            demoBox.className = 'info-box info';
-            demoBox.innerHTML = `
-                <h4>📊 Subscriber Demographics</h4>
-                <p>Detailed subscriber demographics (age, gender, location) are not included in campaign performance exports.
-                To access this data:</p>
-                <ul style="font-size: 0.875rem;">
-                    <li>Check your email platform's audience insights or list analytics</li>
-                    <li>Export subscriber list with demographic fields if available</li>
-                    <li>Use signup form data or survey responses for demographic insights</li>
-                </ul>
-            `;
-            card.appendChild(demoBox);
-            
-            // Best performing links note
-            const linksBox = document.createElement('div');
-            linksBox.className = 'info-box warning';
-            linksBox.innerHTML = `
-                <h4>🔗 Best Performing Links</h4>
-                <p style="font-size: 0.875rem;">Individual link performance data is not included in the campaign summary export. 
-                To track link performance:</p>
-                <ul style="font-size: 0.875rem;">
-                    <li>Check your email platform's link tracking reports</li>
-                    <li>Use UTM parameters and view in Google Analytics under Campaigns</li>
-                    <li>Export link-level click data from your email platform if available</li>
-                </ul>
-            `;
-            card.appendChild(linksBox);
-            
-            return card;
-        }
-        
-        // YouTube Analytics Section
-        function generateYouTubeAnalytics(dashboard, startDate, endDate, compareType) {
-            if (!processedData['YouTube_Content.csv']) return;
-            
-            const section = document.createElement('div');
-            section.className = 'section-header';
-            section.textContent = '🎥 YouTube Analytics';
-            dashboard.appendChild(section);
-            
-            const grid = document.createElement('div');
-            grid.className = 'dashboard-grid';
-            
-            // YouTube Overview
-            const overviewCard = createYouTubeOverviewCard(startDate, endDate, compareType);
-            grid.appendChild(overviewCard);
-            
-            // Demographics
-            if (processedData['YouTube_Age.csv'] || processedData['YouTube_Gender.csv']) {
-                const demoCard = createYouTubeDemographicsCard();
-                grid.appendChild(demoCard);
-            }
-            
-            // Top Videos
-            const topVideosCard = createTopVideosCard(startDate, endDate);
-            grid.appendChild(topVideosCard);
-            
-            // Subscriber Analysis
-            if (processedData['YouTube_Subscription_Status.csv']) {
-                const subCard = createSubscriberAnalysisCard();
-                grid.appendChild(subCard);
-            }
-            
-            dashboard.appendChild(grid);
-        }
-        
-        function createYouTubeOverviewCard(startDate, endDate, compareType) {
-            const card = createCard('YouTube Channel Overview', '📊');
-            
-            const contentData = filterDataByDateRange(
-                processedData['YouTube_Content.csv'],
-                'Video publish time',
-                startDate,
-                endDate
-            );
-            
-            const metrics = calculateYouTubeMetrics(contentData);
-            
-            const metricsGrid = createMetricsGrid([
-                { label: 'Total Views', value: formatNumber(metrics.totalViews) },
-                { label: 'Watch Time (hrs)', value: formatNumber(Math.round(metrics.totalWatchTime)) },
-                { label: 'New Subscribers', value: formatNumber(metrics.totalSubscribers) },
-                { label: 'Videos Published', value: contentData.length },
-                { label: 'Avg CTR', value: formatPercentage(metrics.avgCTR) },
-                { label: 'Total Impressions', value: formatNumber(metrics.totalImpressions) }
-            ]);
-            
-            card.appendChild(metricsGrid);
-            
-            return card;
-        }
-        
-        function createYouTubeDemographicsCard() {
-            const card = createCard('YouTube Audience Demographics', '👥', true);
-            
-            // Age distribution
-            if (processedData['YouTube_Age.csv']) {
-                const ageData = processedData['YouTube_Age.csv'];
-                
-                const chartContainer = document.createElement('div');
-                chartContainer.className = 'chart-container';
-                chartContainer.style.height = '300px';
-                const canvas = document.createElement('canvas');
-                chartContainer.appendChild(canvas);
-                card.appendChild(chartContainer);
-                
-                createYouTubeAgeChart(canvas, ageData);
-            }
-            
-            // Gender split
-            if (processedData['YouTube_Gender.csv']) {
-                const genderData = processedData['YouTube_Gender.csv'];
-                
-                const genderGrid = document.createElement('div');
-                genderGrid.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;';
-                
-                genderData.forEach(row => {
-                    const genderCard = document.createElement('div');
-                    genderCard.className = 'metric-card';
-                    genderCard.innerHTML = `
-                        <div class="metric-value">${row['Views (%)'] || 0}%</div>
-                        <div class="metric-label">${row['Viewer gender']}</div>
-                    `;
-                    genderGrid.appendChild(genderCard);
-                });
-                
-                card.appendChild(genderGrid);
-            }
-            
-            // Geography
-            if (processedData['YouTube_Geography.csv']) {
-                const geoData = processedData['YouTube_Geography.csv'];
-                
-                const geoSection = document.createElement('div');
-                geoSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Countries</h4>';
-                
-                const table = createTable(
-                    ['Country', 'Views', 'Watch Time (hrs)', 'Avg Duration'],
-                    geoData.slice(0, 10).map(row => [
-                        row['Geography'],
-                        formatNumber(row['Views'] || 0),
-                        formatNumber(Math.round(row['Watch time (hours)'] || 0)),
-                        row['Average view duration'] || '0:00'
-                    ])
-                );
-                geoSection.appendChild(table);
-                card.appendChild(geoSection);
-            }
-            
-            return card;
-        }
-        
-        function createTopVideosCard(startDate, endDate) {
-            const card = createCard('Top Performing Videos', '🏆', true);
-            
-            let contentData = processedData['YouTube_Content.csv'];
-            
-            if (startDate && endDate) {
-                contentData = filterDataByDateRange(contentData, 'Video publish time', startDate, endDate);
-            }
-            
-            // Create tabs for different metrics
-            const tabContainer = createTabs(
-                ['By Views', 'By Watch Time', 'By Subscribers', 'By CTR'],
-                (tabIndex) => {
-                    let sortedData = [...contentData];
-                    
-                    if (tabIndex === 0) {
-                        sortedData.sort((a, b) => (b.Views || 0) - (a.Views || 0));
-                    } else if (tabIndex === 1) {
-                        sortedData.sort((a, b) => (b['Watch time (hours)'] || 0) - (a['Watch time (hours)'] || 0));
-                    } else if (tabIndex === 2) {
-                        sortedData.sort((a, b) => (b.Subscribers || 0) - (a.Subscribers || 0));
-                    } else {
-                        sortedData.sort((a, b) => 
-                            (b['Impressions click-through rate (%)'] || 0) - 
-                            (a['Impressions click-through rate (%)'] || 0)
-                        );
-                    }
-                    
-                    updateTableData(card.querySelector('table'),
-                        sortedData.slice(0, 10).map(video => [
-                            (video['Video title'] || '').substring(0, 50) + 
-                                ((video['Video title'] || '').length > 50 ? '...' : ''),
-                            formatNumber(video.Views || 0),
-                            formatNumber(Math.round(video['Watch time (hours)'] || 0)),
-                            '+' + formatNumber(video.Subscribers || 0),
-                            formatPercentage(video['Impressions click-through rate (%)'] || 0)
-                        ])
-                    );
-                }
-            );
-            
-            card.appendChild(tabContainer);
-            
-            // Initial table
-            const sortedByViews = [...contentData].sort((a, b) => (b.Views || 0) - (a.Views || 0));
-            
-            const table = createTable(
-                ['Video Title', 'Views', 'Watch Time (hrs)', 'New Subscribers', 'CTR'],
-                sortedByViews.slice(0, 10).map(video => [
-                    (video['Video title'] || '').substring(0, 50) + 
-                        ((video['Video title'] || '').length > 50 ? '...' : ''),
-                    formatNumber(video.Views || 0),
-                    formatNumber(Math.round(video['Watch time (hours)'] || 0)),
-                    '+' + formatNumber(video.Subscribers || 0),
-                    formatPercentage(video['Impressions click-through rate (%)'] || 0)
-                ])
-            );
-            card.appendChild(table);
-            
-            return card;
-        }
-        
-        function createSubscriberAnalysisCard() {
-            const card = createCard('Viewer Analysis: Subscribers vs Non-Subscribers', '👤');
-            
-            const subData = processedData['YouTube_Subscription_Status.csv'];
-            
-            const subscribedData = subData.find(row => row['Subscription status'] === 'Subscribed') || {};
-            const notSubscribedData = subData.find(row => row['Subscription status'] === 'Not subscribed') || {};
-            
-            const totalViews = (subscribedData.Views || 0) + (notSubscribedData.Views || 0);
-            const subscribedPercentage = totalViews > 0 ? ((subscribedData.Views || 0) / totalViews) * 100 : 0;
-            const notSubscribedPercentage = totalViews > 0 ? ((notSubscribedData.Views || 0) / totalViews) * 100 : 0;
-            
-            const metricsGrid = createMetricsGrid([
-                { label: 'Subscriber Views', value: formatPercentage(subscribedPercentage) },
-                { label: 'Non-Sub Views', value: formatPercentage(notSubscribedPercentage) },
-                { label: 'Sub Watch Time', value: formatNumber(Math.round(subscribedData['Watch time (hours)'] || 0)) + ' hrs' },
-                { label: 'Non-Sub Watch Time', value: formatNumber(Math.round(notSubscribedData['Watch time (hours)'] || 0)) + ' hrs' }
-            ]);
-            
-            card.appendChild(metricsGrid);
-            
-            // Create pie chart
-            const chartContainer = document.createElement('div');
-            chartContainer.className = 'chart-container';
-            chartContainer.style.height = '300px';
-            const canvas = document.createElement('canvas');
-            chartContainer.appendChild(canvas);
-            card.appendChild(chartContainer);
-            
-            createSubscriberChart(canvas, subscribedData, notSubscribedData);
-            
-            return card;
-        }
-        
-        // Helper functions for calculations
-        function calculateWebMetrics(data) {
-            const metrics = {
-                totalUsers: 0,
-                newUsers: 0,
-                returningUsers: 0,
-                sessions: 0,
-                engagedSessions: 0,
-                avgEngagement: 0,
-                avgSessionTime: 0
-            };
-            
-            // Create unique sets to avoid double counting
-            const uniqueSessions = new Set();
-            
-            data.forEach(row => {
-                // Sum up metrics
-                metrics.totalUsers += row['Total users'] || 0;
-                metrics.newUsers += row['New users'] || 0;
-                metrics.returningUsers += row['Returning users'] || 0;
-                metrics.engagedSessions += row['Engaged sessions'] || 0;
-                
-                // Count unique sessions
-                const sessionKey = `${row['Date + hour (YYYYMMDDHH)']}_${row['Country']}_${row['City']}`;
-                if (!uniqueSessions.has(sessionKey)) {
-                    uniqueSessions.add(sessionKey);
-                    metrics.sessions += 1;
-                }
-            });
-            
-            // Calculate averages
-            if (data.length > 0) {
-                const totalEngagementRate = data.reduce((sum, row) => sum + (row['Engagement rate'] || 0), 0);
-                metrics.avgEngagement = (totalEngagementRate / data.length) * 100;
-                
-                const totalSessionTime = data.reduce((sum, row) => sum + (row['Average engagement time per session'] || 0), 0);
-                metrics.avgSessionTime = Math.round(totalSessionTime / data.length);
-            }
-            
-            return metrics;
-        }
-        
-        function getTopLocations(data) {
-            const locationMap = {};
-            
-            data.forEach(row => {
-                const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
-                if (!locationMap[key]) {
-                    locationMap[key] = {
-                        country: row.Country || 'Unknown',
-                        city: row.City || 'Unknown',
-                        users: 0,
-                        sessions: 0
-                    };
-                }
-                locationMap[key].users += row['Total users'] || 0;
-                locationMap[key].sessions += 1; // Count each row as a session
-            });
-            
-            return Object.values(locationMap)
-                .sort((a, b) => b.users - a.users)
-                .slice(0, 10);
-        }
-        
-        function aggregateTrafficSources(data) {
-            const sourceMap = {};
-            
-            data.forEach(row => {
-                const source = row['Session source / medium'] || 'Unknown';
-                if (!sourceMap[source]) {
-                    sourceMap[source] = {
-                        source: source,
-                        sessions: 0,
-                        engagedSessions: 0
-                    };
-                }
-                sourceMap[source].sessions += 1;
-                sourceMap[source].engagedSessions += row['Engaged sessions'] || 0;
-            });
-            
-            return Object.values(sourceMap)
-                .map(source => ({
-                    ...source,
-                    engagementRate: source.sessions > 0 ? 
-                        (source.engagedSessions / source.sessions) * 100 : 0
-                }))
-                .sort((a, b) => b.sessions - a.sessions);
-        }
-        
-        function aggregatePageData(data) {
-            const pageMap = {};
-            
-            data.forEach(row => {
-                const path = row['Page path and screen class'] || 'Unknown';
-                if (!pageMap[path]) {
-                    pageMap[path] = {
-                        path: path,
-                        views: 0,
-                        users: 0,
-                        sessions: 0,
-                        engagementTime: 0
-                    };
-                }
-                pageMap[path].views += row.Views || 0;
-                pageMap[path].users += row['Active users'] || 0;
-                pageMap[path].sessions += row.Sessions || 0;
-                // Estimate engagement time
-                pageMap[path].engagementTime += (row['Active users'] || 0) * 45; // 45s average
-            });
-            
-            return Object.values(pageMap);
-        }
-        
-        function calculateFacebookMetrics(startDate, endDate, compareType) {
-            const metrics = {
-                reach: 0,
-                interactions: 0,
-                follows: 0,
-                views: 0,
-                linkClicks: 0,
-                visits: 0
-            };
-            
-            // Calculate metrics from each file
-            if (processedData['FB_Reach.csv']) {
-                const data = filterDataByDateRange(processedData['FB_Reach.csv'], 'Date', startDate, endDate);
-                metrics.reach = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['FB_Interactions.csv']) {
-                const data = filterDataByDateRange(processedData['FB_Interactions.csv'], 'Date', startDate, endDate);
-                metrics.interactions = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['FB_Follows.csv']) {
-                const data = filterDataByDateRange(processedData['FB_Follows.csv'], 'Date', startDate, endDate);
-                metrics.follows = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['FB_Views.csv']) {
-                const data = filterDataByDateRange(processedData['FB_Views.csv'], 'Date', startDate, endDate);
-                metrics.views = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['FB_Link_Clicks.csv']) {
-                const data = filterDataByDateRange(processedData['FB_Link_Clicks.csv'], 'Date', startDate, endDate);
-                metrics.linkClicks = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['FB_Visits.csv']) {
-                const data = filterDataByDateRange(processedData['FB_Visits.csv'], 'Date', startDate, endDate);
-                metrics.visits = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            return metrics;
-        }
-        
-        function calculateInstagramMetrics(startDate, endDate, compareType) {
-            const metrics = {
-                reach: 0,
-                interactions: 0,
-                follows: 0,
-                views: 0,
-                linkClicks: 0,
-                visits: 0
-            };
-            
-            // Similar to Facebook metrics calculation
-            if (processedData['IG_Reach.csv']) {
-                const data = filterDataByDateRange(processedData['IG_Reach.csv'], 'Date', startDate, endDate);
-                metrics.reach = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['IG_Interactions.csv']) {
-                const data = filterDataByDateRange(processedData['IG_Interactions.csv'], 'Date', startDate, endDate);
-                metrics.interactions = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['IG_Follows.csv']) {
-                const data = filterDataByDateRange(processedData['IG_Follows.csv'], 'Date', startDate, endDate);
-                metrics.follows = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['IG_Views.csv']) {
-                const data = filterDataByDateRange(processedData['IG_Views.csv'], 'Date', startDate, endDate);
-                metrics.views = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['IG_Link_Clicks.csv']) {
-                const data = filterDataByDateRange(processedData['IG_Link_Clicks.csv'], 'Date', startDate, endDate);
-                metrics.linkClicks = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            if (processedData['IG_Visits.csv']) {
-                const data = filterDataByDateRange(processedData['IG_Visits.csv'], 'Date', startDate, endDate);
-                metrics.visits = data.reduce((sum, row) => sum + (row.Primary || 0), 0);
-            }
-            
-            return metrics;
-        }
-        
-        function calculateEmailMetrics(emailData) {
-            const metrics = {
-                totalSent: 0,
-                totalDelivered: 0,
-                totalOpens: 0,
-                totalClicks: 0,
-                totalBounces: 0,
-                totalUnsubscribes: 0
-            };
-            
-            emailData.forEach(campaign => {
-                metrics.totalSent += parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, ''));
-                metrics.totalDelivered += parseInt(String(campaign['Email deliveries'] || 0).replace(/,/g, ''));
-                metrics.totalOpens += parseInt(String(campaign['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
-                metrics.totalClicks += parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
-                metrics.totalBounces += parseInt(campaign['Email bounces'] || 0);
-                metrics.totalUnsubscribes += parseInt(campaign['Email unsubscribes'] || 0);
-            });
-            
-            metrics.avgOpenRate = metrics.totalDelivered > 0 ? 
-                (metrics.totalOpens / metrics.totalDelivered) * 100 : 0;
-            metrics.avgClickRate = metrics.totalDelivered > 0 ? 
-                (metrics.totalClicks / metrics.totalDelivered) * 100 : 0;
-            
-            return metrics;
-        }
-        
-        function calculateSubscriberMetrics(emailData) {
-            let totalSent = 0;
-            let totalDelivered = 0;
-            let totalOpened = 0;
-            let totalClicked = 0;
-            let totalBounces = 0;
-            let totalUnsubscribes = 0;
-            
-            emailData.forEach(campaign => {
-                totalSent += parseInt(String(campaign['Emails sent'] || 0).replace(/,/g, ''));
-                totalDelivered += parseInt(String(campaign['Email deliveries'] || 0).replace(/,/g, ''));
-                totalOpened += parseInt(String(campaign['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
-                totalClicked += parseInt(String(campaign['Email clicked'] || 0).replace(/,/g, ''));
-                totalBounces += parseInt(campaign['Email bounces'] || 0);
-                totalUnsubscribes += parseInt(campaign['Email unsubscribes'] || 0);
-            });
-            
-            const avgEmailsSent = emailData.length > 0 ? totalSent / emailData.length : 0;
-            
-            // Calculate engagement segments
-            const neverOpened = totalDelivered - totalOpened;
-            const openedNoClick = totalOpened - totalClicked;
-            
-            return {
-                avgEmailsSent: avgEmailsSent,
-                neverOpenedRate: totalDelivered > 0 ? (neverOpened / totalDelivered) * 100 : 0,
-                openedNoClickRate: totalDelivered > 0 ? (openedNoClick / totalDelivered) * 100 : 0,
-                activeClickerRate: totalDelivered > 0 ? (totalClicked / totalDelivered) * 100 : 0,
-                avgUnsubscribeRate: totalSent > 0 ? (totalUnsubscribes / totalSent) * 100 : 0,
-                avgBounceRate: totalSent > 0 ? (totalBounces / totalSent) * 100 : 0
-            };
-        }
-        
-        function calculateYouTubeMetrics(contentData) {
-            return {
-                totalViews: contentData.reduce((sum, video) => sum + (video.Views || 0), 0),
-                totalWatchTime: contentData.reduce((sum, video) => sum + (video['Watch time (hours)'] || 0), 0),
-                totalSubscribers: contentData.reduce((sum, video) => sum + (video.Subscribers || 0), 0),
-                totalImpressions: contentData.reduce((sum, video) => sum + (video.Impressions || 0), 0),
-                avgCTR: contentData.length > 0 ? 
-                    contentData.reduce((sum, video) => sum + (video['Impressions click-through rate (%)'] || 0), 0) / contentData.length : 0
-            };
-        }
-        
-        // UI Helper functions
-        function createCard(title, icon, fullWidth = false) {
-            const card = document.createElement('div');
-            card.className = fullWidth ? 'card full-width' : 'card';
-            
-            const header = document.createElement('div');
-            header.className = 'card-header';
-            
-            const titleDiv = document.createElement('div');
-            titleDiv.className = 'card-title';
-            if (icon) {
-                titleDiv.innerHTML = `<span class="card-icon">${icon}</span> ${title}`;
-            } else {
-                titleDiv.textContent = title;
-            }
-            
-            header.appendChild(titleDiv);
-            card.appendChild(header);
-            
-            return card;
-        }
-        
-        function createMetricsGrid(metrics) {
-            const grid = document.createElement('div');
-            grid.className = 'metrics-grid';
-            
-            metrics.forEach(metric => {
-                const metricCard = document.createElement('div');
-                metricCard.className = 'metric-card';
-                
-                let changeHtml = '';
-                if (metric.change !== undefined && metric.change !== null) {
-                    const changeClass = metric.change > 0 ? 'positive' : metric.change < 0 ? 'negative' : 'neutral';
-                    const arrow = metric.change > 0 ? '↑' : metric.change < 0 ? '↓' : '→';
-                    changeHtml = `<div class="metric-change ${changeClass}">${arrow} ${Math.abs(metric.change).toFixed(1)}%</div>`;
-                }
-                
-                metricCard.innerHTML = `
-                    <div class="metric-value">${metric.value}</div>
-                    <div class="metric-label">${metric.label}</div>
-                    ${changeHtml}
-                `;
-                
-                grid.appendChild(metricCard);
-            });
-            
-            return grid;
-        }
-        
-        function createTable(headers, rows) {
-            const container = document.createElement('div');
-            container.className = 'table-container';
-            
-            const table = document.createElement('table');
-            
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            headers.forEach(header => {
-                const th = document.createElement('th');
-                th.textContent = header;
-                headerRow.appendChild(th);
-            });
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            const tbody = document.createElement('tbody');
-            rows.forEach(row => {
-                const tr = document.createElement('tr');
-                row.forEach(cell => {
-                    const td = document.createElement('td');
-                    td.innerHTML = cell;
-                    tr.appendChild(td);
-                });
-                tbody.appendChild(tr);
-            });
-            table.appendChild(tbody);
-            
-            container.appendChild(table);
-            return container;
-        }
-        
-        function updateTableData(table, rows) {
-            if (!table) return;
-            
-            const tbody = table.querySelector('tbody');
-            tbody.innerHTML = '';
-            
-            rows.forEach(row => {
-                const tr = document.createElement('tr');
-                row.forEach(cell => {
-                    const td = document.createElement('td');
-                    td.innerHTML = cell;
-                    tr.appendChild(td);
-                });
-                tbody.appendChild(tr);
-            });
-        }
-        
-        function createTabs(labels, onTabChange) {
-            const container = document.createElement('div');
-            container.className = 'tab-container';
-            
-            labels.forEach((label, index) => {
-                const tab = document.createElement('button');
-                tab.className = 'tab-button';
-                if (index === 0) tab.classList.add('active');
-                tab.textContent = label;
-                
-                tab.addEventListener('click', () => {
-                    container.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    onTabChange(index);
-                });
-                
-                container.appendChild(tab);
-            });
-            
-            return container;
-        }
-        
-        // Chart creation functions
-        function createTrafficChart(canvas, sourceData) {
-            const ctx = canvas.getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: sourceData.slice(0, 6).map(s => s.source),
-                    datasets: [{
-                        data: sourceData.slice(0, 6).map(s => s.sessions),
-                        backgroundColor: [
-                            '#012169',
-                            '#00539B',
-                            '#5B9BD5',
-                            '#666666',
-                            '#E5E5E5',
-                            '#262626'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Traffic Distribution by Source',
-                            font: {
-                                size: 16,
-                                weight: 'bold'
-                            },
-                            padding: 20
-                        }
-                    }
-                }
-            });
-        }
-        
-        function createEngagementFunnel(canvas, metrics) {
-            const ctx = canvas.getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Total Recipients', 'Opened Email', 'Clicked Links'],
-                    datasets: [{
-                        label: 'Email Engagement Funnel',
-                        data: [
-                            100,
-                            100 - metrics.neverOpenedRate,
-                            metrics.activeClickerRate
-                        ],
-                        backgroundColor: [
-                            '#012169',
-                            '#00539B',
-                            '#5B9BD5'
-                        ],
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        }
-        
-        function createYouTubeAgeChart(canvas, ageData) {
-            const ctx = canvas.getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ageData.map(row => row['Viewer age']),
-                    datasets: [{
-                        label: 'Views by Age Group (%)',
-                        data: ageData.map(row => row['Views (%)'] || 0),
-                        backgroundColor: '#00539B',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        }
-        
-        function createSubscriberChart(canvas, subscribedData, notSubscribedData) {
-            const ctx = canvas.getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: ['Subscribers', 'Non-Subscribers'],
-                    datasets: [{
-                        data: [
-                            subscribedData.Views || 0,
-                            notSubscribedData.Views || 0
-                        ],
-                        backgroundColor: [
-                            '#00539B',
-                            '#E5E5E5'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true,
-                                font: {
-                                    size: 14
-                                }
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Views by Subscription Status',
-                            font: {
-                                size: 16,
-                                weight: 'bold'
-                            },
-                            padding: 20
-                        }
-                    }
-                }
-            });
-        }
-        
-        function showError(message) {
-            const dashboard = document.getElementById('dashboard');
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error';
-            errorDiv.textContent = message;
-            dashboard.insertBefore(errorDiv, dashboard.firstChild);
-            
-            setTimeout(() => {
-                errorDiv.remove();
-            }, 5000);
-        }
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check for any pre-loaded data
-            if (Object.keys(processedData).length > 0) {
-                setDefaultDates();
-                updateDashboard();
-            }
-        });
-    </script>
-</body>
-</html>
