@@ -954,6 +954,14 @@
 
         async function loadSingleSheet(sheetId, fileName) {
             try {
+                // Defines the correct column order for your specific GA files
+                const gaFileHeaders = {
+                    'GA_Demographics.csv': ['Date + hour (YYYYMMDDHH)', 'Country', 'City', 'Language', 'Region', 'Total users', 'New users', 'Returning users', 'Engaged sessions', 'Engagement rate', 'Average engagement time per session', 'User engagement'],
+                    'GA_Traffic_Acquisition.csv': ['Date + hour (YYYYMMDDHH)', 'Session source / medium', 'Engaged sessions'],
+                    'GA_Pages_And_Screens.csv': ['Date + hour (YYYYMMDDHH)', 'Page path and screen class', 'Page title and screen class', 'Views', 'Active users', 'Sessions', 'Engaged sessions'],
+                    'GA_UTMs.csv': ['Date + hour (YYYYMMDDHH)', 'Session manual campaign name', 'Session source / medium', 'Manual source platform', 'Manual ad content', 'Sessions', 'Engaged sessions', 'Key events', 'Engagement rate', 'Session key event rate', 'Event value']
+                };
+
                 const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}&fields=sheets.properties.title`;
                 const metaResponse = await fetch(metaUrl);
                 if (!metaResponse.ok) throw new Error('Could not fetch sheet metadata');
@@ -981,7 +989,20 @@
 
                 if (fileName.includes('Audience')) {
                     processedData[fileName] = parseAudienceData(data.values, fileName);
+                } else if (gaFileHeaders[fileName]) {
+                    // This block is for your GA files. It reads all rows as data and applies the correct headers.
+                    const headers = gaFileHeaders[fileName];
+                    const rows = data.values;
+                    const parsedData = rows.map(row => {
+                        const obj = {};
+                        headers.forEach((header, index) => {
+                            obj[header] = row[index] || '';
+                        });
+                        return obj;
+                    });
+                    processedData[fileName] = parsedData;
                 } else {
+                    // This is for any other files (like Facebook, etc.) that have normal headers.
                     const headers = data.values[0];
                     const rows = data.values.slice(1);
                     const parsedData = rows.map(row => {
@@ -994,7 +1015,7 @@
                     processedData[fileName] = parsedData;
                 }
 
-                console.log(`✓ Loaded data from ${fileName}`);
+                console.log(`✓ Loaded and adapted data from ${fileName}.`);
             } catch (error) {
                 console.error(`Error loading ${fileName}:`, error);
             }
@@ -1301,14 +1322,13 @@
             const locationData = getTopLocations(currentData);
             if (locationData.length > 0) {
                 card.appendChild(createTable(
-                    // Corrected: Changed header from 'Sessions' to 'Engaged Sessions'
                     ['Country', 'City', 'Users', 'Engaged Sessions'],
                     locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])
                 ));
             }
             return card;
         }
-        
+
         function createTrafficSourcesCard(startDate, endDate, compareType) {
             const card = createCard('Traffic Sources & Channels', '🚀', true);
             const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
@@ -1324,11 +1344,10 @@
             }
 
             card.appendChild(createTable(
-                ['Source/Medium', 'Sessions', 'Engaged Sessions', 'Engagement Rate'],
+                ['Source/Medium', 'Engaged Sessions', 'Engagement Rate'],
                 sourceData.slice(0, 10).map(source => [
                     source.source,
                     formatNumber(source.sessions),
-                    formatNumber(source.engagedSessions),
                     formatPercentage(source.engagementRate)
                 ])
             ));
@@ -1340,7 +1359,6 @@
             const currentData = filterDataByDateRange(processedData['GA_Pages_And_Screens.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
             const pageData = aggregatePageData(currentData);
 
-            // Corrected tabs and table headers
             const tabContainer = createTabs(['By Views', 'By Users'], (tabIndex) => {
                 const sortedData = [...pageData];
                 if (tabIndex === 0) sortedData.sort((a, b) => b.views - a.views);
@@ -1770,13 +1788,13 @@
 
             return metrics;
         }
+
         function getTopLocations(data) {
             const map = {};
             data.forEach(row => {
                 const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
                 if (!map[key]) map[key] = { country: row.Country || 'Unknown', city: row.City || 'Unknown', users: 0, sessions: 0 };
                 map[key].users += parseInt(row['Total users'] || 0);
-                // Corrected: Use 'Engaged sessions' as a stand-in for 'Sessions'
                 map[key].sessions += parseInt(row['Engaged sessions'] || 0);
             });
             return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
@@ -1787,7 +1805,7 @@
             data.forEach(row => {
                 const source = row['Session source / medium'] || 'Unknown';
                 if (!map[source]) map[source] = { source, sessions: 0, engagedSessions: 0 };
-                map[source].sessions += parseInt(row['Sessions'] || 0);
+                map[source].sessions += parseInt(row['Engaged sessions'] || 0);
                 map[source].engagedSessions += parseInt(row['Engaged sessions'] || 0);
             });
             return Object.values(map).map(s => ({ ...s, engagementRate: s.sessions > 0 ? (s.engagedSessions / s.sessions) * 100 : 0 })).sort((a, b) => b.sessions - a.sessions);
