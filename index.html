@@ -1301,13 +1301,14 @@
             const locationData = getTopLocations(currentData);
             if (locationData.length > 0) {
                 card.appendChild(createTable(
-                    ['Country', 'City', 'Users', 'Sessions'],
+                    // Corrected: Changed header from 'Sessions' to 'Engaged Sessions'
+                    ['Country', 'City', 'Users', 'Engaged Sessions'],
                     locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])
                 ));
             }
             return card;
         }
-
+        
         function createTrafficSourcesCard(startDate, endDate, compareType) {
             const card = createCard('Traffic Sources & Channels', '🚀', true);
             const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
@@ -1775,7 +1776,8 @@
                 const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
                 if (!map[key]) map[key] = { country: row.Country || 'Unknown', city: row.City || 'Unknown', users: 0, sessions: 0 };
                 map[key].users += parseInt(row['Total users'] || 0);
-                map[key].sessions += parseInt(row['Sessions'] || 0);
+                // Corrected: Use 'Engaged sessions' as a stand-in for 'Sessions'
+                map[key].sessions += parseInt(row['Engaged sessions'] || 0);
             });
             return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
         }
