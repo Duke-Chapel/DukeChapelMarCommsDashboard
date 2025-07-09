@@ -1016,7 +1016,6 @@
         function initializeDateControls() {
             const startDate = document.getElementById('startDate');
             const endDate = document.getElementById('endDate');
-            const compareType = document.getElementById('compareType');
             
             startDate.addEventListener('change', validateDateRange);
             endDate.addEventListener('change', validateDateRange);
@@ -1067,8 +1066,8 @@
                     if (!dateValue) return;
                     
                     let date;
-                    if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d{10,12}$/.test(dateValue))) {
-                        const str = dateValue.toString();
+                    if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d{8,12}$/.test(dateValue))) {
+                        const str = dateValue.toString().substr(0, 8);
                         date = new Date(str.substr(0,4), parseInt(str.substr(4,2))-1, str.substr(6,2));
                     } else {
                         date = new Date(dateValue);
@@ -1165,6 +1164,7 @@
             if (previous === 0) {
                 return current > 0 ? Infinity : 0;
             }
+            if (current === null || previous === null) return 0;
             return ((current - previous) / previous) * 100;
         }
 
@@ -1275,12 +1275,12 @@
             }
 
             card.appendChild(createMetricsGrid([
-                { label: 'Total Users', value: formatNumber(metrics.totalUsers), compareValue: comparisonMetrics.totalUsers },
-                { label: 'New Users', value: formatNumber(metrics.newUsers), compareValue: comparisonMetrics.newUsers },
-                { label: 'Sessions', value: formatNumber(metrics.sessions), compareValue: comparisonMetrics.sessions },
-                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement), compareValue: comparisonMetrics.avgEngagement, isPercentage: true },
-                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's', compareValue: comparisonMetrics.avgSessionTime },
-                { label: 'Engaged Sessions', value: formatNumber(metrics.engagedSessions), compareValue: comparisonMetrics.engagedSessions }
+                { label: 'Total Users', displayValue: formatNumber(metrics.totalUsers), rawValue: metrics.totalUsers, compareValue: comparisonMetrics.totalUsers },
+                { label: 'New Users', displayValue: formatNumber(metrics.newUsers), rawValue: metrics.newUsers, compareValue: comparisonMetrics.newUsers },
+                { label: 'Sessions', displayValue: formatNumber(metrics.sessions), rawValue: metrics.sessions, compareValue: comparisonMetrics.sessions },
+                { label: 'Avg. Engagement', displayValue: formatPercentage(metrics.avgEngagement), rawValue: metrics.avgEngagement, compareValue: comparisonMetrics.avgEngagement },
+                { label: 'Avg. Session Time', displayValue: metrics.avgSessionTime + 's', rawValue: metrics.avgSessionTime, compareValue: comparisonMetrics.avgSessionTime },
+                { label: 'Engaged Sessions', displayValue: formatNumber(metrics.engagedSessions), rawValue: metrics.engagedSessions, compareValue: comparisonMetrics.engagedSessions }
             ], compareType !== 'none'));
             
             const locationData = getTopLocations(currentData);
@@ -1447,12 +1447,12 @@
             }
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Reach', value: formatNumber(metrics.reach), compareValue: comparisonMetrics.reach },
-                { label: 'Interactions', value: formatNumber(metrics.interactions), compareValue: comparisonMetrics.interactions },
-                { label: 'New Followers', value: formatNumber(metrics.follows), compareValue: comparisonMetrics.follows },
-                { label: 'Profile Views', value: formatNumber(metrics.views), compareValue: comparisonMetrics.views },
-                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks), compareValue: comparisonMetrics.linkClicks },
-                { label: 'Page Visits', value: formatNumber(metrics.visits), compareValue: comparisonMetrics.visits }
+                { label: 'Total Reach', displayValue: formatNumber(metrics.reach), rawValue: metrics.reach, compareValue: comparisonMetrics.reach },
+                { label: 'Interactions', displayValue: formatNumber(metrics.interactions), rawValue: metrics.interactions, compareValue: comparisonMetrics.interactions },
+                { label: 'New Followers', displayValue: formatNumber(metrics.follows), rawValue: metrics.follows, compareValue: comparisonMetrics.follows },
+                { label: 'Profile Views', displayValue: formatNumber(metrics.views), rawValue: metrics.views, compareValue: comparisonMetrics.views },
+                { label: 'Link Clicks', displayValue: formatNumber(metrics.linkClicks), rawValue: metrics.linkClicks, compareValue: comparisonMetrics.linkClicks },
+                { label: 'Page Visits', displayValue: formatNumber(metrics.visits), rawValue: metrics.visits, compareValue: comparisonMetrics.visits }
             ], compareType !== 'none'));
 
             card.innerHTML += `<div class="info-box info"><h4>📈 Facebook Page Rank</h4><p>This metric isn't available in data exports. You can check your Page Quality manually in the Meta Business Suite.</p></div>`;
@@ -1469,12 +1469,12 @@
             }
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Reach', value: formatNumber(metrics.reach), compareValue: comparisonMetrics.reach },
-                { label: 'Interactions', value: formatNumber(metrics.interactions), compareValue: comparisonMetrics.interactions },
-                { label: 'New Followers', value: formatNumber(metrics.follows), compareValue: comparisonMetrics.follows },
-                { label: 'Profile Views', value: formatNumber(metrics.views), compareValue: comparisonMetrics.views },
-                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks), compareValue: comparisonMetrics.linkClicks },
-                { label: 'Profile Visits', value: formatNumber(metrics.visits), compareValue: comparisonMetrics.visits }
+                { label: 'Total Reach', displayValue: formatNumber(metrics.reach), rawValue: metrics.reach, compareValue: comparisonMetrics.reach },
+                { label: 'Interactions', displayValue: formatNumber(metrics.interactions), rawValue: metrics.interactions, compareValue: comparisonMetrics.interactions },
+                { label: 'New Followers', displayValue: formatNumber(metrics.follows), rawValue: metrics.follows, compareValue: comparisonMetrics.follows },
+                { label: 'Profile Views', displayValue: formatNumber(metrics.views), rawValue: metrics.views, compareValue: comparisonMetrics.views },
+                { label: 'Link Clicks', displayValue: formatNumber(metrics.linkClicks), rawValue: metrics.linkClicks, compareValue: comparisonMetrics.linkClicks },
+                { label: 'Profile Visits', displayValue: formatNumber(metrics.visits), rawValue: metrics.visits, compareValue: comparisonMetrics.visits }
             ], compareType !== 'none'));
             return card;
         }
@@ -1559,12 +1559,12 @@
             const metrics = calculateEmailMetrics(emailData); 
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Campaigns', value: emailData.length },
-                { label: 'Total Sent', value: formatNumber(metrics.totalSent) },
-                { label: 'Avg Open Rate', value: formatPercentage(metrics.avgOpenRate), isPercentage: true },
-                { label: 'Avg Click Rate', value: formatPercentage(metrics.avgClickRate), isPercentage: true },
-                { label: 'Total Opens', value: formatNumber(metrics.totalOpens) },
-                { label: 'Total Clicks', value: formatNumber(metrics.totalClicks) }
+                { label: 'Total Campaigns', displayValue: emailData.length },
+                { label: 'Total Sent', displayValue: formatNumber(metrics.totalSent) },
+                { label: 'Avg Open Rate', displayValue: formatPercentage(metrics.avgOpenRate) },
+                { label: 'Avg Click Rate', displayValue: formatPercentage(metrics.avgClickRate) },
+                { label: 'Total Opens', displayValue: formatNumber(metrics.totalOpens) },
+                { label: 'Total Clicks', displayValue: formatNumber(metrics.totalClicks) }
             ], false)); // No comparison for email overview as it's typically cumulative.
             return card;
         }
@@ -1601,10 +1601,10 @@
             const metrics = calculateSubscriberMetrics(emailData);
 
             card.appendChild(createMetricsGrid([
-                { label: 'Est. Subscribers', value: formatNumber(metrics.avgEmailsSent) },
-                { label: 'Not Opened', value: formatPercentage(metrics.neverOpenedRate) },
-                { label: 'Opened, No Click', value: formatPercentage(metrics.openedNoClickRate) },
-                { label: 'Active Clickers', value: formatPercentage(metrics.activeClickerRate) }
+                { label: 'Est. Subscribers', displayValue: formatNumber(metrics.avgEmailsSent) },
+                { label: 'Not Opened', displayValue: formatPercentage(metrics.neverOpenedRate) },
+                { label: 'Opened, No Click', displayValue: formatPercentage(metrics.openedNoClickRate) },
+                { label: 'Active Clickers', displayValue: formatPercentage(metrics.activeClickerRate) }
             ], false));
 
             card.innerHTML += `<div class="info-box info"><h4>📊 Subscriber Demographics</h4><p>Detailed subscriber demographics are not included in campaign exports. Check your email platform's audience insights for this data.</p></div>`;
@@ -1644,12 +1644,12 @@
             }
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Views', value: formatNumber(metrics.totalViews), compareValue: comparisonMetrics.totalViews },
-                { label: 'Watch Time (hrs)', value: formatNumber(Math.round(metrics.totalWatchTime)), compareValue: Math.round(comparisonMetrics.totalWatchTime) },
-                { label: 'New Subscribers', value: formatNumber(metrics.totalSubscribers), compareValue: comparisonMetrics.totalSubscribers },
-                { label: 'Videos Published', value: currentData.length, compareValue: (comparisonMetrics.data || []).length },
-                { label: 'Avg CTR', value: formatPercentage(metrics.avgCTR), compareValue: comparisonMetrics.avgCTR, isPercentage: true },
-                { label: 'Total Impressions', value: formatNumber(metrics.totalImpressions), compareValue: comparisonMetrics.totalImpressions }
+                { label: 'Total Views', displayValue: formatNumber(metrics.totalViews), rawValue: metrics.totalViews, compareValue: comparisonMetrics.totalViews },
+                { label: 'Watch Time (hrs)', displayValue: formatNumber(Math.round(metrics.totalWatchTime)), rawValue: metrics.totalWatchTime, compareValue: comparisonMetrics.totalWatchTime },
+                { label: 'New Subscribers', displayValue: formatNumber(metrics.totalSubscribers), rawValue: metrics.totalSubscribers, compareValue: comparisonMetrics.totalSubscribers },
+                { label: 'Videos Published', displayValue: currentData.length, rawValue: currentData.length, compareValue: (comparisonMetrics.data || []).length },
+                { label: 'Avg CTR', displayValue: formatPercentage(metrics.avgCTR), rawValue: metrics.avgCTR, compareValue: comparisonMetrics.avgCTR },
+                { label: 'Total Impressions', displayValue: formatNumber(metrics.totalImpressions), rawValue: metrics.totalImpressions, compareValue: comparisonMetrics.totalImpressions }
             ], compareType !== 'none'));
             return card;
         }
@@ -1867,10 +1867,10 @@
             metrics.forEach(metric => {
                 let changeHTML = '';
                 if (showComparison && metric.compareValue !== undefined && metric.compareValue !== null) {
-                    const currentVal = metric.isPercentage ? metric.value : parseFloat(String(metric.value).replace(/[^\d.-]/g, ''));
+                    const currentVal = metric.rawValue;
                     const change = calculateChange(currentVal, metric.compareValue);
                     
-                    if (isFinite(change) && change !== 0) {
+                    if (isFinite(change) && Math.abs(change) > 0.01) {
                         const changeClass = change > 0 ? 'positive' : 'negative';
                         const changeText = (change > 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(1) + '%';
                         changeHTML = `<div class="metric-change ${changeClass}">${changeText}</div>`;
@@ -1878,7 +1878,7 @@
                         changeHTML = `<div class="metric-change positive">▲ New</div>`;
                     }
                 }
-                grid.innerHTML += `<div class="metric-card"><div class="metric-value">${metric.value}</div><div class="metric-label">${metric.label}</div>${changeHTML}</div>`;
+                grid.innerHTML += `<div class="metric-card"><div class="metric-value">${metric.displayValue}</div><div class="metric-label">${metric.label}</div>${changeHTML}</div>`;
             });
             return grid;
         }
@@ -1905,7 +1905,7 @@
                 const tab = document.createElement('button');
                 tab.className = 'tab-button' + (index === 0 ? ' active' : '');
                 tab.textContent = label;
-                tab.onclick = () => {
+                tab.onclick = ().
                     container.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     onTabChange(index);
