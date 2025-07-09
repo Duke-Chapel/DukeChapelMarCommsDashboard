@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Duke Chapel Marketing Analytics Dashboard</title>
+    <link rel="icon" href="data:,">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -740,34 +741,6 @@
             <button class="connect-btn" id="connectBtn" onclick="connectToSheets()">
                 <span>🔗</span> Connect to Google Drive Folder
             </button>
-            
-            <div class="sheets-instructions">
-                <h4>🚀 Setup Instructions:</h4>
-                <ol>
-                    <li>Create a Google Drive folder for your Duke Chapel analytics data</li>
-                    <li>Create separate Google Sheets for each data source, ensuring the sheet names match the expected names below:
-                        <ul style="margin: 10px 0; padding-left: 20px; columns: 2;">
-                            <li><strong>GA_Demographics</strong></li>
-                            <li><strong>GA_Traffic_Acquisition</strong></li>
-                            <li><strong>GA_Pages_And_Screens</strong></li>
-                            <li><strong>GA_UTMs</strong></li>
-                            <li><strong>FB_Reach</strong>, <strong>FB_Interactions</strong>, etc.</li>
-                            <li><strong>FB_Audience</strong></li>
-                            <li><strong>FB_Posts</strong> (New)</li>
-                            <li><strong>IG_Reach</strong>, <strong>IG_Interactions</strong>, etc.</li>
-                            <li><strong>IG_Audience</strong></li>
-                            <li><strong>IG_Posts</strong> (New)</li>
-                            <li><strong>Email_Campaign_Performance</strong></li>
-                            <li><strong>YouTube_Content</strong></li>
-                            <li><strong>YouTube_Age</strong>, <strong>Gender</strong>, etc.</li>
-                        </ul>
-                    </li>
-                    <li>Make the folder publicly viewable (Share → Anyone with the link can view)</li>
-                    <li>Get a Google Drive API key from <a href="https://console.developers.google.com" target="_blank">Google Cloud Console</a> (enable both Drive and Sheets APIs)</li>
-                    <li>Copy the Folder ID from the Drive URL (after /folders/)</li>
-                    <li>Enter both values above and click Connect</li>
-                </ol>
-            </div>
         </div>
         
         <div class="controls" id="controls">
@@ -817,7 +790,6 @@
     <script>
         // Global state
         let processedData = {};
-        let currentDateRange = { start: null, end: null };
         let sheetsConfig = {
             folderId: '',
             apiKey: '',
@@ -825,7 +797,6 @@
             discoveredSheets: {}
         };
         
-        // Expected Google Sheets and their corresponding data files
         const EXPECTED_SHEETS = {
             'GA_Demographics': 'GA_Demographics.csv',
             'GA_Traffic_Acquisition': 'GA_Traffic_Acquisition.csv', 
@@ -835,16 +806,12 @@
             'FB_Interactions': 'FB_Interactions.csv',
             'FB_Follows': 'FB_Follows.csv',
             'FB_Views': 'FB_Views.csv',
-            'FB_Link_Clicks': 'FB_Link_Clicks.csv',
-            'FB_Visits': 'FB_Visits.csv',
             'FB_Audience': 'FB_Audience.csv',
             'FB_Posts': 'FB_Posts.csv', 
             'IG_Reach': 'IG_Reach.csv',
             'IG_Interactions': 'IG_Interactions.csv',
             'IG_Follows': 'IG_Follows.csv',
             'IG_Views': 'IG_Views.csv',
-            'IG_Link_Clicks': 'IG_Link_Clicks.csv',
-            'IG_Visits': 'IG_Visits.csv',
             'IG_Audience': 'IG_Audience.csv',
             'IG_Posts': 'IG_Posts.csv', 
             'Email_Campaign_Performance': 'Email_Campaign_Performance.csv',
@@ -855,15 +822,10 @@
             'YouTube_Subscription_Status': 'YouTube_Subscription_Status.csv'
         };
         
-        // Connect to Google Sheets
         async function connectToSheets() {
             const folderId = document.getElementById('folderId').value.trim();
             const apiKey = document.getElementById('apiKey').value.trim();
-            
-            if (!folderId || !apiKey) {
-                alert('Please enter both Google Drive Folder ID and API Key');
-                return;
-            }
+            if (!folderId || !apiKey) return alert('Please enter both Google Drive Folder ID and API Key');
             
             const connectBtn = document.getElementById('connectBtn');
             const statusDiv = document.getElementById('connectionStatus');
@@ -876,7 +838,6 @@
                 saveCredentials();
                 
                 const driveUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.spreadsheet'&key=${apiKey}&fields=files(id,name)`;
-                
                 const response = await fetch(driveUrl);
                 if (!response.ok) throw new Error(`Failed to connect: ${response.status} ${response.statusText}`);
                 
@@ -885,15 +846,12 @@
                 
                 sheetsConfig.discoveredSheets = {};
                 data.files.forEach(file => {
-                    if (EXPECTED_SHEETS[file.name]) {
-                        sheetsConfig.discoveredSheets[file.name] = file.id;
-                    }
+                    if (EXPECTED_SHEETS[file.name]) sheetsConfig.discoveredSheets[file.name] = file.id;
                 });
                 
                 sheetsConfig.connected = true;
                 statusDiv.className = 'config-status connected';
                 statusDiv.innerHTML = '✅ Connected';
-                
                 document.getElementById('controls').style.display = 'block';
                 
                 await loadAllSheetData();
@@ -902,39 +860,28 @@
                 
                 connectBtn.innerHTML = '<span>🔄</span> Reconnect';
                 connectBtn.disabled = false;
-                
                 alert(`Successfully connected! Found ${Object.keys(sheetsConfig.discoveredSheets).length} matching sheets.`);
-                
             } catch (error) {
                 console.error('Connection error:', error);
                 alert(`Connection failed: ${error.message}`);
-                
-                connectBtn.innerHTML = '<span>🔗</span> Connect to Google Drive Folder';
+                connectBtn.innerHTML = '<span>🔗</span> Connect';
                 connectBtn.disabled = false;
                 statusDiv.className = 'config-status disconnected';
                 statusDiv.innerHTML = '❌ Not Connected';
-                sheetsConfig.connected = false;
             }
         }
         
         function saveCredentials() {
-            const folderId = document.getElementById('folderId').value.trim();
-            const apiKey = document.getElementById('apiKey').value.trim();
-            if (folderId) localStorage.setItem('dukeChapel_folderId', folderId);
-            if (apiKey) localStorage.setItem('dukeChapel_apiKey', apiKey);
+            localStorage.setItem('dukeChapel_folderId', document.getElementById('folderId').value.trim());
+            localStorage.setItem('dukeChapel_apiKey', document.getElementById('apiKey').value.trim());
         }
         
         async function loadAllSheetData() {
-            const dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Loading data from Google Sheets...</p></div>`;
-            
+            document.getElementById('dashboard').innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Loading data from Google Sheets...</p></div>`;
             const loadPromises = Object.entries(sheetsConfig.discoveredSheets).map(([sheetName, sheetId]) => {
-                const fileName = EXPECTED_SHEETS[sheetName];
-                return loadSingleSheet(sheetId, fileName);
+                return loadSingleSheet(sheetId, EXPECTED_SHEETS[sheetName]);
             });
-            
             await Promise.all(loadPromises);
-            dashboard.innerHTML = '';
         }
         
         async function loadSingleSheet(sheetId, fileName) {
@@ -942,72 +889,48 @@
                 const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}&fields=sheets.properties.title`;
                 const metaResponse = await fetch(metaUrl);
                 if (!metaResponse.ok) throw new Error('Could not fetch sheet metadata');
-
                 const metadata = await metaResponse.json();
-                if (!metadata.sheets || metadata.sheets.length === 0) {
-                    console.warn(`Sheet for ${fileName} has no tabs.`);
-                    return;
-                }
+                if (!metadata.sheets || metadata.sheets.length === 0) return console.warn(`Sheet for ${fileName} has no tabs.`);
 
                 const firstSheetName = metadata.sheets[0].properties.title;
                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(firstSheetName)}?key=${sheetsConfig.apiKey}`;
                 const response = await fetch(url);
-
-                if (!response.ok) {
-                    console.warn(`Could not load data from tab "${firstSheetName}" for ${fileName}`);
-                    return;
-                }
+                if (!response.ok) return console.warn(`Could not load data from tab "${firstSheetName}" for ${fileName}`);
                 
                 const data = await response.json();
-                if (!data.values || data.values.length < 2) { // Need at least header + 1 row
-                    console.warn(`Sheet "${fileName}" is empty or has no data`);
+                if (!data.values || data.values.length < 2) {
                     processedData[fileName] = [];
-                    return;
+                    return console.warn(`Sheet "${fileName}" is empty or has no data`);
                 }
                 
                 if (fileName.includes('Audience')) {
-                    processedData[fileName] = parseAudienceData(data.values, fileName);
+                    processedData[fileName] = parseAudienceData(data.values);
                 } else {
                     const headers = data.values[0];
-                    const rows = data.values.slice(1);
-                    const parsedData = rows.map(row => {
+                    processedData[fileName] = data.values.slice(1).map(row => {
                         const obj = {};
-                        headers.forEach((header, index) => {
-                            obj[header] = row[index] || '';
-                        });
+                        headers.forEach((header, index) => obj[header] = row[index] || '');
                         return obj;
                     });
-                    processedData[fileName] = parsedData;
                 }
-                
                 console.log(`✓ Loaded data from ${fileName}`);
             } catch (error) {
                 console.error(`Error loading ${fileName}:`, error);
-                processedData[fileName] = []; // Ensure there's an empty array on error
+                processedData[fileName] = [];
             }
         }
 
-        function parseAudienceData(values, fileName) {
+        function parseAudienceData(values) {
             const data = { ageGender: [], topCities: [], topCountries: [] };
-            let currentSection = '';
-            let headers = [];
-            
+            let currentSection = '', headers = [];
             for (let i = 0; i < values.length; i++) {
-                const row = values[i];
-                const firstCell = (row[0] || '').toString().toLowerCase();
-                
-                if (firstCell.includes('age') && firstCell.includes('gender')) {
-                    currentSection = 'ageGender';
-                    i++; if (i < values.length) headers = values[i];
-                } else if (firstCell.includes('cities')) {
-                    currentSection = 'topCities';
-                    i++; if (i < values.length) headers = values[i];
-                } else if (firstCell.includes('countries')) {
-                    currentSection = 'topCountries';
-                    i++; if (i < values.length) headers = values[i];
-                } else if (currentSection && row.length > 0 && row[0]) {
+                const row = values[i], firstCell = (row[0] || '').toLowerCase();
+                if (firstCell.includes('age') && firstCell.includes('gender')) { currentSection = 'ageGender'; i++; if (i < values.length) headers = values[i]; }
+                else if (firstCell.includes('cities')) { currentSection = 'topCities'; i++; if (i < values.length) headers = values[i]; }
+                else if (firstCell.includes('countries')) { currentSection = 'topCountries'; i++; if (i < values.length) headers = values[i]; }
+                else if (currentSection && row.length > 0 && row[0]) {
                     const obj = {};
-                    headers.forEach((header, index) => { obj[header] = row[index] || ''; });
+                    headers.forEach((h, i) => obj[h] = row[i] || '');
                     data[currentSection].push(obj);
                 }
             }
@@ -1021,86 +944,55 @@
         }
         
         function validateDateRange() {
-            const startDate = document.getElementById('startDate');
-            const endDate = document.getElementById('endDate');
-            if (startDate.value && endDate.value && new Date(startDate.value) > new Date(endDate.value)) {
-                endDate.value = startDate.value;
-            }
+            const start = document.getElementById('startDate'), end = document.getElementById('endDate');
+            if (start.value && end.value && new Date(start.value) > new Date(end.value)) end.value = start.value;
         }
         
         function setDefaultDates() {
-            const dateRange = getDataDateRange();
-            const startDateEl = document.getElementById('startDate');
-            const endDateEl = document.getElementById('endDate');
-            
-            if (dateRange.min && dateRange.max) {
-                const thirtyDaysAgo = new Date(dateRange.max);
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29); // Inclusive 30 days
-                
-                startDateEl.value = formatDate(Math.max(thirtyDaysAgo, dateRange.min));
-                endDateEl.value = formatDate(dateRange.max);
-                
-                startDateEl.min = formatDate(dateRange.min);
-                startDateEl.max = formatDate(dateRange.max);
-                endDateEl.min = formatDate(dateRange.min);
-                endDateEl.max = formatDate(dateRange.max);
+            const range = getDataDateRange(), startEl = document.getElementById('startDate'), endEl = document.getElementById('endDate');
+            if (range.min && range.max) {
+                const thirtyDaysAgo = new Date(range.max);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+                startEl.value = formatDate(Math.max(thirtyDaysAgo, range.min));
+                endEl.value = formatDate(range.max);
+                startEl.min = endEl.min = formatDate(range.min);
+                startEl.max = endEl.max = formatDate(range.max);
             }
         }
         
         function getDataDateRange() {
             let minDate = null, maxDate = null;
-            
-            Object.entries(processedData).forEach(([fileName, data]) => {
-                if (fileName.includes('Audience') || !Array.isArray(data) || data.length === 0) return;
-                
-                let dateField = getDateField(fileName);
-                if (!dateField) return;
-
-                data.forEach(row => {
-                    const date = parseDate(row[dateField]);
-                    if (date) {
-                        if (!minDate || date < minDate) minDate = date;
-                        if (!maxDate || date > maxDate) maxDate = date;
-                    }
-                });
+            Object.values(processedData).flat().forEach(row => {
+                const date = parseDate(row.Date);
+                if (date) {
+                    if (!minDate || date < minDate) minDate = date;
+                    if (!maxDate || date > maxDate) maxDate = date;
+                }
             });
             return { min: minDate, max: maxDate };
         }
 
-        function getDateField(fileName) {
-            if (fileName.startsWith('GA_')) return 'Date';
-            if (fileName.includes('FB_') || fileName.includes('IG_')) return 'Date';
-            if (fileName.includes('YouTube_Content')) return 'Video publish time';
-            return null;
-        }
-
-        function parseDate(dateValue) {
-            if (!dateValue) return null;
-            const date = new Date(dateValue);
+        function parseDate(value) {
+            if (!value) return null;
+            const date = new Date(value);
             return isNaN(date.getTime()) ? null : date;
         }
         
         function setDateRange(days) {
-            const dateRange = getDataDateRange();
-            if (!dateRange.max) return;
-            
-            const endDate = new Date(dateRange.max);
-            const startDate = new Date(endDate);
-            startDate.setDate(startDate.getDate() - (days - 1));
-            
-            const actualStartDate = dateRange.min && startDate < dateRange.min ? dateRange.min : startDate;
-            
-            document.getElementById('startDate').value = formatDate(actualStartDate);
-            document.getElementById('endDate').value = formatDate(endDate);
-            
+            const range = getDataDateRange();
+            if (!range.max) return;
+            const end = new Date(range.max), start = new Date(end);
+            start.setDate(start.getDate() - (days - 1));
+            document.getElementById('startDate').value = formatDate(Math.max(start, range.min));
+            document.getElementById('endDate').value = formatDate(end);
             updateDashboard();
         }
         
         function selectFullRange() {
-            const dateRange = getDataDateRange();
-            if (dateRange.min && dateRange.max) {
-                document.getElementById('startDate').value = formatDate(dateRange.min);
-                document.getElementById('endDate').value = formatDate(dateRange.max);
+            const range = getDataDateRange();
+            if (range.min && range.max) {
+                document.getElementById('startDate').value = formatDate(range.min);
+                document.getElementById('endDate').value = formatDate(range.max);
                 updateDashboard();
             }
         }
@@ -1110,90 +1002,66 @@
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
         
-        function filterDataByDateRange(data, dateField, startDate, endDate) {
+        function filterDataByDateRange(data, startDate, endDate) {
             if (!startDate || !endDate || !Array.isArray(data)) return [];
-            
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+            const start = new Date(startDate), end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
-            
             return data.filter(row => {
-                const date = parseDate(row[dateField]);
+                const date = parseDate(row.Date);
                 return date && date >= start && date <= end;
             });
         }
 
         function getComparisonDates(startDate, endDate, compareType) {
             if (compareType === 'none') return null;
-            
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const diff = end.getTime() - start.getTime();
-
+            const start = new Date(startDate), end = new Date(endDate), diff = end.getTime() - start.getTime();
             if (compareType === 'previous') {
-                const prevEnd = new Date(start.getTime() - (1000 * 3600 * 24));
-                const prevStart = new Date(prevEnd.getTime() - diff);
-                return { start: formatDate(prevStart), end: formatDate(prevEnd) };
+                const prevEnd = new Date(start.getTime() - 864e5);
+                return { start: formatDate(new Date(prevEnd.getTime() - diff)), end: formatDate(prevEnd) };
             }
             if (compareType === 'year') {
-                const prevStart = new Date(start.getFullYear() - 1, start.getMonth(), start.getDate());
-                const prevEnd = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
-                return { start: formatDate(prevStart), end: formatDate(prevEnd) };
+                return { start: formatDate(new Date(start.setFullYear(start.getFullYear() - 1))), end: formatDate(new Date(end.setFullYear(end.getFullYear() - 1))) };
             }
             return null;
         }
         
-        // Calculation helpers
         function calculatePercentageChange(current, previous) {
-            if (previous === 0) return current > 0 ? 100.0 : 0;
+            if (previous === 0) return current > 0 ? Infinity : 0;
             return ((current - previous) / previous) * 100;
         }
 
         function formatNumber(num) {
             num = parseFloat(num) || 0;
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
             return num.toLocaleString();
         }
         
         function formatPercentage(num) {
+            if (!isFinite(num)) return "∞%";
             return (parseFloat(num) || 0).toFixed(1) + '%';
         }
         
-        // Dashboard generation
+        // --- DASHBOARD GENERATION ---
         function updateDashboard() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const compareType = document.getElementById('compareType').value;
+            if (!startDate || !endDate) return showError('Please select a date range');
             
-            if (!startDate || !endDate) {
-                showError('Please select a date range');
-                return;
-            }
-            
-            currentDateRange = { start: startDate, end: endDate };
-            const comparisonDateRange = getComparisonDates(startDate, endDate, compareType);
-
+            const comparisonDates = getComparisonDates(startDate, endDate, compareType);
             updateDateRangeInfo(startDate, endDate, compareType);
             
-            const dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Generating dashboard...</p></div>`;
-            
-            setTimeout(() => generateDashboard(startDate, endDate, comparisonDateRange), 300);
+            document.getElementById('dashboard').innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Generating dashboard...</p></div>`;
+            setTimeout(() => generateDashboard(startDate, endDate, comparisonDates), 300);
         }
         
         function updateDateRangeInfo(startDate, endDate, compareType) {
-            const infoDiv = document.getElementById('dateRangeInfo');
-            const textSpan = document.getElementById('dateRangeText');
-            
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const daysDiff = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-            
-            let text = `Showing ${daysDiff} days: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
-            if (compareType === 'previous') text += ` (comparing with previous ${daysDiff} days)`;
-            else if (compareType === 'year') text += ' (comparing with same period last year)';
-            
+            const infoDiv = document.getElementById('dateRangeInfo'), textSpan = document.getElementById('dateRangeText');
+            const start = new Date(startDate), end = new Date(endDate), days = Math.round((end - start) / 864e5) + 1;
+            let text = `Showing ${days} days: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+            if (compareType === 'previous') text += ` (vs previous ${days} days)`;
+            else if (compareType === 'year') text += ' (vs same period last year)';
             textSpan.textContent = text;
             infoDiv.style.display = 'flex';
         }
@@ -1201,58 +1069,149 @@
         function generateDashboard(startDate, endDate, comparisonDates) {
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = '';
-            
             if (Object.keys(processedData).length === 0) {
-                dashboard.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No Data Connected</h3><p>Please connect to your Google Sheets to see your marketing analytics data.</p></div>`;
+                dashboard.innerHTML = `<div class="empty-state">...</div>`;
                 return;
             }
-            
             generateWebAnalytics(dashboard, startDate, endDate, comparisonDates);
             generateSocialAnalytics(dashboard, startDate, endDate, comparisonDates);
-            generateEmailAnalytics(dashboard, startDate, endDate, comparisonDates);
-            generateYouTubeAnalytics(dashboard, startDate, endDate, comparisonDates);
         }
         
-        // Web Analytics Section
+        // --- SECTION RENDERERS ---
         function generateWebAnalytics(dashboard, startDate, endDate, comparisonDates) {
             dashboard.innerHTML += `<div class="section-header">🌐 Web Analytics</div>`;
             const grid = document.createElement('div');
             grid.className = 'dashboard-grid';
-            
             if (processedData['GA_Demographics.csv']) grid.appendChild(createDemographicsCard(startDate, endDate, comparisonDates));
-            if (processedData['GA_Traffic_Acquisition.csv']) grid.appendChild(createTrafficSourcesCard(startDate, endDate, comparisonDates));
-            if (processedData['GA_Pages_And_Screens.csv']) grid.appendChild(createTopPagesCard(startDate, endDate, comparisonDates));
-            if (processedData['GA_UTMs.csv']) grid.appendChild(createCampaignPerformanceCard(startDate, endDate, comparisonDates));
-            
+            if (processedData['GA_Traffic_Acquisition.csv']) grid.appendChild(createTrafficSourcesCard(startDate, endDate));
+            if (processedData['GA_Pages_And_Screens.csv']) grid.appendChild(createTopPagesCard(startDate, endDate));
+            if (processedData['GA_UTMs.csv']) grid.appendChild(createCampaignPerformanceCard(startDate, endDate));
             dashboard.appendChild(grid);
         }
+
+        function generateSocialAnalytics(dashboard, startDate, endDate, comparisonDates) {
+            dashboard.innerHTML += `<div class="section-header">📱 Social Media Analytics</div>`;
+            const grid = document.createElement('div');
+            grid.className = 'dashboard-grid';
+            const hasFb = Object.keys(processedData).some(k => k.startsWith('FB_'));
+            const hasIg = Object.keys(processedData).some(k => k.startsWith('IG_'));
+            if (hasFb) grid.appendChild(createFacebookMetricsCard(startDate, endDate, comparisonDates));
+            if (hasIg) grid.appendChild(createInstagramMetricsCard(startDate, endDate, comparisonDates));
+            if (processedData['FB_Posts.csv'] || processedData['IG_Posts.csv']) grid.appendChild(createTopSocialPostsCard(startDate, endDate));
+            dashboard.appendChild(grid);
+        }
+
+        // --- CALCULATION & AGGREGATION FUNCTIONS ---
+        function calculateMetric(data, key) {
+            return data.reduce((sum, row) => sum + (parseFloat(row[key]) || 0), 0);
+        }
+
+        function calculateWebMetrics(startDate, endDate, comparisonDates) {
+            const data = processedData['GA_Demographics.csv'] || [];
+            const metrics = { totalUsers: {}, newUsers: {}, sessions: {} };
+            
+            const currentData = filterDataByDateRange(data, startDate, endDate);
+            metrics.totalUsers.current = calculateMetric(currentData, 'Users');
+            metrics.newUsers.current = calculateMetric(currentData, 'New users');
+            metrics.sessions.current = calculateMetric(currentData, 'Sessions');
+
+            if (comparisonDates) {
+                const prevData = filterDataByDateRange(data, comparisonDates.start, comparisonDates.end);
+                metrics.totalUsers.previous = calculateMetric(prevData, 'Users');
+                metrics.newUsers.previous = calculateMetric(prevData, 'New users');
+                metrics.sessions.previous = calculateMetric(prevData, 'Sessions');
+                Object.keys(metrics).forEach(k => metrics[k].change = calculatePercentageChange(metrics[k].current, metrics[k].previous));
+            }
+            return metrics;
+        }
         
+        function getTopLocations(data) {
+            const map = {};
+            data.forEach(row => {
+                const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
+                if (!map[key]) map[key] = { country: row.Country || 'Unknown', city: row.City || 'Unknown', users: 0, sessions: 0 };
+                map[key].users += parseInt(row['Users'] || 0);
+                map[key].sessions += parseInt(row['Sessions'] || 0);
+            });
+            return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
+        }
+
+        function aggregateTrafficSources(data) {
+            const map = {};
+            (data || []).forEach(row => {
+                const source = row['Session default channel group'] || 'Unknown';
+                if (!map[source]) map[source] = { source, sessions: 0 };
+                map[source].sessions += parseInt(row['Sessions'] || 0);
+            });
+            return Object.values(map).sort((a,b) => b.sessions - a.sessions);
+        }
+
+        function aggregatePageData(data) {
+            const map = {};
+            (data || []).forEach(row => {
+                const path = row['Page path and screen class'] || 'Unknown';
+                if (!map[path]) map[path] = { path, sessions: 0, engagementTime: 0 };
+                map[path].sessions += parseInt(row['Sessions'] || 0);
+                map[path].engagementTime += parseFloat(row['Total engagement duration'] || 0);
+            });
+            return Object.values(map);
+        }
+
+        function aggregateCampaignData(data) {
+            const map = {};
+            (data || []).forEach(row => {
+                const key = row['Campaign'] || 'Unknown';
+                if (!map[key]) map[key] = { name: key, source: row['Source'] || 'N/A', medium: row['Medium'] || 'N/A', sessions: 0 };
+                map[key].sessions += parseInt(row['Sessions'] || 0);
+            });
+            return Object.values(map).sort((a,b) => b.sessions - a.sessions);
+        }
+
+        function calculateSocialMetrics(platform, startDate, endDate, comparisonDates) {
+            const types = {
+                reach: { file: `${platform}_Reach.csv`, key: 'Daily' },
+                interactions: { file: `${platform}_Interactions.csv`, key: 'Daily' },
+                follows: { file: `${platform}_Follows.csv`, key: 'Daily' },
+                views: { file: `${platform}_Views.csv`, key: 'Daily' },
+            };
+            const metrics = {};
+            Object.keys(types).forEach(type => {
+                const { file, key } = types[type];
+                const data = processedData[file] || [];
+                const currentData = filterDataByDateRange(data, startDate, endDate);
+                const currentVal = calculateMetric(currentData, key);
+                metrics[type] = { current: currentVal };
+                if (comparisonDates) {
+                    const prevData = filterDataByDateRange(data, comparisonDates.start, comparisonDates.end);
+                    const prevVal = calculateMetric(prevData, key);
+                    metrics[type].previous = prevVal;
+                    metrics[type].change = calculatePercentageChange(currentVal, prevVal);
+                }
+            });
+            return metrics;
+        }
+        
+        // --- UI COMPONENT RENDERERS ---
         function createDemographicsCard(startDate, endDate, comparisonDates) {
             const card = createCard('Demographics & User Insights', '👥');
             const metrics = calculateWebMetrics(startDate, endDate, comparisonDates);
-            
             card.appendChild(createMetricsGrid([
                 { label: 'Total Users', value: formatNumber(metrics.totalUsers.current), change: metrics.totalUsers.change },
                 { label: 'New Users', value: formatNumber(metrics.newUsers.current), change: metrics.newUsers.change },
                 { label: 'Sessions', value: formatNumber(metrics.sessions.current), change: metrics.sessions.change },
             ]));
-            
-            const currentData = filterDataByDateRange(processedData['GA_Demographics.csv'], 'Date', startDate, endDate);
+            const currentData = filterDataByDateRange(processedData['GA_Demographics.csv'], startDate, endDate);
             const locationData = getTopLocations(currentData);
             if (locationData.length > 0) {
-                card.appendChild(createTable(
-                    ['Country', 'City', 'Users', 'Sessions'],
-                    locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])
-                ));
+                card.appendChild(createTable(['Country', 'City', 'Users', 'Sessions'], locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])));
             }
             return card;
         }
 
-        function createTrafficSourcesCard(startDate, endDate, comparisonDates) {
+        function createTrafficSourcesCard(startDate, endDate) {
             const card = createCard('Traffic Sources & Channels', '🚀', true);
-            const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date', startDate, endDate);
+            const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], startDate, endDate);
             const sourceData = aggregateTrafficSources(currentData);
-            
             if (sourceData.length > 0) {
                 const chartContainer = document.createElement('div');
                 chartContainer.className = 'chart-container';
@@ -1261,102 +1220,52 @@
                 card.appendChild(chartContainer);
                 createTrafficChart(canvas, sourceData);
             }
-            
-            card.appendChild(createTable(
-                ['Source/Medium', 'Sessions'],
-                sourceData.slice(0, 10).map(source => [
-                    source.source,
-                    formatNumber(source.sessions)
-                ])
-            ));
+            card.appendChild(createTable(['Source/Medium', 'Sessions'], sourceData.slice(0, 10).map(s => [s.source, formatNumber(s.sessions)])));
             return card;
         }
         
-        function createTopPagesCard(startDate, endDate, comparisonDates) {
+        function createTopPagesCard(startDate, endDate) {
             const card = createCard('Top Landing Pages', '📄', true);
-            const currentData = filterDataByDateRange(processedData['GA_Pages_And_Screens.csv'], 'Date', startDate, endDate);
+            const currentData = filterDataByDateRange(processedData['GA_Pages_And_Screens.csv'], startDate, endDate);
             const pageData = aggregatePageData(currentData);
-            
-            const tabContainer = createTabs(['By Sessions', 'By Engagement Time'], (tabIndex) => {
-                const sortedData = [...pageData];
-                if (tabIndex === 0) sortedData.sort((a, b) => b.sessions - a.sessions);
-                else sortedData.sort((a, b) => b.engagementTime - a.engagementTime);
-                
-                updateTableData(card.querySelector('table'), sortedData.slice(0, 10).map(page => [
-                    (page.path || '').substring(0, 70) + ((page.path || '').length > 70 ? '...' : ''),
-                    formatNumber(page.sessions),
-                    (page.engagementTime / 60).toFixed(1) + ' min'
-                ]));
-            });
-            card.appendChild(tabContainer);
-            
+            card.appendChild(createTabs(['By Sessions', 'By Engagement Time'], (tabIndex) => {
+                const sorted = [...pageData].sort((a, b) => (tabIndex === 0 ? b.sessions - a.sessions : b.engagementTime - a.engagementTime));
+                updateTableData(card.querySelector('table'), sorted.slice(0, 10).map(p => [(p.path || '').substring(0, 70), formatNumber(p.sessions), (p.engagementTime / 60).toFixed(1) + ' min']));
+            }));
             const sortedBySessions = [...pageData].sort((a, b) => b.sessions - a.sessions);
-            card.appendChild(createTable(
-                ['Page Path', 'Sessions', 'Total Engagement'],
-                sortedBySessions.slice(0, 10).map(page => [
-                    (page.path || '').substring(0, 70) + ((page.path || '').length > 70 ? '...' : ''),
-                    formatNumber(page.sessions),
-                    (page.engagementTime / 60).toFixed(1) + ' min'
-                ])
-            ));
+            card.appendChild(createTable(['Page Path', 'Sessions', 'Total Engagement'], sortedBySessions.slice(0, 10).map(p => [(p.path || '').substring(0, 70), formatNumber(p.sessions), (p.engagementTime / 60).toFixed(1) + ' min'])));
             return card;
         }
         
-        function createCampaignPerformanceCard(startDate, endDate, comparisonDates) {
+        function createCampaignPerformanceCard(startDate, endDate) {
             const card = createCard('Campaign Performance (UTM)', '🎯', true);
             const utmData = processedData['GA_UTMs.csv'];
-            
-            if (!utmData || utmData.length === 0 || !utmData[0]['Campaign']) {
-                card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Campaign Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or incorrectly formatted. Please ensure it has a 'Date' column and a 'Campaign' column.</p></div>`;
+            if (!utmData || !utmData.length || !utmData[0]['Campaign']) {
+                card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or incorrectly formatted. Ensure it has 'Date', 'Campaign', and 'Sessions' columns.</p></div>`;
                 return card;
             }
-            
-            const currentData = filterDataByDateRange(utmData, 'Date', startDate, endDate);
+            const currentData = filterDataByDateRange(utmData, startDate, endDate);
             const campaignData = aggregateCampaignData(currentData);
-            card.appendChild(createTable(
-                ['Campaign', 'Source', 'Medium', 'Sessions'],
-                campaignData.slice(0, 10).map(c => [c.name, c.source, c.medium, formatNumber(c.sessions)])
-            ));
+            card.appendChild(createTable(['Campaign', 'Source', 'Medium', 'Sessions'], campaignData.slice(0, 10).map(c => [c.name, c.source, c.medium, formatNumber(c.sessions)])));
             return card;
         }
 
-        // Social Analytics Section
-        function generateSocialAnalytics(dashboard, startDate, endDate, comparisonDates) {
-            const hasFacebook = Object.keys(processedData).some(k => k.startsWith('FB_'));
-            const hasInstagram = Object.keys(processedData).some(k => k.startsWith('IG_'));
-            if (!hasFacebook && !hasInstagram) return;
-
-            dashboard.innerHTML += `<div class="section-header">📱 Social Media Analytics</div>`;
-            const grid = document.createElement('div');
-            grid.className = 'dashboard-grid';
-
-            if (hasFacebook) grid.appendChild(createFacebookMetricsCard(startDate, endDate, comparisonDates));
-            if (hasInstagram) grid.appendChild(createInstagramMetricsCard(startDate, endDate, comparisonDates));
-            if (processedData['FB_Posts.csv'] || processedData['IG_Posts.csv']) {
-                grid.appendChild(createTopSocialPostsCard(startDate, endDate));
-            }
-            
-            dashboard.appendChild(grid);
-        }
-        
         function createFacebookMetricsCard(startDate, endDate, comparisonDates) {
             const card = createCard('Facebook Performance', '📘');
             const metrics = calculateSocialMetrics('FB', startDate, endDate, comparisonDates);
-            
             card.appendChild(createMetricsGrid([
                 { label: 'Total Reach', value: formatNumber(metrics.reach.current), change: metrics.reach.change },
                 { label: 'Interactions', value: formatNumber(metrics.interactions.current), change: metrics.interactions.change },
                 { label: 'New Followers', value: formatNumber(metrics.follows.current), change: metrics.follows.change },
                 { label: 'Profile Views', value: formatNumber(metrics.views.current), change: metrics.views.change },
             ]));
-            card.innerHTML += `<div class="info-box info"><h4>📈 Facebook Page Rank</h4><p>This metric isn't available in data exports. You can check your Page Quality manually in the Meta Business Suite.</p></div>`;
+            card.innerHTML += `<div class="info-box info"><h4>📈 Facebook Page Rank</h4><p>This metric isn't available in data exports. Check Page Quality manually in Meta Business Suite.</p></div>`;
             return card;
         }
 
         function createInstagramMetricsCard(startDate, endDate, comparisonDates) {
             const card = createCard('Instagram Performance', '📷');
             const metrics = calculateSocialMetrics('IG', startDate, endDate, comparisonDates);
-            
             card.appendChild(createMetricsGrid([
                 { label: 'Total Reach', value: formatNumber(metrics.reach.current), change: metrics.reach.change },
                 { label: 'Interactions', value: formatNumber(metrics.interactions.current), change: metrics.interactions.change },
@@ -1368,153 +1277,42 @@
 
         function createTopSocialPostsCard(startDate, endDate) {
             const card = createCard('Top Social Media Posts', '🏆', true);
-            const fbPosts = processedData['FB_Posts.csv'];
-            const igPosts = processedData['IG_Posts.csv'];
-
-            if (!fbPosts && !igPosts) {
-                card.innerHTML += `<div class="info-box warning"><h4>📊 Post Data Required</h4><p>To see top performing posts, please create Google Sheets named <strong>FB_Posts</strong> and <strong>IG_Posts</strong> with post-level data from Meta Business Suite.</p></div>`;
+            const hasData = processedData['FB_Posts.csv'] || processedData['IG_Posts.csv'];
+            if (!hasData) {
+                card.innerHTML += `<div class="info-box warning"><h4>📊 Post Data Required</h4><p>To see top posts, create Google Sheets named <strong>FB_Posts</strong> and <strong>IG_Posts</strong>.</p></div>`;
                 return card;
             }
-
             const platforms = [];
-            if (fbPosts) platforms.push('Facebook');
-            if (igPosts) platforms.push('Instagram');
-
-            const tabContainer = createTabs(platforms, (tabIndex) => {
-                const platform = platforms[tabIndex];
-                const contentDiv = card.querySelector('.top-posts-content');
-                displayTopPosts(contentDiv, platform, startDate, endDate);
-            });
-            card.appendChild(tabContainer);
-            
+            if (processedData['FB_Posts.csv']) platforms.push('Facebook');
+            if (processedData['IG_Posts.csv']) platforms.push('Instagram');
+            card.appendChild(createTabs(platforms, (i) => displayTopPosts(card.querySelector('.top-posts-content'), platforms[i], startDate, endDate)));
             const contentDiv = document.createElement('div');
             contentDiv.className = 'top-posts-content';
             card.appendChild(contentDiv);
-            
             displayTopPosts(contentDiv, platforms[0], startDate, endDate);
             return card;
         }
 
         function displayTopPosts(container, platform, startDate, endDate) {
             container.innerHTML = '';
-            const postData = processedData[platform === 'Facebook' ? 'FB_Posts.csv' : 'IG_Posts.csv'];
-            const currentData = filterDataByDateRange(postData, 'Date', startDate, endDate);
-            
+            const data = processedData[platform === 'Facebook' ? 'FB_Posts.csv' : 'IG_Posts.csv'];
+            const currentData = filterDataByDateRange(data, startDate, endDate);
             if (!currentData || currentData.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: var(--duke-gray); padding: 20px;">No post data for this period.</p>';
+                container.innerHTML = '<p style="padding: 20px; text-align: center;">No post data for this period.</p>';
                 return;
             }
-
-            const metrics = ['Reach', 'Likes', 'Comments', 'Link Clicks'];
-            metrics.forEach(metric => {
-                const sortedData = [...currentData].sort((a, b) => (parseFloat(b[metric]) || 0) - (parseFloat(a[metric]) || 0)).slice(0, 5);
+            ['Reach', 'Likes', 'Comments'].forEach(metric => {
+                const sorted = [...currentData].sort((a, b) => (parseFloat(b[metric])||0) - (parseFloat(a[metric])||0)).slice(0,5);
                 const section = document.createElement('div');
-                section.innerHTML = `<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top 5 by ${metric}</h4>`;
-                section.appendChild(createTable(
-                    ['Post', 'Date', metric],
-                    sortedData.map(post => [
-                        (post.Post || post.Caption || 'No Text').substring(0, 80) + '...',
-                        post.Date ? new Date(post.Date).toLocaleDateString() : 'N/A',
-                        formatNumber(post[metric])
-                    ])
-                ));
+                section.innerHTML = `<h4 style="margin:20px 0 15px; color:var(--duke-navy);">Top 5 by ${metric}</h4>`;
+                section.appendChild(createTable(['Post', 'Date', metric], sorted.map(p => [(p.Post||'').substring(0,80), p.Date, formatNumber(p[metric])])));
                 container.appendChild(section);
             });
         }
         
-        // --- CALCULATION FUNCTIONS (UPDATED FOR COMPARISONS) ---
-        
-        function calculateMetric(data, key) {
-            return data.reduce((sum, row) => sum + (parseFloat(row[key]) || 0), 0);
-        }
-
-        function calculateWebMetrics(startDate, endDate, comparisonDates) {
-            const data = processedData['GA_Demographics.csv'] || [];
-            const currentData = filterDataByDateRange(data, 'Date', startDate, endDate);
-            
-            const metrics = {
-                totalUsers: { current: calculateMetric(currentData, 'Users') },
-                newUsers: { current: calculateMetric(currentData, 'New users') },
-                sessions: { current: calculateMetric(currentData, 'Sessions') },
-            };
-
-            if (comparisonDates) {
-                const comparisonData = filterDataByDateRange(data, 'Date', comparisonDates.start, comparisonDates.end);
-                metrics.totalUsers.previous = calculateMetric(comparisonData, 'Users');
-                metrics.newUsers.previous = calculateMetric(comparisonData, 'New users');
-                metrics.sessions.previous = calculateMetric(comparisonData, 'Sessions');
-                
-                Object.keys(metrics).forEach(key => {
-                    metrics[key].change = calculatePercentageChange(metrics[key].current, metrics[key].previous);
-                });
-            }
-            return metrics;
-        }
-        
-        function aggregateTrafficSources(data) {
-            const map = {};
-            data.forEach(row => {
-                const source = row['Session default channel group'] || 'Unknown';
-                if (!map[source]) map[source] = { source, sessions: 0 };
-                map[source].sessions += parseInt(row['Sessions'] || 0);
-            });
-            return Object.values(map).sort((a,b) => b.sessions - a.sessions);
-        }
-
-        function aggregatePageData(data) {
-            const map = {};
-            data.forEach(row => {
-                const path = row['Page path and screen class'] || 'Unknown';
-                if (!map[path]) map[path] = { path, sessions: 0, engagementTime: 0 };
-                map[path].sessions += parseInt(row['Sessions'] || 0);
-                map[path].engagementTime += parseFloat(row['Total engagement duration'] || 0);
-            });
-            return Object.values(map);
-        }
-
-        function aggregateCampaignData(data) {
-            const map = {};
-            data.forEach(row => {
-                const key = row['Campaign'] || 'Unknown';
-                if (!map[key]) map[key] = { name: key, source: row['Source'] || 'N/A', medium: row['Medium'] || 'N/A', sessions: 0 };
-                map[key].sessions += parseInt(row['Sessions'] || 0);
-            });
-            return Object.values(map).sort((a,b) => b.sessions - a.sessions);
-        }
-
-        function calculateSocialMetrics(platform, startDate, endDate, comparisonDates) {
-            const metricTypes = {
-                reach: { file: `${platform}_Reach.csv`, key: 'Daily' },
-                interactions: { file: `${platform}_Interactions.csv`, key: 'Daily' },
-                follows: { file: `${platform}_Follows.csv`, key: 'Daily' },
-                views: { file: `${platform}_Views.csv`, key: 'Daily' },
-            };
-
-            const metrics = {};
-
-            Object.keys(metricTypes).forEach(type => {
-                const { file, key } = metricTypes[type];
-                const data = processedData[file] || [];
-                const currentData = filterDataByDateRange(data, 'Date', startDate, endDate);
-                const currentVal = calculateMetric(currentData, key);
-                
-                metrics[type] = { current: currentVal };
-                
-                if (comparisonDates) {
-                    const comparisonData = filterDataByDateRange(data, 'Date', comparisonDates.start, comparisonDates.end);
-                    const previousVal = calculateMetric(comparisonData, key);
-                    metrics[type].previous = previousVal;
-                    metrics[type].change = calculatePercentageChange(currentVal, previousVal);
-                }
-            });
-
-            return metrics;
-        }
-        
-        // --- UI HELPER FUNCTIONS ---
         function createCard(title, icon, fullWidth = false) {
             const card = document.createElement('div');
-            card.className = fullWidth ? 'card full-width' : 'card';
+            card.className = `card ${fullWidth ? 'full-width' : ''}`;
             card.innerHTML = `<div class="card-header"><div class="card-title">${icon ? `<span class="card-icon">${icon}</span>` : ''} ${title}</div></div>`;
             return card;
         }
@@ -1527,7 +1325,7 @@
                 if (metric.change !== undefined && metric.change !== null) {
                     const changeClass = metric.change >= 0 ? 'positive' : 'negative';
                     const arrow = metric.change >= 0 ? '↑' : '↓';
-                    changeHtml = `<div class="metric-change ${changeClass}">${arrow} ${Math.abs(metric.change).toFixed(1)}%</div>`;
+                    changeHtml = `<div class="metric-change ${changeClass}">${arrow} ${formatPercentage(Math.abs(metric.change))}</div>`;
                 }
                 grid.innerHTML += `<div class="metric-card"><div class="metric-value">${metric.value}</div><div class="metric-label">${metric.label}</div>${changeHtml}</div>`;
             });
@@ -1537,16 +1335,12 @@
         function createTable(headers, rows) {
             const container = document.createElement('div');
             container.className = 'table-container';
-            const table = document.createElement('table');
-            table.innerHTML = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody>`;
-            container.appendChild(table);
+            container.innerHTML = `<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
             return container;
         }
         
         function updateTableData(table, rows) {
-            if (!table) return;
-            const tbody = table.querySelector('tbody');
-            tbody.innerHTML = rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('');
+            if (table) table.querySelector('tbody').innerHTML = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
         }
         
         function createTabs(labels, onTabChange) {
@@ -1554,7 +1348,7 @@
             container.className = 'tab-container';
             labels.forEach((label, index) => {
                 const tab = document.createElement('button');
-                tab.className = 'tab-button' + (index === 0 ? ' active' : '');
+                tab.className = `tab-button ${index === 0 ? 'active' : ''}`;
                 tab.textContent = label;
                 tab.onclick = () => {
                     container.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
@@ -1566,7 +1360,6 @@
             return container;
         }
         
-        // Chart creation functions
         function createTrafficChart(canvas, sourceData) {
             new Chart(canvas.getContext('2d'), {
                 type: 'doughnut',
@@ -1574,29 +1367,25 @@
                     labels: sourceData.slice(0, 6).map(s => s.source),
                     datasets: [{ data: sourceData.slice(0, 6).map(s => s.sessions), backgroundColor: ['#012169', '#00539B', '#5B9BD5', '#666666', '#E5E5E5', '#262626'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }, title: { display: true, text: 'Traffic Distribution by Source', font: { size: 16, weight: 'bold' }, padding: 20 } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         }
         
         function showError(message) {
-            const dashboard = document.getElementById('dashboard');
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error';
             errorDiv.textContent = message;
-            dashboard.insertBefore(errorDiv, dashboard.firstChild);
+            document.getElementById('dashboard').insertBefore(errorDiv, document.getElementById('dashboard').firstChild);
             setTimeout(() => errorDiv.remove(), 5000);
         }
         
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             initializeDateControls();
             const savedFolderId = localStorage.getItem('dukeChapel_folderId');
             const savedApiKey = localStorage.getItem('dukeChapel_apiKey');
             if (savedFolderId) document.getElementById('folderId').value = savedFolderId;
             if (savedApiKey) document.getElementById('apiKey').value = savedApiKey;
-            if (savedFolderId && savedApiKey) {
-                setTimeout(connectToSheets, 500);
-            }
+            if (savedFolderId && savedApiKey) setTimeout(connectToSheets, 500);
         });
     </script>
 </body>
