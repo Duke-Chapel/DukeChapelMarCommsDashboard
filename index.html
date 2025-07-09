@@ -28,434 +28,72 @@
             --shadow-lg: 0 8px 16px rgba(0,0,0,0.1);
             --shadow-xl: 0 16px 32px rgba(0,0,0,0.15);
         }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f8f9fa;
-            color: var(--duke-black);
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        /* Header Styles */
-        .header {
-            background: var(--duke-navy);
-            color: white;
-            padding: 40px 0;
-            margin-bottom: 30px;
-            box-shadow: var(--shadow-md);
-        }
-        
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            letter-spacing: -0.5px;
-        }
-        
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-        
-        /* Google Sheets Configuration Section */
-        .config-section {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: var(--shadow-md);
-            border: 2px solid var(--duke-light-blue);
-        }
-        
-        .config-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .config-title {
-            font-size: 1.5rem;
-            color: var(--duke-navy);
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .config-status {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        
-        .config-status.connected {
-            background: #e8f5e9;
-            color: var(--success-green);
-        }
-        
-        .config-status.disconnected {
-            background: #ffebee;
-            color: var(--danger-red);
-        }
-        
-        .config-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .config-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        
-        .config-group label {
-            font-weight: 600;
-            color: var(--duke-gray);
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .config-group input {
-            padding: 12px 15px;
-            border: 1px solid var(--duke-light-gray);
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        .config-group input:focus {
-            outline: none;
-            border-color: var(--duke-blue);
-            box-shadow: 0 0 0 3px rgba(0, 83, 155, 0.1);
-        }
-        
-        .connect-btn {
-            background: var(--duke-blue);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .connect-btn:hover {
-            background: var(--duke-navy);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-        
-        .connect-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Controls Section */
-        .controls {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: var(--shadow-md);
-            display: none;
-        }
-        
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .update-btn {
-            background: var(--duke-blue);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .update-btn:hover {
-            background: var(--duke-navy);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-        
-        /* Dashboard Grid */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: var(--shadow-md);
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .card:hover {
-            box-shadow: var(--shadow-lg);
-        }
-        
-        .card.full-width {
-            grid-column: 1 / -1;
-        }
-        
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-        
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--duke-navy);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .card-icon {
-            font-size: 1.5rem;
-        }
-        
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-        
-        .metric-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .metric-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--duke-blue);
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-md);
-        }
-        
-        .metric-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--duke-navy);
-            margin-bottom: 5px;
-        }
-        
-        .metric-label {
-            font-size: 0.875rem;
-            color: var(--duke-gray);
-            font-weight: 500;
-        }
-        
-        .metric-change {
-            font-size: 0.75rem;
-            margin-top: 10px;
-            font-weight: 600;
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        
-        .metric-change.positive {
-            color: var(--success-green);
-            background: rgba(40, 167, 69, 0.1);
-        }
-        
-        .metric-change.negative {
-            color: var(--danger-red);
-            background: rgba(220, 53, 69, 0.1);
-        }
-        
-        .chart-container {
-            width: 100%;
-            height: 350px;
-            margin-top: 20px;
-            position: relative;
-            flex-grow: 1;
-        }
-        
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--duke-light-gray);
-            flex-grow: 1;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.875rem;
-        }
-        
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--duke-light-gray);
-        }
-        
-        th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: var(--duke-gray);
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            position: sticky; top: 0; z-index: 1;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: var(--duke-black); line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { background: var(--duke-navy); color: white; padding: 40px 0; margin-bottom: 30px; box-shadow: var(--shadow-md); }
+        .header-content { max-width: 1400px; margin: 0 auto; padding: 0 20px; text-align: center; }
+        .header h1 { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px; }
+        .header p { font-size: 1.2rem; opacity: 0.9; font-weight: 300; }
+        .config-section { background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-md); border: 2px solid var(--duke-light-blue); }
+        .config-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .config-title { font-size: 1.5rem; color: var(--duke-navy); font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .config-status { padding: 8px 16px; border-radius: 20px; font-size: 0.875rem; font-weight: 500; }
+        .config-status.connected { background: #e8f5e9; color: var(--success-green); }
+        .config-status.disconnected { background: #ffebee; color: var(--danger-red); }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .config-group { display: flex; flex-direction: column; gap: 8px; }
+        .config-group label { font-weight: 600; color: var(--duke-gray); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .config-group input { padding: 12px 15px; border: 1px solid var(--duke-light-gray); border-radius: 8px; font-size: 1rem; transition: all 0.3s ease; }
+        .config-group input:focus { outline: none; border-color: var(--duke-blue); box-shadow: 0 0 0 3px rgba(0, 83, 155, 0.1); }
+        .connect-btn { background: var(--duke-blue); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+        .connect-btn:hover { background: var(--duke-navy); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .connect-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .controls { background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-md); display: none; }
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .quick-range-buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .quick-range-btn { background: #f8f9fa; color: var(--duke-navy); border: 1px solid var(--duke-light-gray); padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }
+        .quick-range-btn:hover { background: var(--duke-blue); color: white; border-color: var(--duke-blue); }
+        .action-buttons { display: flex; gap: 15px; margin-top: 20px; }
+        .update-btn { background: var(--duke-blue); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+        .update-btn:hover { background: var(--duke-navy); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 25px; margin-bottom: 30px; }
+        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: var(--shadow-md); transition: all 0.3s ease; display: flex; flex-direction: column; }
+        .card:hover { box-shadow: var(--shadow-lg); }
+        .card.full-width { grid-column: 1 / -1; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0; }
+        .card-title { font-size: 1.25rem; font-weight: 700; color: var(--duke-navy); display: flex; align-items: center; gap: 10px; }
+        .card-icon { font-size: 1.5rem; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .metric-card { background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; position: relative; overflow: hidden; transition: all 0.3s ease; }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--duke-blue); }
+        .metric-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+        .metric-value { font-size: 2rem; font-weight: 700; color: var(--duke-navy); margin-bottom: 5px; }
+        .metric-label { font-size: 0.875rem; color: var(--duke-gray); font-weight: 500; }
+        .metric-change { font-size: 0.75rem; margin-top: 10px; font-weight: 600; display: inline-block; padding: 4px 8px; border-radius: 4px; }
+        .metric-change.positive { color: var(--success-green); background: rgba(40, 167, 69, 0.1); }
+        .metric-change.negative { color: var(--danger-red); background: rgba(220, 53, 69, 0.1); }
+        .chart-container { width: 100%; height: 350px; margin-top: 20px; position: relative; flex-grow: 1; }
+        .table-container { overflow-x: auto; margin-top: 20px; border-radius: 8px; border: 1px solid var(--duke-light-gray); flex-grow: 1; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--duke-light-gray); }
+        th { background: #f8f9fa; font-weight: 600; color: var(--duke-gray); text-transform: uppercase; font-size: 0.75rem; position: sticky; top: 0; z-index: 1; }
         tbody tr:hover { background: #f8f9fa; }
-        
-        .section-header {
-            background: linear-gradient(135deg, var(--duke-navy), var(--duke-blue));
-            color: white;
-            padding: 25px;
-            border-radius: 12px;
-            margin: 40px 0 25px 0;
-            text-align: center;
-            font-size: 1.75rem;
-            font-weight: 700;
-        }
-        
-        .loading, .empty-state {
-            text-align: center;
-            padding: 60px;
-            color: var(--duke-gray);
-        }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 40px; height: 40px;
-            border: 3px solid rgba(0,0,0,.1);
-            border-radius: 50%;
-            border-top-color: var(--duke-blue);
-            animation: spin 1s ease-in-out infinite;
-            margin-bottom: 15px;
-        }
+        .section-header { background: linear-gradient(135deg, var(--duke-navy), var(--duke-blue)); color: white; padding: 25px; border-radius: 12px; margin: 40px 0 25px 0; text-align: center; font-size: 1.75rem; font-weight: 700; }
+        .loading, .empty-state { text-align: center; padding: 60px; color: var(--duke-gray); }
+        .loading-spinner { display: inline-block; width: 40px; height: 40px; border: 3px solid rgba(0,0,0,.1); border-radius: 50%; border-top-color: var(--duke-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 15px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .date-range-info {
-            background: #e3f2fd;
-            padding: 15px 20px;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            color: var(--duke-navy);
-            margin-top: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .tab-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--duke-light-gray);
-            overflow-x: auto;
-        }
-        
-        .tab-button {
-            padding: 10px 20px;
-            background: none; border: none;
-            cursor: pointer; font-weight: 500;
-            color: var(--duke-gray);
-            transition: all 0.3s ease;
-            position: relative;
-        }
+        .date-range-info { background: #e3f2fd; padding: 15px 20px; border-radius: 8px; font-size: 0.875rem; color: var(--duke-navy); margin-top: 20px; display: flex; align-items: center; gap: 10px; }
+        .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--duke-light-gray); overflow-x: auto; }
+        .tab-button { padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--duke-gray); transition: all 0.3s ease; position: relative; }
         .tab-button:hover { color: var(--duke-navy); }
         .tab-button.active { color: var(--duke-blue); font-weight: 600; }
-        .tab-button.active::after {
-            content: '';
-            position: absolute;
-            bottom: -2px; left: 0; right: 0;
-            height: 2px;
-            background: var(--duke-blue);
-        }
-        
-        .info-box {
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border-left: 4px solid;
-        }
+        .tab-button.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--duke-blue); }
+        .info-box { padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid; }
         .info-box.warning { background: #fff8e1; border-color: var(--warning-yellow); }
         .info-box.info { background: #e3f2fd; border-color: var(--info-blue); }
         .info-box.error { background: #fee; border-color: var(--danger-red); }
         .info-box h4 { margin-bottom: 10px; color: var(--duke-navy); }
-        .info-box p, .info-box ul { margin: 0 0 10px 0; color: #666; }
-        .info-box ul { padding-left: 20px; }
     </style>
 </head>
 <body>
@@ -493,15 +131,11 @@
                 <button class="quick-range-btn" onclick="selectFullRange()">All Time</button>
             </div>
             <div class="controls-grid">
-                <div class="control-group">
-                    <label>Start Date</label> <input type="date" id="startDate">
-                </div>
-                <div class="control-group">
-                    <label>End Date</label> <input type="date" id="endDate">
-                </div>
+                <div class="control-group"><label>Start Date</label><input type="date" id="startDate"></div>
+                <div class="control-group"><label>End Date</label><input type="date" id="endDate"></div>
                 <div class="control-group">
                     <label>Compare With</label>
-                    <select id="compareType">
+                    <select id="compareType" onchange="updateDashboard()">
                         <option value="none">No Comparison</option>
                         <option value="previous">Previous Period</option>
                         <option value="year">Same Period Last Year</option>
@@ -557,10 +191,11 @@
                 
                 document.getElementById('connectionStatus').className = 'config-status connected';
                 document.getElementById('connectionStatus').innerHTML = '✅ Connected';
-                document.getElementById('controls').style.display = 'block';
                 
                 await loadAllSheetData(discoveredSheets, apiKey);
                 initializeHeaderMaps();
+                
+                document.getElementById('controls').style.display = 'block';
                 setDefaultDates();
                 updateDashboard();
                 
@@ -599,8 +234,7 @@
                 
                 const data = await response.json();
                 if (!data.values || data.values.length < 2) {
-                    processedData[fileName] = [];
-                    return;
+                    processedData[fileName] = []; return;
                 }
                 
                 const headers = data.values[0];
@@ -616,13 +250,74 @@
             }
         }
         
-        // --- DATA UTILITIES (NEW & ROBUST) ---
+        // --- DATE & UI CONTROL FUNCTIONS (RESTORED) ---
+        function initializeDateControls() {
+            document.getElementById('startDate').addEventListener('change', updateDashboard);
+            document.getElementById('endDate').addEventListener('change', updateDashboard);
+        }
+
+        function setDefaultDates() {
+            const range = getDataDateRange();
+            const startEl = document.getElementById('startDate');
+            const endEl = document.getElementById('endDate');
+            if (range.min && range.max) {
+                const thirtyDaysAgo = new Date(range.max);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+                startEl.value = formatDate(Math.max(thirtyDaysAgo, range.min));
+                endEl.value = formatDate(range.max);
+                startEl.min = endEl.min = formatDate(range.min);
+                startEl.max = endEl.max = formatDate(range.max);
+            }
+        }
+        
+        function getDataDateRange() {
+            let minDate = null, maxDate = null;
+            Object.values(processedData).forEach(dataset => {
+                if (!dataset || dataset.length === 0) return;
+                const dateHeader = findHeader(Object.keys(processedData).find(key => processedData[key] === dataset), ['Date', 'Day', 'date']);
+                if (!dateHeader) return;
+                
+                dataset.forEach(row => {
+                    const date = parseDate(row[dateHeader]);
+                    if (date) {
+                        if (!minDate || date < minDate) minDate = date;
+                        if (!maxDate || date > maxDate) maxDate = date;
+                    }
+                });
+            });
+            return { min: minDate, max: maxDate };
+        }
+        
+        function setDateRange(days) {
+            const range = getDataDateRange();
+            if (!range.max) return;
+            const end = new Date(range.max);
+            const start = new Date(end);
+            start.setDate(start.getDate() - (days - 1));
+            document.getElementById('startDate').value = formatDate(Math.max(start, range.min));
+            document.getElementById('endDate').value = formatDate(end);
+            updateDashboard();
+        }
+        
+        function selectFullRange() {
+            const range = getDataDateRange();
+            if (range.min && range.max) {
+                document.getElementById('startDate').value = formatDate(range.min);
+                document.getElementById('endDate').value = formatDate(range.max);
+                updateDashboard();
+            }
+        }
+        
+        function formatDate(date) {
+            const d = new Date(date);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        // --- DATA UTILITIES (ROBUST) ---
         function initializeHeaderMaps() {
             Object.keys(processedData).forEach(fileName => {
                 const data = processedData[fileName];
-                if (data && data.length > 0) {
-                    headerMaps[fileName] = Object.keys(data[0]);
-                }
+                if (data && data.length > 0) headerMaps[fileName] = Object.keys(data[0]);
             });
         }
 
@@ -675,7 +370,7 @@
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const compareType = document.getElementById('compareType').value;
-            if (!startDate || !endDate) return showError('Please select a date range');
+            if (!startDate || !endDate) return;
             
             const comparisonDates = getComparisonDates(startDate, endDate, compareType);
             updateDateRangeInfo(startDate, endDate, compareType);
@@ -701,7 +396,7 @@
             generateSocialAnalytics(dashboard, startDate, endDate, comparisonDates);
         }
         
-        // --- SECTION RENDERERS ---
+        // --- SECTION & CARD RENDERERS ---
         function generateWebAnalytics(dashboard, startDate, endDate, comparisonDates) {
             dashboard.innerHTML += `<div class="section-header">🌐 Web Analytics</div>`;
             const grid = document.createElement('div');
@@ -722,82 +417,6 @@
             dashboard.appendChild(grid);
         }
 
-        // --- CALCULATION & AGGREGATION FUNCTIONS ---
-        function calculateMetric(data, key) {
-            if (!key) return 0;
-            return data.reduce((sum, row) => sum + (parseFloat(row[key]) || 0), 0);
-        }
-        
-        function getTopLocations(data, headers) {
-            const map = {};
-            const countryH = findHeader(headers, ['Country']);
-            const cityH = findHeader(headers, ['City']);
-            const usersH = findHeader(headers, ['Users', 'Total users', 'Active users']);
-            const sessionsH = findHeader(headers, ['Sessions']);
-
-            (data || []).forEach(row => {
-                const key = `${row[countryH] || 'N/A'}_${row[cityH] || 'N/A'}`;
-                if (!map[key]) map[key] = { country: row[countryH] || 'N/A', city: row[cityH] || 'N/A', users: 0, sessions: 0 };
-                map[key].users += parseInt(row[usersH] || 0);
-                map[key].sessions += parseInt(row[sessionsH] || 0);
-            });
-            return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
-        }
-
-        function calculateWebMetrics(startDate, endDate, comparisonDates) {
-            const fileName = 'GA_Demographics.csv';
-            const data = processedData[fileName] || [];
-            const metrics = { totalUsers: {}, newUsers: {}, sessions: {} };
-            
-            const dateH = findHeader(fileName, ['Date', 'Day']);
-            const usersH = findHeader(fileName, ['Users', 'Total users']);
-            const newUsersH = findHeader(fileName, ['New users']);
-            const sessionsH = findHeader(fileName, ['Sessions']);
-
-            const currentData = filterDataByDateRange(data, startDate, endDate, dateH);
-            metrics.totalUsers.current = calculateMetric(currentData, usersH);
-            metrics.newUsers.current = calculateMetric(currentData, newUsersH);
-            metrics.sessions.current = calculateMetric(currentData, sessionsH);
-
-            if (comparisonDates) {
-                const prevData = filterDataByDateRange(data, comparisonDates.start, comparisonDates.end, dateH);
-                metrics.totalUsers.previous = calculateMetric(prevData, usersH);
-                metrics.newUsers.previous = calculateMetric(prevData, newUsersH);
-                metrics.sessions.previous = calculateMetric(prevData, sessionsH);
-                Object.keys(metrics).forEach(k => metrics[k].change = calculatePercentageChange(metrics[k].current, metrics[k].previous));
-            }
-            return metrics;
-        }
-        
-        function calculateSocialMetrics(platform, startDate, endDate, comparisonDates) {
-            const types = {
-                reach: { file: `${platform}_Reach.csv`, keys: ['Daily', 'Reach'] },
-                interactions: { file: `${platform}_Interactions.csv`, keys: ['Daily', 'Interactions'] },
-                follows: { file: `${platform}_Follows.csv`, keys: ['Daily', 'Follows'] },
-                views: { file: `${platform}_Views.csv`, keys: ['Daily', 'Profile Views'] },
-            };
-            const metrics = {};
-            Object.keys(types).forEach(type => {
-                const { file, keys } = types[type];
-                const data = processedData[file] || [];
-                const metricHeader = findHeader(file, keys);
-                const dateHeader = findHeader(file, ['Date']);
-
-                const currentData = filterDataByDateRange(data, startDate, endDate, dateHeader);
-                const currentVal = calculateMetric(currentData, metricHeader);
-                metrics[type] = { current: currentVal };
-                
-                if (comparisonDates) {
-                    const prevData = filterDataByDateRange(data, comparisonDates.start, comparisonDates.end, dateHeader);
-                    const prevVal = calculateMetric(prevData, metricHeader);
-                    metrics[type].previous = prevVal;
-                    metrics[type].change = calculatePercentageChange(currentVal, prevVal);
-                }
-            });
-            return metrics;
-        }
-        
-        // --- UI COMPONENT RENDERERS ---
         function createDemographicsCard(startDate, endDate, comparisonDates) {
             const card = createCard('Demographics & User Insights', '👥');
             const metrics = calculateWebMetrics(startDate, endDate, comparisonDates);
@@ -807,8 +426,10 @@
                 { label: 'Sessions', value: formatNumber(metrics.sessions.current), change: metrics.sessions.change },
             ]));
             
-            const currentData = filterDataByDateRange(processedData['GA_Demographics.csv'], startDate, endDate, findHeader('GA_Demographics.csv', ['Date', 'Day']));
-            const locationData = getTopLocations(currentData, 'GA_Demographics.csv');
+            const fileName = 'GA_Demographics.csv';
+            const dateHeader = findHeader(fileName, ['Date', 'Day']);
+            const currentData = filterDataByDateRange(processedData[fileName], startDate, endDate, dateHeader);
+            const locationData = getTopLocations(currentData, fileName);
             if (locationData.length > 0) {
                 card.appendChild(createTable(['Country', 'City', 'Users', 'Sessions'], locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])));
             }
@@ -840,7 +461,7 @@
                 card.appendChild(chartContainer);
                 createTrafficChart(canvas, sourceData);
             }
-            card.appendChild(createTable(['Source/Medium', 'Sessions'], sourceData.slice(0, 10).map(s => [s.source, formatNumber(s.sessions)])));
+            card.appendChild(createTable(['Source', 'Sessions'], sourceData.slice(0, 10).map(s => [s.source, formatNumber(s.sessions)])));
             return card;
         }
         
@@ -850,7 +471,7 @@
             const dateHeader = findHeader(fileName, ['Date', 'Day']);
             const pageHeader = findHeader(fileName, ['Page path and screen class']);
             const sessionsHeader = findHeader(fileName, ['Sessions']);
-            const engagementHeader = findHeader(fileName, ['Total engagement duration']);
+            const engagementHeader = findHeader(fileName, ['Total engagement duration', 'Average engagement time']);
             
             const currentData = filterDataByDateRange(processedData[fileName], startDate, endDate, dateHeader);
             
@@ -875,19 +496,18 @@
         function createCampaignPerformanceCard(startDate, endDate) {
             const card = createCard('Campaign Performance (UTM)', '🎯', true);
             const fileName = 'GA_UTMs.csv';
-            const utmData = processedData[fileName];
-            const campaignHeader = findHeader(fileName, ['Campaign']);
-            if (!utmData || !utmData.length || !campaignHeader) {
+            if (!processedData[fileName] || !findHeader(fileName, ['Campaign'])) {
                 card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or doesn't have a 'Campaign' column.</p></div>`;
                 return card;
             }
 
             const dateHeader = findHeader(fileName, ['Date', 'Day']);
+            const campaignHeader = findHeader(fileName, ['Campaign']);
             const sourceHeader = findHeader(fileName, ['Source']);
             const mediumHeader = findHeader(fileName, ['Medium']);
             const sessionsHeader = findHeader(fileName, ['Sessions']);
 
-            const currentData = filterDataByDateRange(utmData, startDate, endDate, dateHeader);
+            const currentData = filterDataByDateRange(processedData[fileName], startDate, endDate, dateHeader);
             
             const map = {};
             (currentData || []).forEach(row => {
@@ -925,7 +545,83 @@
             return card;
         }
         
-        // --- UI UTILITY FUNCTIONS ---
+        // --- DATA CALCULATION ---
+        function calculateMetric(data, key) {
+            if (!key) return 0;
+            return data.reduce((sum, row) => sum + (parseFloat(row[key]) || 0), 0);
+        }
+
+        function calculateWebMetrics(startDate, endDate, comparisonDates) {
+            const fileName = 'GA_Demographics.csv';
+            const data = processedData[fileName] || [];
+            const metrics = { totalUsers: {}, newUsers: {}, sessions: {} };
+            
+            const dateH = findHeader(fileName, ['Date', 'Day']);
+            const usersH = findHeader(fileName, ['Users', 'Total users']);
+            const newUsersH = findHeader(fileName, ['New users']);
+            const sessionsH = findHeader(fileName, ['Sessions']);
+
+            const currentData = filterDataByDateRange(data, startDate, endDate, dateH);
+            metrics.totalUsers.current = calculateMetric(currentData, usersH);
+            metrics.newUsers.current = calculateMetric(currentData, newUsersH);
+            metrics.sessions.current = calculateMetric(currentData, sessionsH);
+
+            if (comparisonDates) {
+                const prevData = filterDataByDateRange(data, comparisonDates.start, comparisonDates.end, dateH);
+                metrics.totalUsers.previous = calculateMetric(prevData, usersH);
+                metrics.newUsers.previous = calculateMetric(prevData, newUsersH);
+                metrics.sessions.previous = calculateMetric(prevData, sessionsH);
+                Object.keys(metrics).forEach(k => metrics[k].change = calculatePercentageChange(metrics[k].current, metrics[k].previous));
+            }
+            return metrics;
+        }
+        
+        function getTopLocations(data, fileName) {
+            const map = {};
+            const countryH = findHeader(fileName, ['Country']);
+            const cityH = findHeader(fileName, ['City']);
+            const usersH = findHeader(fileName, ['Users', 'Total users']);
+            const sessionsH = findHeader(fileName, ['Sessions']);
+
+            (data || []).forEach(row => {
+                const key = `${row[countryH] || 'N/A'}_${row[cityH] || 'N/A'}`;
+                if (!map[key]) map[key] = { country: row[countryH] || 'N/A', city: row[cityH] || 'N/A', users: 0, sessions: 0 };
+                map[key].users += parseInt(row[usersH] || 0);
+                map[key].sessions += parseInt(row[sessionsH] || 0);
+            });
+            return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
+        }
+
+        function calculateSocialMetrics(platform, startDate, endDate, comparisonDates) {
+            const types = {
+                reach: { file: `${platform}_Reach.csv`, keys: ['Daily', 'Reach'] },
+                interactions: { file: `${platform}_Interactions.csv`, keys: ['Daily', 'Interactions'] },
+                follows: { file: `${platform}_Follows.csv`, keys: ['Daily', 'Follows'] },
+                views: { file: `${platform}_Views.csv`, keys: ['Daily', 'Profile Views'] },
+            };
+            const metrics = {};
+            Object.keys(types).forEach(type => {
+                const { file, keys } = types[type];
+                const data = processedData[file] || [];
+                const metricHeader = findHeader(file, keys);
+                const dateHeader = findHeader(file, ['Date']);
+                metrics[type] = { current: 0 };
+                if (metricHeader && dateHeader) {
+                    const currentData = filterDataByDateRange(data, startDate, endDate, dateHeader);
+                    const currentVal = calculateMetric(currentData, metricHeader);
+                    metrics[type].current = currentVal;
+                    if (comparisonDates) {
+                        const prevData = filterDataByDateRange(data, comparisonDates.start, comparisonDates.end, dateHeader);
+                        const prevVal = calculateMetric(prevData, metricHeader);
+                        metrics[type].previous = prevVal;
+                        metrics[type].change = calculatePercentageChange(currentVal, prevVal);
+                    }
+                }
+            });
+            return metrics;
+        }
+        
+        // --- UI UTILITIES ---
         function createCard(title, icon, fullWidth = false) {
             const card = document.createElement('div');
             card.className = `card ${fullWidth ? 'full-width' : ''}`;
@@ -986,6 +682,19 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         }
+
+        function formatNumber(num) {
+            num = parseFloat(num); if (isNaN(num)) return '0';
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return num.toLocaleString();
+        }
+
+        function formatPercentage(num) {
+            num = parseFloat(num); if (isNaN(num)) return '0.0%';
+            if (!isFinite(num)) return "∞%";
+            return num.toFixed(1) + '%';
+        }
         
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -996,24 +705,6 @@
             if (savedApiKey) document.getElementById('apiKey').value = savedApiKey;
             if (savedFolderId && savedApiKey) setTimeout(connectToSheets, 500);
         });
-
-        // Helper to format numbers for display
-        function formatNumber(num) {
-            num = parseFloat(num);
-            if (isNaN(num)) return '0';
-            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-            return num.toLocaleString();
-        }
-
-        // Helper to format percentages for display
-        function formatPercentage(num) {
-            num = parseFloat(num);
-            if (isNaN(num)) return '0.0%';
-            if (!isFinite(num)) return "∞%";
-            return num.toFixed(1) + '%';
-        }
-
     </script>
 </body>
 </html>
