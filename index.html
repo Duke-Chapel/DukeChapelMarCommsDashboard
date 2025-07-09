@@ -751,26 +751,15 @@
                             <li><strong>GA_Traffic_Acquisition</strong></li>
                             <li><strong>GA_Pages_And_Screens</strong></li>
                             <li><strong>GA_UTMs</strong></li>
-                            <li><strong>FB_Reach</strong></li>
-                            <li><strong>FB_Interactions</strong></li>
-                            <li><strong>FB_Follows</strong></li>
-                            <li><strong>FB_Views</strong></li>
-                            <li><strong>FB_Link_Clicks</strong></li>
-                            <li><strong>FB_Visits</strong></li>
+                            <li><strong>FB_Reach</strong>, <strong>FB_Interactions</strong>, etc.</li>
                             <li><strong>FB_Audience</strong></li>
-                            <li><strong>IG_Reach</strong></li>
-                            <li><strong>IG_Interactions</strong></li>
-                            <li><strong>IG_Follows</strong></li>
-                            <li><strong>IG_Views</strong></li>
-                            <li><strong>IG_Link_Clicks</strong></li>
-                            <li><strong>IG_Visits</strong></li>
+                            <li><strong>FB_Posts</strong> (New)</li>
+                            <li><strong>IG_Reach</strong>, <strong>IG_Interactions</strong>, etc.</li>
                             <li><strong>IG_Audience</strong></li>
+                            <li><strong>IG_Posts</strong> (New)</li>
                             <li><strong>Email_Campaign_Performance</strong></li>
                             <li><strong>YouTube_Content</strong></li>
-                            <li><strong>YouTube_Age</strong></li>
-                            <li><strong>YouTube_Gender</strong></li>
-                            <li><strong>YouTube_Geography</strong></li>
-                            <li><strong>YouTube_Subscription_Status</strong></li>
+                            <li><strong>YouTube_Age</strong>, <strong>Gender</strong>, etc.</li>
                         </ul>
                     </li>
                     <li>Make the folder publicly viewable (Share → Anyone with the link can view)</li>
@@ -849,6 +838,7 @@
             'FB_Link_Clicks': 'FB_Link_Clicks.csv',
             'FB_Visits': 'FB_Visits.csv',
             'FB_Audience': 'FB_Audience.csv',
+            'FB_Posts': 'FB_Posts.csv', // New
             'IG_Reach': 'IG_Reach.csv',
             'IG_Interactions': 'IG_Interactions.csv',
             'IG_Follows': 'IG_Follows.csv',
@@ -856,6 +846,7 @@
             'IG_Link_Clicks': 'IG_Link_Clicks.csv',
             'IG_Visits': 'IG_Visits.csv',
             'IG_Audience': 'IG_Audience.csv',
+            'IG_Posts': 'IG_Posts.csv', // New
             'Email_Campaign_Performance': 'Email_Campaign_Performance.csv',
             'YouTube_Content': 'YouTube_Content.csv',
             'YouTube_Age': 'YouTube_Age.csv',
@@ -1221,7 +1212,7 @@
             if (processedData['GA_Demographics.csv']) grid.appendChild(createDemographicsCard(startDate, endDate, compareType));
             if (processedData['GA_Traffic_Acquisition.csv']) grid.appendChild(createTrafficSourcesCard(startDate, endDate, compareType));
             if (processedData['GA_Pages_And_Screens.csv']) grid.appendChild(createTopPagesCard(startDate, endDate, compareType));
-            if (processedData['GA_UTMs.csv']) grid.appendChild(createCampaignPerformanceCard(startDate, endDate, compareType));
+            if (Object.keys(sheetsConfig.discoveredSheets).includes('GA_UTMs')) grid.appendChild(createCampaignPerformanceCard(startDate, endDate, compareType));
             
             dashboard.appendChild(grid);
         }
@@ -1311,13 +1302,14 @@
         
         function createCampaignPerformanceCard(startDate, endDate, compareType) {
             const card = createCard('Campaign Performance (UTM)', '🎯', true);
-            const currentData = filterDataByDateRange(processedData['GA_UTMs.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            const utmData = processedData['GA_UTMs.csv'];
             
-            if (!currentData || currentData.length === 0 || !currentData[0]['Manual campaign name']) {
-                card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Campaign Data Issue</h4><p>The GA_UTMs sheet appears to be incomplete or malformed. Ensure it contains campaign tracking data with columns like 'Manual campaign name', 'Sessions', etc.</p><p style="font-size: 0.875rem; margin-top: 10px;"><strong>To fix:</strong> Re-export from GA4 → Reports → Acquisition → Campaigns → Export with UTM parameters included.</p></div>`;
+            if (!utmData || utmData.length === 0 || !utmData[0]['Session manual campaign name']) {
+                card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Campaign Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or incorrectly formatted. Please download it from GA4 (Reports → Acquisition → Traffic Acquisition, with primary dimension 'Session source / medium' and secondary dimension 'Session manual campaign name') and add it to your Google Drive folder.</p></div>`;
                 return card;
             }
             
+            const currentData = filterDataByDateRange(utmData, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
             const campaignData = aggregateCampaignData(currentData);
             card.appendChild(createTable(
                 ['Campaign', 'Source/Medium', 'Sessions', 'Engaged Sessions', 'Key Events'],
@@ -1351,13 +1343,12 @@
             if (processedData['IG_Audience.csv']) platforms.push('Instagram');
 
             if (platforms.length === 0) {
-                card.innerHTML += `<div class="info-box info"><p>No demographic data available. Add FB_Audience.csv or IG_Audience.csv to see demographics.</p></div>`;
+                card.innerHTML += `<div class="info-box info"><p>No demographic data available. Add FB_Audience and/or IG_Audience sheets to see demographics.</p></div>`;
                 return card;
             }
             
             const tabContainer = createTabs(platforms, (tabIndex) => {
-                const platform = platforms[tabIndex];
-                displayAudienceData(card.querySelector('#socialDemographicsContent'), platform);
+                displayAudienceData(card.querySelector('#socialDemographicsContent'), platforms[tabIndex]);
             });
             card.appendChild(tabContainer);
             
@@ -1407,7 +1398,7 @@
                 { label: 'Page Visits', value: formatNumber(metrics.visits) }
             ]));
 
-            card.innerHTML += `<div class="info-box info"><h4>📈 Page Rank & Quality Score</h4><p>Facebook Page Rank is not available in standard data exports. To check your page's ranking, go to Meta Business Suite → Insights → Overview and look for "Page Quality" or "Distribution Score".</p></div>`;
+            card.innerHTML += `<div class="info-box info"><h4>📈 Facebook Page Rank</h4><p>This metric isn't available in data exports. You can check your Page Quality manually in the Meta Business Suite.</p></div>`;
             return card;
         }
 
@@ -1428,9 +1419,61 @@
 
         function createTopSocialPostsCard(startDate, endDate) {
             const card = createCard('Top Social Media Posts', '🏆', true);
-            card.innerHTML += `<div class="info-box warning"><h4>📊 Post Data Required</h4><p>To see top performing posts, please create Google Sheets named <strong>FB_Posts.csv</strong> and <strong>IG_Posts.csv</strong> with post-level data from Meta Business Suite.</p></div>`;
+            const fbPosts = processedData['FB_Posts.csv'];
+            const igPosts = processedData['IG_Posts.csv'];
+
+            if (!fbPosts && !igPosts) {
+                card.innerHTML += `<div class="info-box warning"><h4>📊 Post Data Required</h4><p>To see top performing posts, please create Google Sheets named <strong>FB_Posts</strong> and <strong>IG_Posts</strong> with post-level data from Meta Business Suite.</p></div>`;
+                return card;
+            }
+
+            const platforms = [];
+            if (fbPosts) platforms.push('Facebook');
+            if (igPosts) platforms.push('Instagram');
+
+            const tabContainer = createTabs(platforms, (tabIndex) => {
+                const platform = platforms[tabIndex];
+                const contentDiv = card.querySelector('.top-posts-content');
+                displayTopPosts(contentDiv, platform, startDate, endDate);
+            });
+            card.appendChild(tabContainer);
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'top-posts-content';
+            card.appendChild(contentDiv);
+            
+            displayTopPosts(contentDiv, platforms[0], startDate, endDate);
+
             return card;
         }
+
+        function displayTopPosts(container, platform, startDate, endDate) {
+            container.innerHTML = '';
+            const postData = processedData[platform === 'Facebook' ? 'FB_Posts.csv' : 'IG_Posts.csv'];
+            const currentData = filterDataByDateRange(postData, 'Date', startDate, endDate);
+            
+            if (!currentData || currentData.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--duke-gray); padding: 20px;">No post data for this period.</p>';
+                return;
+            }
+
+            const metrics = ['Reach', 'Likes', 'Comments', 'Link Clicks'];
+            metrics.forEach(metric => {
+                const sortedData = [...currentData].sort((a, b) => (parseFloat(b[metric]) || 0) - (parseFloat(a[metric]) || 0)).slice(0, 5);
+                const section = document.createElement('div');
+                section.innerHTML = `<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top 5 by ${metric}</h4>`;
+                section.appendChild(createTable(
+                    ['Post', 'Date', metric],
+                    sortedData.map(post => [
+                        (post.Post || post.Caption || 'No Text').substring(0, 80) + '...',
+                        post.Date ? new Date(post.Date).toLocaleDateString() : 'N/A',
+                        formatNumber(post[metric])
+                    ])
+                ));
+                container.appendChild(section);
+            });
+        }
+
 
         // Email Analytics Section
         function generateEmailAnalytics(dashboard, startDate, endDate, compareType) {
@@ -1464,31 +1507,28 @@
         }
 
         function createTopEmailCampaignsCard(startDate, endDate) {
-            const card = createCard('Top Email Campaigns', '🏆', true);
+            const card = createCard('Top 5 Email Campaigns', '🏆', true);
             const emailData = processedData['Email_Campaign_Performance.csv'] || [];
 
-            const tabContainer = createTabs(['By Open Rate', 'By Click Rate', 'By Total Clicks'], (tabIndex) => {
+            const tabContainer = createTabs(['By Open Rate', 'By Click Rate'], (tabIndex) => {
                 let sortedData = [...emailData];
                 const getVal = (row, key) => parseFloat(String(row[key] || '0').replace(/[^0-9.]/g, ''));
                 
                 if (tabIndex === 0) sortedData.sort((a, b) => getVal(b, 'Email open rate (MPP excluded)') - getVal(a, 'Email open rate (MPP excluded)'));
-                else if (tabIndex === 1) sortedData.sort((a, b) => getVal(b, 'Email click rate') - getVal(a, 'Email click rate'));
-                else sortedData.sort((a, b) => getVal(b, 'Email clicked') - getVal(a, 'Email clicked'));
+                else sortedData.sort((a, b) => getVal(b, 'Email click rate') - getVal(a, 'Email click rate'));
                 
-                updateTableData(card.querySelector('table'), sortedData.slice(0, 10).map(c => [
+                updateTableData(card.querySelector('table'), sortedData.slice(0, 5).map(c => [
                     c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'], 
-                    formatNumber(getVal(c, 'Email clicked') * 1.3), formatNumber(getVal(c, 'Emails sent'))
+                    formatNumber(getVal(c, 'Email clicked'))
                 ]));
             });
             card.appendChild(tabContainer);
             
             const sortedByOpen = [...emailData].sort((a, b) => parseFloat(a['Email open rate (MPP excluded)'] || 0) - parseFloat(b['Email open rate (MPP excluded)'] || 0)).reverse();
-            card.appendChild(createTable(['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks*', 'Sent'], sortedByOpen.slice(0, 10).map(c => [
+            card.appendChild(createTable(['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks'], sortedByOpen.slice(0, 5).map(c => [
                 c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'], 
-                formatNumber((parseFloat(String(c['Email clicked'] || 0).replace(/,/g, '')) || 0) * 1.3), 
-                formatNumber(parseFloat(String(c['Emails sent'] || 0).replace(/,/g, '')))
+                formatNumber(parseFloat(String(c['Email clicked'] || 0).replace(/,/g, '')))
             ])));
-            card.innerHTML += `<p style="margin: 10px 0 0; color: #666; font-size: 0.75rem; font-style: italic;">* Total clicks estimated from unique clicks (multiple clicks per user estimated at 30%)</p>`;
             return card;
         }
         
@@ -1499,23 +1539,13 @@
 
             card.appendChild(createMetricsGrid([
                 { label: 'Est. Subscribers', value: formatNumber(metrics.avgEmailsSent) },
-                { label: 'Never Opened', value: formatPercentage(metrics.neverOpenedRate) },
+                { label: 'Not Opened', value: formatPercentage(metrics.neverOpenedRate) },
                 { label: 'Opened, No Click', value: formatPercentage(metrics.openedNoClickRate) },
-                { label: 'Active Clickers', value: formatPercentage(metrics.activeClickerRate) },
-                { label: 'Unsubscribe Rate', value: formatPercentage(metrics.avgUnsubscribeRate) },
-                { label: 'Bounce Rate', value: formatPercentage(metrics.avgBounceRate) }
+                { label: 'Active Clickers', value: formatPercentage(metrics.activeClickerRate) }
             ]));
 
-            const funnelContainer = document.createElement('div');
-            funnelContainer.className = 'chart-container';
-            funnelContainer.style.height = '250px';
-            const canvas = document.createElement('canvas');
-            funnelContainer.appendChild(canvas);
-            card.appendChild(funnelContainer);
-            createEngagementFunnel(canvas, metrics);
-
             card.innerHTML += `<div class="info-box info"><h4>📊 Subscriber Demographics</h4><p>Detailed subscriber demographics are not included in campaign exports. Check your email platform's audience insights for this data.</p></div>`;
-            card.innerHTML += `<div class="info-box warning"><h4>🔗 Best Performing Links</h4><p>Individual link performance is not in this export. Use UTM parameters and view in Google Analytics or check your email platform's reports.</p></div>`;
+            card.innerHTML += `<div class="info-box warning"><h4>🔗 Best Performing Links</h4><p>Individual link performance is not in this export. Use UTM parameters in your links and view the results in the "Campaign Performance" card in the Web Analytics section.</p></div>`;
             return card;
         }
 
@@ -1528,7 +1558,7 @@
             grid.className = 'dashboard-grid';
             
             grid.appendChild(createYouTubeOverviewCard(startDate, endDate, compareType));
-            if (processedData['YouTube_Age.csv'] || processedData['YouTube_Gender.csv']) grid.appendChild(createYouTubeDemographicsCard());
+            if (processedData['YouTube_Age.csv'] || processedData['YouTube_Gender.csv'] || processedData['YouTube_Geography.csv']) grid.appendChild(createYouTubeDemographicsCard());
             grid.appendChild(createTopVideosCard(startDate, endDate));
             if (processedData['YouTube_Subscription_Status.csv']) grid.appendChild(createSubscriberAnalysisCard());
             
@@ -1589,48 +1619,36 @@
             let contentData = processedData['YouTube_Content.csv'] || [];
             if (startDate && endDate) contentData = filterDataByDateRange(contentData, 'Video publish time', startDate, endDate);
             
-            const tabContainer = createTabs(['By Views', 'By Watch Time', 'By Subscribers', 'By CTR'], (tabIndex) => {
+            const tabContainer = createTabs(['By Views', 'By Watch Time', 'By Subscribers'], (tabIndex) => {
                 let sortedData = [...contentData];
                 const getVal = (row, key) => parseFloat(row[key] || 0);
 
                 if (tabIndex === 0) sortedData.sort((a, b) => getVal(b, 'Views') - getVal(a, 'Views'));
                 else if (tabIndex === 1) sortedData.sort((a, b) => getVal(b, 'Watch time (hours)') - getVal(a, 'Watch time (hours)'));
-                else if (tabIndex === 2) sortedData.sort((a, b) => getVal(b, 'Subscribers') - getVal(a, 'Subscribers'));
-                else sortedData.sort((a, b) => getVal(b, 'Impressions click-through rate (%)') - getVal(a, 'Impressions click-through rate (%)'));
+                else sortedData.sort((a, b) => getVal(b, 'Subscribers') - getVal(a, 'Subscribers'));
                 
-                updateTableData(card.querySelector('table'), sortedData.slice(0, 10).map(v => [
+                updateTableData(card.querySelector('table'), sortedData.slice(0, 5).map(v => [
                     (v['Video title'] || '').substring(0, 50), formatNumber(v.Views), formatNumber(Math.round(v['Watch time (hours)'])),
-                    '+' + formatNumber(v.Subscribers), formatPercentage(v['Impressions click-through rate (%)'])
+                    '+' + formatNumber(v.Subscribers)
                 ]));
             });
             card.appendChild(tabContainer);
             
             const sortedByViews = [...contentData].sort((a, b) => (b.Views || 0) - (a.Views || 0));
-            card.appendChild(createTable(['Video Title', 'Views', 'Watch Time (hrs)', 'New Subscribers', 'CTR'], sortedByViews.slice(0, 10).map(v => [
+            card.appendChild(createTable(['Video Title', 'Views', 'Watch Time (hrs)', 'New Subscribers'], sortedByViews.slice(0, 5).map(v => [
                 (v['Video title'] || '').substring(0, 50), formatNumber(v.Views), formatNumber(Math.round(v['Watch time (hours)'])),
-                '+' + formatNumber(v.Subscribers), formatPercentage(v['Impressions click-through rate (%)'])
+                '+' + formatNumber(v.Subscribers)
             ])));
             return card;
         }
         
         function createSubscriberAnalysisCard() {
-            const card = createCard('Viewer Analysis: Subscribers vs Non-Subscribers', '👤');
+            const card = createCard('Viewership: Subscribed vs. Not Subscribed', '👤');
             const subData = processedData['YouTube_Subscription_Status.csv'] || [];
             
             const subscribedData = subData.find(r => r['Subscription status'] === 'Subscribed') || {};
             const notSubscribedData = subData.find(r => r['Subscription status'] === 'Not subscribed') || {};
             
-            const totalViews = (parseFloat(subscribedData.Views) || 0) + (parseFloat(notSubscribedData.Views) || 0);
-            const subscribedPercentage = totalViews > 0 ? ((parseFloat(subscribedData.Views) || 0) / totalViews) * 100 : 0;
-            const notSubscribedPercentage = totalViews > 0 ? ((parseFloat(notSubscribedData.Views) || 0) / totalViews) * 100 : 0;
-            
-            card.appendChild(createMetricsGrid([
-                { label: 'Subscriber Views', value: formatPercentage(subscribedPercentage) },
-                { label: 'Non-Sub Views', value: formatPercentage(notSubscribedPercentage) },
-                { label: 'Sub Watch Time', value: formatNumber(Math.round(subscribedData['Watch time (hours)'])) + ' hrs' },
-                { label: 'Non-Sub Watch Time', value: formatNumber(Math.round(notSubscribedData['Watch time (hours)'])) + ' hrs' }
-            ]));
-
             const chartContainer = document.createElement('div');
             chartContainer.className = 'chart-container';
             chartContainer.style.height = '300px';
@@ -1648,9 +1666,9 @@
                 metrics.totalUsers += parseInt(row['Total users'] || 0);
                 metrics.newUsers += parseInt(row['New users'] || 0);
                 metrics.engagedSessions += parseInt(row['Engaged sessions'] || 0);
-                metrics.sessions += 1; // Assuming one row per session
+                metrics.sessions += parseInt(row['Sessions'] || 0);
             });
-            if (data.length > 0) {
+            if (metrics.sessions > 0) {
                 metrics.avgEngagement = data.reduce((sum, row) => sum + (parseFloat(row['Engagement rate']) || 0), 0) / data.length * 100;
                 metrics.avgSessionTime = Math.round(data.reduce((sum, row) => sum + (parseFloat(row['Average engagement time per session']) || 0), 0) / data.length);
             }
@@ -1663,7 +1681,7 @@
                 const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
                 if (!map[key]) map[key] = { country: row.Country || 'Unknown', city: row.City || 'Unknown', users: 0, sessions: 0 };
                 map[key].users += parseInt(row['Total users'] || 0);
-                map[key].sessions += 1;
+                map[key].sessions += parseInt(row['Sessions'] || 0);
             });
             return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
         }
@@ -1673,7 +1691,7 @@
             data.forEach(row => {
                 const source = row['Session source / medium'] || 'Unknown';
                 if (!map[source]) map[source] = { source, sessions: 0, engagedSessions: 0 };
-                map[source].sessions++;
+                map[source].sessions += parseInt(row['Sessions'] || 0);
                 map[source].engagedSessions += parseInt(row['Engaged sessions'] || 0);
             });
             return Object.values(map).map(s => ({ ...s, engagementRate: s.sessions > 0 ? (s.engagedSessions / s.sessions) * 100 : 0 })).sort((a,b) => b.sessions - a.sessions);
@@ -1694,8 +1712,8 @@
         function aggregateCampaignData(data) {
             const map = {};
             data.forEach(row => {
-                const key = `${row['Manual campaign name']}_${row['Manual source / medium']}`;
-                if (!map[key]) map[key] = { name: row['Manual campaign name'], source: row['Manual source / medium'], sessions: 0, engagedSessions: 0, keyEvents: 0 };
+                const key = `${row['Session manual campaign name']}_${row['Session source / medium']}`;
+                if (!map[key]) map[key] = { name: row['Session manual campaign name'], source: row['Session source / medium'], sessions: 0, engagedSessions: 0, keyEvents: 0 };
                 map[key].sessions += parseInt(row.Sessions || 0);
                 map[key].engagedSessions += parseInt(row['Engaged sessions'] || 0);
                 map[key].keyEvents += parseFloat(row['Key events'] || 0);
@@ -1710,7 +1728,7 @@
                 const fileName = `${platform}_${type}.csv`;
                 if (processedData[fileName]) {
                     const data = filterDataByDateRange(processedData[fileName], 'Date', startDate, endDate);
-                    metrics[type.toLowerCase().replace('_', '')] = data.reduce((sum, row) => sum + (parseInt(row.Primary) || 0), 0);
+                    metrics[type.toLowerCase().replace('_', '')] = data.reduce((sum, row) => sum + (parseInt(row.Primary || row.Daily || 0) || 0), 0);
                 }
             });
             return metrics;
@@ -1730,25 +1748,19 @@
         }
 
         function calculateSubscriberMetrics(data) {
-            const metrics = { avgEmailsSent: 0, neverOpenedRate: 0, openedNoClickRate: 0, activeClickerRate: 0, avgUnsubscribeRate: 0, avgBounceRate: 0 };
-            let totalSent = 0, totalDelivered = 0, totalOpened = 0, totalClicked = 0, totalBounces = 0, totalUnsubscribes = 0;
+            const metrics = { avgEmailsSent: 0, neverOpenedRate: 0, openedNoClickRate: 0, activeClickerRate: 0 };
+            let totalSent = 0, totalDelivered = 0, totalOpened = 0, totalClicked = 0;
             data.forEach(c => {
                 totalSent += parseInt(String(c['Emails sent'] || 0).replace(/,/g, ''));
                 totalDelivered += parseInt(String(c['Email deliveries'] || 0).replace(/,/g, ''));
                 totalOpened += parseInt(String(c['Email opened (MPP excluded)'] || 0).replace(/,/g, ''));
                 totalClicked += parseInt(String(c['Email clicked'] || 0).replace(/,/g, ''));
-                totalBounces += parseInt(c['Email bounces'] || 0);
-                totalUnsubscribes += parseInt(c['Email unsubscribes'] || 0);
             });
             if (data.length > 0) metrics.avgEmailsSent = totalSent / data.length;
             if (totalDelivered > 0) {
                 metrics.neverOpenedRate = ((totalDelivered - totalOpened) / totalDelivered) * 100;
                 metrics.openedNoClickRate = ((totalOpened - totalClicked) / totalDelivered) * 100;
                 metrics.activeClickerRate = (totalClicked / totalDelivered) * 100;
-            }
-            if (totalSent > 0) {
-                metrics.avgUnsubscribeRate = (totalUnsubscribes / totalSent) * 100;
-                metrics.avgBounceRate = (totalBounces / totalSent) * 100;
             }
             return metrics;
         }
@@ -1821,17 +1833,6 @@
                     datasets: [{ data: sourceData.slice(0, 6).map(s => s.sessions), backgroundColor: ['#012169', '#00539B', '#5B9BD5', '#666666', '#E5E5E5', '#262626'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }, title: { display: true, text: 'Traffic Distribution by Source', font: { size: 16, weight: 'bold' }, padding: 20 } } }
-            });
-        }
-        
-        function createEngagementFunnel(canvas, metrics) {
-            new Chart(canvas.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: ['Total Recipients', 'Opened Email', 'Clicked Links'],
-                    datasets: [{ label: 'Email Engagement Funnel', data: [100, 100 - metrics.neverOpenedRate, metrics.activeClickerRate], backgroundColor: ['#012169', '#00539B', '#5B9BD5'], borderRadius: 4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }, plugins: { legend: { display: false } } }
             });
         }
         
