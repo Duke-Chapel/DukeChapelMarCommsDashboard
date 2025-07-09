@@ -751,13 +751,13 @@
                             <li><strong>GA_Traffic_Acquisition</strong> - Traffic sources and channels</li>
                             <li><strong>GA_Pages_And_Screens</strong> - Page performance data</li>
                             <li><strong>GA_UTMs</strong> - Campaign tracking data</li>
-                            <li><strong>FB_Metrics</strong> - Facebook metrics (with tabs: Reach, Interactions, Follows, Views, Link_Clicks, Visits)</li>
+                            <li><strong>FB_Reach</strong>, <strong>FB_Interactions</strong>, <strong>FB_Follows</strong>, <strong>FB_Views</strong>, <strong>FB_Link_Clicks</strong>, <strong>FB_Visits</strong> - Facebook metrics</li>
                             <li><strong>FB_Audience</strong> - Facebook audience demographics</li>
-                            <li><strong>IG_Metrics</strong> - Instagram metrics (with tabs: Reach, Interactions, Follows, Views, Link_Clicks, Visits)</li>
+                            <li><strong>IG_Reach</strong>, <strong>IG_Interactions</strong>, <strong>IG_Follows</strong>, <strong>IG_Views</strong>, <strong>IG_Link_Clicks</strong>, <strong>IG_Visits</strong> - Instagram metrics</li>
                             <li><strong>IG_Audience</strong> - Instagram audience demographics</li>
                             <li><strong>Email_Campaign_Performance</strong> - Email marketing data</li>
                             <li><strong>YouTube_Content</strong> - YouTube video performance</li>
-                            <li><strong>YouTube_Demographics</strong> - YouTube audience (with tabs: Age, Gender, Geography, Subscription_Status)</li>
+                            <li><strong>YouTube_Age</strong>, <strong>YouTube_Gender</strong>, <strong>YouTube_Geography</strong>, <strong>YouTube_Subscription_Status</strong> - YouTube demographics</li>
                         </ul>
                     </li>
                     <li>Make the folder publicly viewable (Share → Anyone with the link can view)</li>
@@ -833,47 +833,37 @@
             'GA_Pages_And_Screens': 'GA_Pages_And_Screens.csv',
             'GA_UTMs': 'GA_UTMs.csv',
             
-            // Facebook Sheets
-            'FB_Metrics': 'FB_Metrics.csv', // Combined FB metrics in one sheet with tabs
+            // Facebook Sheets - Individual files instead of combined
+            'FB_Reach': 'FB_Reach.csv',
+            'FB_Interactions': 'FB_Interactions.csv',
+            'FB_Follows': 'FB_Follows.csv',
+            'FB_Views': 'FB_Views.csv',
+            'FB_Link_Clicks': 'FB_Link_Clicks.csv',
+            'FB_Visits': 'FB_Visits.csv',
             'FB_Audience': 'FB_Audience.csv',
             
-            // Instagram Sheets  
-            'IG_Metrics': 'IG_Metrics.csv', // Combined IG metrics in one sheet with tabs
+            // Instagram Sheets - Individual files instead of combined
+            'IG_Reach': 'IG_Reach.csv',
+            'IG_Interactions': 'IG_Interactions.csv',
+            'IG_Follows': 'IG_Follows.csv',
+            'IG_Views': 'IG_Views.csv',
+            'IG_Link_Clicks': 'IG_Link_Clicks.csv',
+            'IG_Visits': 'IG_Visits.csv',
             'IG_Audience': 'IG_Audience.csv',
             
             // Email Marketing Sheet
             'Email_Campaign_Performance': 'Email_Campaign_Performance.csv',
             
-            // YouTube Sheets
+            // YouTube Sheets - Individual files instead of combined
             'YouTube_Content': 'YouTube_Content.csv',
-            'YouTube_Demographics': 'YouTube_Demographics.csv' // Combined age, gender, geography
+            'YouTube_Age': 'YouTube_Age.csv',
+            'YouTube_Gender': 'YouTube_Gender.csv',
+            'YouTube_Geography': 'YouTube_Geography.csv',
+            'YouTube_Subscription_Status': 'YouTube_Subscription_Status.csv'
         };
         
-        // Tab mappings for multi-tab sheets
-        const SHEET_TAB_MAPPINGS = {
-            'FB_Metrics': {
-                'Reach': 'FB_Reach.csv',
-                'Interactions': 'FB_Interactions.csv', 
-                'Follows': 'FB_Follows.csv',
-                'Views': 'FB_Views.csv',
-                'Link_Clicks': 'FB_Link_Clicks.csv',
-                'Visits': 'FB_Visits.csv'
-            },
-            'IG_Metrics': {
-                'Reach': 'IG_Reach.csv',
-                'Interactions': 'IG_Interactions.csv',
-                'Follows': 'IG_Follows.csv', 
-                'Views': 'IG_Views.csv',
-                'Link_Clicks': 'IG_Link_Clicks.csv',
-                'Visits': 'IG_Visits.csv'
-            },
-            'YouTube_Demographics': {
-                'Age': 'YouTube_Age.csv',
-                'Gender': 'YouTube_Gender.csv',
-                'Geography': 'YouTube_Geography.csv',
-                'Subscription_Status': 'YouTube_Subscription_Status.csv'
-            }
-        };
+        // Tab mappings for multi-tab sheets - NOT USED since all sheets are separate
+        const SHEET_TAB_MAPPINGS = {};
         
         // Connect to Google Sheets
         async function connectToSheets() {
@@ -928,32 +918,26 @@
                 });
                 
                 data.files.forEach(file => {
-                    const fileName = file.name.toLowerCase().replace(/[\s\-_]/g, '');
-                    
-                    // Match file names to expected sheets with more flexible matching
-                    for (const expectedName of Object.keys(EXPECTED_SHEETS)) {
-                        const expectedNameClean = expectedName.toLowerCase().replace(/[_]/g, '');
+                    // Direct mapping since sheet names match exactly
+                    if (EXPECTED_SHEETS[file.name]) {
+                        sheetsConfig.discoveredSheets[file.name] = file.id;
+                        console.log(`✓ Mapped "${file.name}" to ${file.name}`);
+                    } else {
+                        // Try with underscores replaced by spaces or hyphens
+                        const fileNameVariations = [
+                            file.name,
+                            file.name.replace(/\s/g, '_'),
+                            file.name.replace(/-/g, '_'),
+                            file.name.replace(/_/g, ' '),
+                            file.name.replace(/_/g, '-')
+                        ];
                         
-                        // Try multiple matching strategies
-                        if (fileName === expectedNameClean || 
-                            fileName.includes(expectedNameClean) ||
-                            expectedNameClean.includes(fileName) ||
-                            // Special cases for common variations
-                            (expectedName === 'GA_Demographics' && fileName.includes('demographics')) ||
-                            (expectedName === 'GA_Traffic_Acquisition' && (fileName.includes('traffic') || fileName.includes('acquisition'))) ||
-                            (expectedName === 'GA_Pages_And_Screens' && (fileName.includes('pages') || fileName.includes('screens'))) ||
-                            (expectedName === 'GA_UTMs' && fileName.includes('utm')) ||
-                            (expectedName === 'FB_Metrics' && fileName.includes('fb') && fileName.includes('metric')) ||
-                            (expectedName === 'FB_Audience' && fileName.includes('fb') && fileName.includes('audience')) ||
-                            (expectedName === 'IG_Metrics' && (fileName.includes('ig') || fileName.includes('instagram')) && fileName.includes('metric')) ||
-                            (expectedName === 'IG_Audience' && (fileName.includes('ig') || fileName.includes('instagram')) && fileName.includes('audience')) ||
-                            (expectedName === 'Email_Campaign_Performance' && (fileName.includes('email') || fileName.includes('campaign'))) ||
-                            (expectedName === 'YouTube_Content' && fileName.includes('youtube') && fileName.includes('content')) ||
-                            (expectedName === 'YouTube_Demographics' && fileName.includes('youtube') && (fileName.includes('demographic') || fileName.includes('audience')))) {
-                            
-                            sheetsConfig.discoveredSheets[expectedName] = file.id;
-                            console.log(`✓ Mapped "${file.name}" to ${expectedName}`);
-                            break; // Only map to first match
+                        for (const variation of fileNameVariations) {
+                            if (EXPECTED_SHEETS[variation]) {
+                                sheetsConfig.discoveredSheets[variation] = file.id;
+                                console.log(`✓ Mapped "${file.name}" to ${variation}`);
+                                break;
+                            }
                         }
                     }
                 });
