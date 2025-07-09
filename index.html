@@ -1905,7 +1905,7 @@
                 const tab = document.createElement('button');
                 tab.className = 'tab-button' + (index === 0 ? ' active' : '');
                 tab.textContent = label;
-                tab.onclick = ().
+                tab.onclick = function() {
                     container.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     onTabChange(index);
