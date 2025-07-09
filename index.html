@@ -921,15 +921,51 @@
                 // Map discovered sheets to expected names
                 sheetsConfig.discoveredSheets = {};
                 
+                // Log all found files for debugging
+                console.log('All files found in folder:');
                 data.files.forEach(file => {
-                    // Match file names to expected sheets
+                    console.log(`- ${file.name} (ID: ${file.id})`);
+                });
+                
+                data.files.forEach(file => {
+                    const fileName = file.name.toLowerCase().replace(/[\s\-_]/g, '');
+                    
+                    // Match file names to expected sheets with more flexible matching
                     for (const expectedName of Object.keys(EXPECTED_SHEETS)) {
-                        if (file.name.toLowerCase().includes(expectedName.toLowerCase().replace(/_/g, ''))) {
+                        const expectedNameClean = expectedName.toLowerCase().replace(/[_]/g, '');
+                        
+                        // Try multiple matching strategies
+                        if (fileName === expectedNameClean || 
+                            fileName.includes(expectedNameClean) ||
+                            expectedNameClean.includes(fileName) ||
+                            // Special cases for common variations
+                            (expectedName === 'GA_Demographics' && fileName.includes('demographics')) ||
+                            (expectedName === 'GA_Traffic_Acquisition' && (fileName.includes('traffic') || fileName.includes('acquisition'))) ||
+                            (expectedName === 'GA_Pages_And_Screens' && (fileName.includes('pages') || fileName.includes('screens'))) ||
+                            (expectedName === 'GA_UTMs' && fileName.includes('utm')) ||
+                            (expectedName === 'FB_Metrics' && fileName.includes('fb') && fileName.includes('metric')) ||
+                            (expectedName === 'FB_Audience' && fileName.includes('fb') && fileName.includes('audience')) ||
+                            (expectedName === 'IG_Metrics' && (fileName.includes('ig') || fileName.includes('instagram')) && fileName.includes('metric')) ||
+                            (expectedName === 'IG_Audience' && (fileName.includes('ig') || fileName.includes('instagram')) && fileName.includes('audience')) ||
+                            (expectedName === 'Email_Campaign_Performance' && (fileName.includes('email') || fileName.includes('campaign'))) ||
+                            (expectedName === 'YouTube_Content' && fileName.includes('youtube') && fileName.includes('content')) ||
+                            (expectedName === 'YouTube_Demographics' && fileName.includes('youtube') && (fileName.includes('demographic') || fileName.includes('audience')))) {
+                            
                             sheetsConfig.discoveredSheets[expectedName] = file.id;
-                            console.log(`Mapped ${file.name} to ${expectedName}`);
+                            console.log(`✓ Mapped "${file.name}" to ${expectedName}`);
+                            break; // Only map to first match
                         }
                     }
                 });
+                
+                console.log('Final mapping:', sheetsConfig.discoveredSheets);
+                console.log(`Total sheets mapped: ${Object.keys(sheetsConfig.discoveredSheets).length}`);
+                
+                // If no sheets were mapped, try to help user understand why
+                if (Object.keys(sheetsConfig.discoveredSheets).length === 0) {
+                    console.error('No sheets were mapped! Please ensure your sheet names match the expected format.');
+                    console.log('Expected sheet names:', Object.keys(EXPECTED_SHEETS));
+                }
                 
                 // Update connection status
                 sheetsConfig.connected = true;
@@ -1010,15 +1046,52 @@
         // Load data from a single sheet (first tab)
         async function loadSingleSheet(sheetId, fileName) {
             try {
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1?key=${sheetsConfig.apiKey}`;
-                const response = await fetch(url);
+                // Try common tab names
+                const tabNames = ['Sheet1', 'Sheet 1', 'Data', 'Export', fileName.replace('.csv', ''), '1'];
+                let data = null;
+                let successfulTab = null;
                 
-                if (!response.ok) {
-                    console.warn(`Sheet "${fileName}" not accessible`);
+                for (const tabName of tabNames) {
+                    try {
+                        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tabName)}?key=${sheetsConfig.apiKey}`;
+                        const response = await fetch(url);
+                        
+                        if (response.ok) {
+                            data = await response.json();
+                            successfulTab = tabName;
+                            break;
+                        }
+                    } catch (e) {
+                        // Try next tab name
+                    }
+                }
+                
+                // If no common tab names work, try to get the first available sheet
+                if (!data) {
+                    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}`;
+                    const metaResponse = await fetch(metaUrl);
+                    
+                    if (metaResponse.ok) {
+                        const metadata = await metaResponse.json();
+                        if (metadata.sheets && metadata.sheets.length > 0) {
+                            const firstSheetName = metadata.sheets[0].properties.title;
+                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(firstSheetName)}?key=${sheetsConfig.apiKey}`;
+                            const response = await fetch(url);
+                            
+                            if (response.ok) {
+                                data = await response.json();
+                                successfulTab = firstSheetName;
+                            }
+                        }
+                    }
+                }
+                
+                if (!data) {
+                    console.warn(`Could not load any tabs from sheet for ${fileName}`);
                     return;
                 }
                 
-                const data = await response.json();
+                console.log(`Loading ${fileName} from tab "${successfulTab}"`);
                 
                 if (!data.values || data.values.length === 0) {
                     console.warn(`Sheet "${fileName}" is empty`);
@@ -1044,7 +1117,7 @@
                     processedData[fileName] = parsedData;
                 }
                 
-                console.log(`Loaded ${parsedData.length} rows from ${fileName}`);
+                console.log(`✓ Loaded ${parsedData.length} rows from ${fileName}`);
                 
             } catch (error) {
                 console.error(`Error loading ${fileName}:`, error);
