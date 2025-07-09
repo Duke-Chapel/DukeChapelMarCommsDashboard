@@ -1020,7 +1020,6 @@
             
             startDate.addEventListener('change', validateDateRange);
             endDate.addEventListener('change', validateDateRange);
-            compareType.addEventListener('change', () => updateDashboard());
         }
         
         function validateDateRange() {
@@ -1110,25 +1109,35 @@
         }
         
         function formatDate(date) {
+            if (!date) return '';
             const d = new Date(date);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            let month = '' + (d.getMonth() + 1),
+                day = '' + d.getDate(),
+                year = d.getFullYear();
+
+            if (month.length < 2) 
+                month = '0' + month;
+            if (day.length < 2) 
+                day = '0' + day;
+
+            return [year, month, day].join('-');
         }
         
         // Data filtering
         function filterDataByDateRange(data, dateField, startDate, endDate) {
-            if (!startDate || !endDate || !Array.isArray(data)) return data;
+            if (!startDate || !endDate || !Array.isArray(data)) return data || [];
             
             const start = new Date(startDate);
             const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
+            end.setHours(23, 59, 59, 999); // Include the whole end day
             
             return data.filter(row => {
                 const dateValue = row[dateField];
                 if (!dateValue) return false;
                 
                 let date;
-                if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d{10,12}$/.test(dateValue))) {
-                    const str = dateValue.toString();
+                if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d{8,12}$/.test(dateValue))) {
+                    const str = dateValue.toString().substr(0, 8);
                     date = new Date(str.substr(0,4), parseInt(str.substr(4,2))-1, str.substr(6,2));
                 } else {
                     date = new Date(dateValue);
@@ -1140,16 +1149,46 @@
         
         // Calculation helpers
         function formatNumber(num) {
-            num = parseFloat(num) || 0;
+            if (num === null || isNaN(num)) return '0';
+            num = parseFloat(num);
             if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
             if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num.toLocaleString();
+            return Math.round(num).toLocaleString();
         }
         
         function formatPercentage(num) {
-            return (parseFloat(num) || 0).toFixed(1) + '%';
+            if (num === null || isNaN(num)) return '0.0%';
+            return (parseFloat(num)).toFixed(1) + '%';
         }
         
+        function calculateChange(current, previous) {
+            if (previous === 0) {
+                return current > 0 ? Infinity : 0;
+            }
+            return ((current - previous) / previous) * 100;
+        }
+
+        function getComparisonDateRange(startDate, endDate, compareType) {
+            if (compareType === 'none') return null;
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diff = end.getTime() - start.getTime();
+
+            if (compareType === 'previous') {
+                const prevEnd = new Date(start.getTime() - (1000 * 3600 * 24)); // Day before start date
+                const prevStart = new Date(prevEnd.getTime() - diff);
+                return { start: formatDate(prevStart), end: formatDate(prevEnd) };
+            } else if (compareType === 'year') {
+                const prevStart = new Date(start);
+                prevStart.setFullYear(prevStart.getFullYear() - 1);
+                const prevEnd = new Date(end);
+                prevEnd.setFullYear(prevEnd.getFullYear() - 1);
+                return { start: formatDate(prevStart), end: formatDate(prevEnd) };
+            }
+            return null;
+        }
+
         // Dashboard generation
         function updateDashboard() {
             const startDate = document.getElementById('startDate').value;
@@ -1179,8 +1218,11 @@
             const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
             
             let text = `Showing ${daysDiff} days: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
-            if (compareType === 'previous') text += ` (comparing with previous ${daysDiff} days)`;
-            else if (compareType === 'year') text += ' (comparing with same period last year)';
+            if (compareType === 'previous') {
+                const compRange = getComparisonDateRange(startDate, endDate, compareType);
+                text += ` (vs ${new Date(compRange.start).toLocaleDateString()} - ${new Date(compRange.end).toLocaleDateString()})`;
+            }
+            else if (compareType === 'year') text += ' (vs same period last year)';
             
             textSpan.textContent = text;
             infoDiv.style.display = 'flex';
@@ -1219,17 +1261,27 @@
         
         function createDemographicsCard(startDate, endDate, compareType) {
             const card = createCard('Demographics & User Insights', '👥');
-            const currentData = filterDataByDateRange(processedData['GA_Demographics.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            const rawData = processedData['GA_Demographics.csv'];
+            const dateField = 'Date + hour (YYYYMMDDHH)';
+            
+            const currentData = filterDataByDateRange(rawData, dateField, startDate, endDate);
             const metrics = calculateWebMetrics(currentData);
             
+            let comparisonMetrics = {};
+            const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
+            if (comparisonRange) {
+                const comparisonData = filterDataByDateRange(rawData, dateField, comparisonRange.start, comparisonRange.end);
+                comparisonMetrics = calculateWebMetrics(comparisonData);
+            }
+
             card.appendChild(createMetricsGrid([
-                { label: 'Total Users', value: formatNumber(metrics.totalUsers) },
-                { label: 'New Users', value: formatNumber(metrics.newUsers) },
-                { label: 'Sessions', value: formatNumber(metrics.sessions) },
-                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement) },
-                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's' },
-                { label: 'Engaged Sessions', value: formatNumber(metrics.engagedSessions) }
-            ]));
+                { label: 'Total Users', value: formatNumber(metrics.totalUsers), compareValue: comparisonMetrics.totalUsers },
+                { label: 'New Users', value: formatNumber(metrics.newUsers), compareValue: comparisonMetrics.newUsers },
+                { label: 'Sessions', value: formatNumber(metrics.sessions), compareValue: comparisonMetrics.sessions },
+                { label: 'Avg. Engagement', value: formatPercentage(metrics.avgEngagement), compareValue: comparisonMetrics.avgEngagement, isPercentage: true },
+                { label: 'Avg. Session Time', value: metrics.avgSessionTime + 's', compareValue: comparisonMetrics.avgSessionTime },
+                { label: 'Engaged Sessions', value: formatNumber(metrics.engagedSessions), compareValue: comparisonMetrics.engagedSessions }
+            ], compareType !== 'none'));
             
             const locationData = getTopLocations(currentData);
             if (locationData.length > 0) {
@@ -1388,15 +1440,20 @@
         function createFacebookMetricsCard(startDate, endDate, compareType) {
             const card = createCard('Facebook Performance', '📘');
             const metrics = calculateSocialMetrics('FB', startDate, endDate);
+            let comparisonMetrics = {};
+            const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
+            if (comparisonRange) {
+                comparisonMetrics = calculateSocialMetrics('FB', comparisonRange.start, comparisonRange.end);
+            }
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Reach', value: formatNumber(metrics.reach) },
-                { label: 'Interactions', value: formatNumber(metrics.interactions) },
-                { label: 'New Followers', value: formatNumber(metrics.follows) },
-                { label: 'Profile Views', value: formatNumber(metrics.views) },
-                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks) },
-                { label: 'Page Visits', value: formatNumber(metrics.visits) }
-            ]));
+                { label: 'Total Reach', value: formatNumber(metrics.reach), compareValue: comparisonMetrics.reach },
+                { label: 'Interactions', value: formatNumber(metrics.interactions), compareValue: comparisonMetrics.interactions },
+                { label: 'New Followers', value: formatNumber(metrics.follows), compareValue: comparisonMetrics.follows },
+                { label: 'Profile Views', value: formatNumber(metrics.views), compareValue: comparisonMetrics.views },
+                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks), compareValue: comparisonMetrics.linkClicks },
+                { label: 'Page Visits', value: formatNumber(metrics.visits), compareValue: comparisonMetrics.visits }
+            ], compareType !== 'none'));
 
             card.innerHTML += `<div class="info-box info"><h4>📈 Facebook Page Rank</h4><p>This metric isn't available in data exports. You can check your Page Quality manually in the Meta Business Suite.</p></div>`;
             return card;
@@ -1405,15 +1462,20 @@
         function createInstagramMetricsCard(startDate, endDate, compareType) {
             const card = createCard('Instagram Performance', '📷');
             const metrics = calculateSocialMetrics('IG', startDate, endDate);
+            let comparisonMetrics = {};
+            const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
+            if (comparisonRange) {
+                comparisonMetrics = calculateSocialMetrics('IG', comparisonRange.start, comparisonRange.end);
+            }
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Reach', value: formatNumber(metrics.reach) },
-                { label: 'Interactions', value: formatNumber(metrics.interactions) },
-                { label: 'New Followers', value: formatNumber(metrics.follows) },
-                { label: 'Profile Views', value: formatNumber(metrics.views) },
-                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks) },
-                { label: 'Profile Visits', value: formatNumber(metrics.visits) }
-            ]));
+                { label: 'Total Reach', value: formatNumber(metrics.reach), compareValue: comparisonMetrics.reach },
+                { label: 'Interactions', value: formatNumber(metrics.interactions), compareValue: comparisonMetrics.interactions },
+                { label: 'New Followers', value: formatNumber(metrics.follows), compareValue: comparisonMetrics.follows },
+                { label: 'Profile Views', value: formatNumber(metrics.views), compareValue: comparisonMetrics.views },
+                { label: 'Link Clicks', value: formatNumber(metrics.linkClicks), compareValue: comparisonMetrics.linkClicks },
+                { label: 'Profile Visits', value: formatNumber(metrics.visits), compareValue: comparisonMetrics.visits }
+            ], compareType !== 'none'));
             return card;
         }
 
@@ -1493,16 +1555,17 @@
         function createEmailOverviewCard(startDate, endDate, compareType) {
             const card = createCard('Email Marketing Overview', '📊');
             const emailData = processedData['Email_Campaign_Performance.csv'] || [];
-            const metrics = calculateEmailMetrics(emailData);
+            // Email data is often not date-filterable in the same way. We'll show all-time campaign stats.
+            const metrics = calculateEmailMetrics(emailData); 
             
             card.appendChild(createMetricsGrid([
                 { label: 'Total Campaigns', value: emailData.length },
                 { label: 'Total Sent', value: formatNumber(metrics.totalSent) },
-                { label: 'Avg Open Rate', value: formatPercentage(metrics.avgOpenRate) },
-                { label: 'Avg Click Rate', value: formatPercentage(metrics.avgClickRate) },
+                { label: 'Avg Open Rate', value: formatPercentage(metrics.avgOpenRate), isPercentage: true },
+                { label: 'Avg Click Rate', value: formatPercentage(metrics.avgClickRate), isPercentage: true },
                 { label: 'Total Opens', value: formatNumber(metrics.totalOpens) },
                 { label: 'Total Clicks', value: formatNumber(metrics.totalClicks) }
-            ]));
+            ], false)); // No comparison for email overview as it's typically cumulative.
             return card;
         }
 
@@ -1524,7 +1587,7 @@
             });
             card.appendChild(tabContainer);
             
-            const sortedByOpen = [...emailData].sort((a, b) => parseFloat(a['Email open rate (MPP excluded)'] || 0) - parseFloat(b['Email open rate (MPP excluded)'] || 0)).reverse();
+            const sortedByOpen = [...emailData].sort((a, b) => parseFloat(String(b['Email open rate (MPP excluded)'] || '0').replace('%','')) - parseFloat(String(a['Email open rate (MPP excluded)'] || '0').replace('%','')));
             card.appendChild(createTable(['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks'], sortedByOpen.slice(0, 5).map(c => [
                 c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'], 
                 formatNumber(parseFloat(String(c['Email clicked'] || 0).replace(/,/g, '')))
@@ -1542,7 +1605,7 @@
                 { label: 'Not Opened', value: formatPercentage(metrics.neverOpenedRate) },
                 { label: 'Opened, No Click', value: formatPercentage(metrics.openedNoClickRate) },
                 { label: 'Active Clickers', value: formatPercentage(metrics.activeClickerRate) }
-            ]));
+            ], false));
 
             card.innerHTML += `<div class="info-box info"><h4>📊 Subscriber Demographics</h4><p>Detailed subscriber demographics are not included in campaign exports. Check your email platform's audience insights for this data.</p></div>`;
             card.innerHTML += `<div class="info-box warning"><h4>🔗 Best Performing Links</h4><p>Individual link performance is not in this export. Use UTM parameters in your links and view the results in the "Campaign Performance" card in the Web Analytics section.</p></div>`;
@@ -1567,17 +1630,27 @@
 
         function createYouTubeOverviewCard(startDate, endDate, compareType) {
             const card = createCard('YouTube Channel Overview', '📊');
-            const contentData = filterDataByDateRange(processedData['YouTube_Content.csv'], 'Video publish time', startDate, endDate);
-            const metrics = calculateYouTubeMetrics(contentData);
+            const rawData = processedData['YouTube_Content.csv'];
+            const dateField = 'Video publish time';
+
+            const currentData = filterDataByDateRange(rawData, dateField, startDate, endDate);
+            const metrics = calculateYouTubeMetrics(currentData);
+            
+            let comparisonMetrics = {};
+            const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
+            if (comparisonRange) {
+                const comparisonData = filterDataByDateRange(rawData, dateField, comparisonRange.start, comparisonRange.end);
+                comparisonMetrics = calculateYouTubeMetrics(comparisonData);
+            }
             
             card.appendChild(createMetricsGrid([
-                { label: 'Total Views', value: formatNumber(metrics.totalViews) },
-                { label: 'Watch Time (hrs)', value: formatNumber(Math.round(metrics.totalWatchTime)) },
-                { label: 'New Subscribers', value: formatNumber(metrics.totalSubscribers) },
-                { label: 'Videos Published', value: contentData.length },
-                { label: 'Avg CTR', value: formatPercentage(metrics.avgCTR) },
-                { label: 'Total Impressions', value: formatNumber(metrics.totalImpressions) }
-            ]));
+                { label: 'Total Views', value: formatNumber(metrics.totalViews), compareValue: comparisonMetrics.totalViews },
+                { label: 'Watch Time (hrs)', value: formatNumber(Math.round(metrics.totalWatchTime)), compareValue: Math.round(comparisonMetrics.totalWatchTime) },
+                { label: 'New Subscribers', value: formatNumber(metrics.totalSubscribers), compareValue: comparisonMetrics.totalSubscribers },
+                { label: 'Videos Published', value: currentData.length, compareValue: (comparisonMetrics.data || []).length },
+                { label: 'Avg CTR', value: formatPercentage(metrics.avgCTR), compareValue: comparisonMetrics.avgCTR, isPercentage: true },
+                { label: 'Total Impressions', value: formatNumber(metrics.totalImpressions), compareValue: comparisonMetrics.totalImpressions }
+            ], compareType !== 'none'));
             return card;
         }
 
@@ -1662,15 +1735,17 @@
         // Calculation functions
         function calculateWebMetrics(data) {
             const metrics = { totalUsers: 0, newUsers: 0, sessions: 0, engagedSessions: 0, avgEngagement: 0, avgSessionTime: 0 };
+            let totalEngagementTime = 0;
             data.forEach(row => {
                 metrics.totalUsers += parseInt(row['Total users'] || 0);
                 metrics.newUsers += parseInt(row['New users'] || 0);
                 metrics.engagedSessions += parseInt(row['Engaged sessions'] || 0);
                 metrics.sessions += parseInt(row['Sessions'] || 0);
+                totalEngagementTime += parseFloat(row['Total engagement time'] || 0);
             });
             if (metrics.sessions > 0) {
-                metrics.avgEngagement = data.reduce((sum, row) => sum + (parseFloat(row['Engagement rate']) || 0), 0) / data.length * 100;
-                metrics.avgSessionTime = Math.round(data.reduce((sum, row) => sum + (parseFloat(row['Average engagement time per session']) || 0), 0) / data.length);
+                metrics.avgEngagement = (metrics.engagedSessions / metrics.sessions) * 100;
+                metrics.avgSessionTime = Math.round(totalEngagementTime / metrics.sessions);
             }
             return metrics;
         }
@@ -1704,7 +1779,7 @@
                 if (!map[path]) map[path] = { path, views: 0, users: 0, engagementTime: 0 };
                 map[path].views += parseInt(row.Views || 0);
                 map[path].users += parseInt(row['Active users'] || 0);
-                map[path].engagementTime += (parseInt(row['Engaged sessions'] || 0)) * (parseFloat(row['Average engagement time per session']) || 45);
+                map[path].engagementTime += parseFloat(row['Total engagement time'] || 0);
             });
             return Object.values(map);
         }
@@ -1728,14 +1803,15 @@
                 const fileName = `${platform}_${type}.csv`;
                 if (processedData[fileName]) {
                     const data = filterDataByDateRange(processedData[fileName], 'Date', startDate, endDate);
-                    metrics[type.toLowerCase().replace('_', '')] = data.reduce((sum, row) => sum + (parseInt(row.Primary || row.Daily || 0) || 0), 0);
+                    const key = type.toLowerCase().replace('_', '');
+                    metrics[key] = data.reduce((sum, row) => sum + (parseInt(row.Daily || row.Primary || 0) || 0), 0);
                 }
             });
             return metrics;
         }
 
         function calculateEmailMetrics(data) {
-            const metrics = { totalSent: 0, totalDelivered: 0, totalOpens: 0, totalClicks: 0 };
+            const metrics = { totalSent: 0, totalDelivered: 0, totalOpens: 0, totalClicks: 0, avgOpenRate: 0, avgClickRate: 0 };
             data.forEach(c => {
                 metrics.totalSent += parseInt(String(c['Emails sent'] || 0).replace(/,/g, ''));
                 metrics.totalDelivered += parseInt(String(c['Email deliveries'] || 0).replace(/,/g, ''));
@@ -1766,13 +1842,15 @@
         }
 
         function calculateYouTubeMetrics(data) {
-            return {
+            const metrics = {
+                data: data,
                 totalViews: data.reduce((s, v) => s + (parseFloat(v.Views) || 0), 0),
                 totalWatchTime: data.reduce((s, v) => s + (parseFloat(v['Watch time (hours)']) || 0), 0),
                 totalSubscribers: data.reduce((s, v) => s + (parseFloat(v.Subscribers) || 0), 0),
                 totalImpressions: data.reduce((s, v) => s + (parseFloat(v.Impressions) || 0), 0),
                 avgCTR: data.length > 0 ? data.reduce((s, v) => s + (parseFloat(v['Impressions click-through rate (%)']) || 0), 0) / data.length : 0
             };
+            return metrics;
         }
         
         // UI Helper functions
@@ -1783,11 +1861,24 @@
             return card;
         }
         
-        function createMetricsGrid(metrics) {
+        function createMetricsGrid(metrics, showComparison) {
             const grid = document.createElement('div');
             grid.className = 'metrics-grid';
             metrics.forEach(metric => {
-                grid.innerHTML += `<div class="metric-card"><div class="metric-value">${metric.value}</div><div class="metric-label">${metric.label}</div></div>`;
+                let changeHTML = '';
+                if (showComparison && metric.compareValue !== undefined && metric.compareValue !== null) {
+                    const currentVal = metric.isPercentage ? metric.value : parseFloat(String(metric.value).replace(/[^\d.-]/g, ''));
+                    const change = calculateChange(currentVal, metric.compareValue);
+                    
+                    if (isFinite(change) && change !== 0) {
+                        const changeClass = change > 0 ? 'positive' : 'negative';
+                        const changeText = (change > 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(1) + '%';
+                        changeHTML = `<div class="metric-change ${changeClass}">${changeText}</div>`;
+                    } else if (!isFinite(change) && change > 0) {
+                        changeHTML = `<div class="metric-change positive">▲ New</div>`;
+                    }
+                }
+                grid.innerHTML += `<div class="metric-card"><div class="metric-value">${metric.value}</div><div class="metric-label">${metric.label}</div>${changeHTML}</div>`;
             });
             return grid;
         }
