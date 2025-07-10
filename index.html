@@ -796,14 +796,31 @@
 
         async function loadAllSheetData() {
             const dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Loading data from ${Object.keys(sheetsConfig.discoveredSheets).length} sheet(s)...</p></div>`;
+            const sheetsToLoad = Object.entries(sheetsConfig.discoveredSheets);
+            const totalSheets = sheetsToLoad.length;
 
-            const loadPromises = Object.entries(sheetsConfig.discoveredSheets).map(([sheetName, sheetId]) => {
+            dashboard.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Loading data from ${totalSheets} sheet(s)... (0/${totalSheets})</p></div>`;
+
+            let loadedCount = 0;
+            for (const [sheetName, sheetId] of sheetsToLoad) {
                 const fileName = EXPECTED_SHEETS[sheetName];
-                return loadSingleSheet(sheetId, fileName);
-            });
+                try {
+                    await loadSingleSheet(sheetId, fileName);
+                } catch (error) {
+                    console.error(`A sheet failed to load, but continuing: ${fileName}`, error);
+                }
 
-            await Promise.all(loadPromises);
+                loadedCount++;
+                // Update the loading message to show progress
+                const loadingMessage = dashboard.querySelector('p');
+                if (loadingMessage) {
+                    loadingMessage.textContent = `Loading data from ${totalSheets} sheet(s)... (${loadedCount}/${totalSheets})`;
+                }
+
+                // Add a small 100ms delay to be respectful to the API
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
             dashboard.innerHTML = '';
         }
 
@@ -1186,9 +1203,10 @@
 
         function createDemographicsCard(startDate, endDate, compareType) {
             const card = createCard('Demographics & User Insights', '👥');
-            // Original data sources
+
+            // Define all data sources first
             const demographicsData = processedData['GA_Demographics.csv'];
-            const trafficData = processedData['GA_Traffic_Acquisition.csv']; // Get traffic data
+            const trafficData = processedData['GA_Traffic_Acquisition.csv'];
             const dateField = 'Date + hour (YYYYMMDDHH)';
 
             // Filter both datasets by the selected date range
@@ -1201,11 +1219,12 @@
             let comparisonMetrics = {};
             const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
             if (comparisonRange) {
-                // Filter traffic data for the comparison period
+                // Filter traffic data for the comparison period as well
                 const comparisonTrafficData = filterDataByDateRange(trafficData, dateField, comparisonRange.start, comparisonRange.end);
                 comparisonMetrics = calculateWebMetrics(comparisonTrafficData);
             }
 
+            // This part uses the metrics calculated above
             card.appendChild(createMetricsGrid([
                 { label: 'Total Users', displayValue: formatNumber(metrics.totalUsers), rawValue: metrics.totalUsers, compareValue: comparisonMetrics.totalUsers },
                 { label: 'New Users', displayValue: formatNumber(metrics.newUsers), rawValue: metrics.newUsers, compareValue: comparisonMetrics.newUsers },
@@ -1215,7 +1234,8 @@
                 { label: 'Engaged Sessions', displayValue: formatNumber(metrics.engagedSessions), rawValue: metrics.engagedSessions, compareValue: comparisonMetrics.engagedSessions }
             ], compareType !== 'none'));
 
-            const locationData = getTopLocations(currentData);
+            // This part correctly uses the demographics data for the location table
+            const locationData = getTopLocations(currentDemographicsData);
             if (locationData.length > 0) {
                 card.appendChild(createTable(
                     ['Country', 'City', 'Users', 'Sessions'],
@@ -1224,7 +1244,6 @@
             }
             return card;
         }
-
         function createTrafficSourcesCard(startDate, endDate, compareType) {
             const card = createCard('Traffic Sources & Channels', '🚀', true);
             const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
