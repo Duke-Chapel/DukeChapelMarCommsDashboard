@@ -1739,19 +1739,27 @@
 
             return metrics;
         }
-        
+
         function getTopLocations(data) {
             const map = {};
             if (!data) return [];
             data.forEach(row => {
-                const key = `${row.Country || 'Unknown'}_${row.City || 'Unknown'}`;
-                if (!map[key]) map[key] = { country: row.Country || 'Unknown', city: row.City || 'Unknown', users: 0, sessions: 0 };
-                map[key].users += parseInt(row['Total users'] || 0);
+                const key = `${row['Country'] || 'Unknown'}_${row['City'] || 'Unknown'}`;
+                if (!map[key]) {
+                    map[key] = {
+                        country: row['Country'] || 'Unknown',
+                        city: row['City'] || 'Unknown',
+                        users: 0,
+                        sessions: 0
+                    };
+                }
+                // This line is now fixed to use the correct 'Users' column
+                map[key].users += parseInt(row['Users'] || 0);
                 map[key].sessions += parseInt(row['Sessions'] || 0);
             });
             return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
         }
-
+        
         function aggregateTrafficSources(data) {
             const map = {};
             if (!data) return [];
