@@ -817,13 +817,12 @@
                     loadingMessage.textContent = `Loading data from ${totalSheets} sheet(s)... (${loadedCount}/${totalSheets})`;
                 }
 
-                // Add a small 100ms delay to be respectful to the API
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Increased delay to 250ms to be more respectful to the API
+                await new Promise(resolve => setTimeout(resolve, 250));
             }
 
             dashboard.innerHTML = '';
         }
-
         async function loadSingleSheet(sheetId, fileName) {
             try {
                 const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}&fields=sheets.properties.title`;
