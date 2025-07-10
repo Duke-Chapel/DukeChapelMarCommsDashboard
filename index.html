@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Duke Chapel Marketing Analytics Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -225,6 +224,21 @@
     </div>
     
     <script>
+        // --- CONFIGURATION ---
+        // Replace with your Google API Key
+        const API_KEY = 'YOUR_API_KEY'; 
+        
+        // Replace with your Google Sheet IDs
+        const SPREADSHEET_IDS = {
+            ga: 'YOUR_SPREADSHEET_ID_GA',
+            demographics: 'YOUR_SPREADSHEET_ID_DEMOGRAPHICS',
+            pages: 'YOUR_SPREADSHEET_ID_PAGES',
+            utm: 'YOUR_SPREADSHEET_ID_UTM'
+        };
+        // The name of the sheet within each spreadsheet file (e.g., "Sheet1")
+        const SHEET_NAME = 'Sheet1'; 
+        // --- END CONFIGURATION ---
+
         const chartInstances = {};
         const processedData = {
             web: {}
@@ -235,29 +249,48 @@
             document.getElementById('filterButton').addEventListener('click', updateDashboard);
         });
 
+        /**
+         * Converts data from Google Sheets API (array of arrays) to an array of objects.
+         */
+        function googleSheetsValuesToObjects(values) {
+            if (!values || values.length < 1) {
+                return [];
+            }
+            const headers = values[0];
+            return values.slice(1).map(row => {
+                const rowObject = {};
+                headers.forEach((header, index) => {
+                    rowObject[header] = row[index];
+                });
+                return rowObject;
+            });
+        }
+
         function loadAllData() {
             const loader = document.getElementById('loader');
             const dashboard = document.getElementById('dashboard');
             loader.style.display = 'block';
             dashboard.style.display = 'none';
 
-            const filePaths = {
-                ga: 'GA_Traffic_Acquisition.xlsx - Sheet1.csv',
-                demographics: 'GA_Demographics.xlsx - Sheet1.csv',
-                pages: 'GA_Pages_And_Screens.xlsx - Sheet1.csv',
-                utm: 'GA_UTMs.xlsx - Sheet1.csv'
-            };
-
-            const promises = Object.entries(filePaths).map(([key, path]) => {
-                return new Promise((resolve, reject) => {
-                    Papa.parse(path, {
-                        download: true,
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: (results) => resolve({ key, data: results.data }),
-                        error: (err) => reject(new Error(`Failed to load ${path}: ${err.message}`))
+            const promises = Object.entries(SPREADSHEET_IDS).map(([key, sheetId]) => {
+                const range = SHEET_NAME; 
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${API_KEY}`;
+                
+                return fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status} for sheet: ${key}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                             throw new Error(`Google Sheets API Error: ${data.error.message}`);
+                        }
+                        // Convert Array of Arrays to Array of Objects
+                        const jsonData = googleSheetsValuesToObjects(data.values);
+                        return { key, data: jsonData };
                     });
-                });
             });
 
             Promise.all(promises)
@@ -273,16 +306,16 @@
                     dashboard.style.display = 'grid';
                 })
                 .catch(error => {
-                    loader.textContent = `Error: ${error.message}`;
+                    loader.textContent = `Error: ${error.message}. Please check your API key, Spreadsheet IDs, and sheet sharing settings.`;
                     console.error(error);
                 });
         }
 
         function parseDate(dateStr) {
-            if (!dateStr || dateStr.length < 8) return null;
-            const year = parseInt(dateStr.substring(0, 4), 10);
-            const month = parseInt(dateStr.substring(4, 6), 10) - 1;
-            const day = parseInt(dateStr.substring(6, 8), 10);
+            if (!dateStr || String(dateStr).length < 8) return null;
+            const year = parseInt(String(dateStr).substring(0, 4), 10);
+            const month = parseInt(String(dateStr).substring(4, 6), 10) - 1;
+            const day = parseInt(String(dateStr).substring(6, 8), 10);
             return new Date(year, month, day);
         }
 
