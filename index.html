@@ -804,73 +804,98 @@
             let loadedCount = 0;
             for (const [sheetName, sheetId] of sheetsToLoad) {
                 const fileName = EXPECTED_SHEETS[sheetName];
-                try {
-                    await loadSingleSheet(sheetId, fileName);
-                } catch (error) {
-                    console.error(`A sheet failed to load, but continuing: ${fileName}`, error);
-                }
+
+                // The retry logic is now handled inside loadSingleSheet
+                await loadSingleSheet(sheetId, fileName);
 
                 loadedCount++;
-                // Update the loading message to show progress
                 const loadingMessage = dashboard.querySelector('p');
                 if (loadingMessage) {
                     loadingMessage.textContent = `Loading data from ${totalSheets} sheet(s)... (${loadedCount}/${totalSheets})`;
                 }
-
-                // Increased delay to 250ms to be more respectful to the API
-                await new Promise(resolve => setTimeout(resolve, 250));
+                // The manual delay is no longer needed here.
             }
 
             dashboard.innerHTML = '';
         }
-        async function loadSingleSheet(sheetId, fileName) {
-            try {
-                const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}&fields=sheets.properties.title`;
-                const metaResponse = await fetch(metaUrl);
-                if (!metaResponse.ok) throw new Error('Could not fetch sheet metadata');
+        
+        async function loadSingleSheet(sheetId, fileName, maxRetries = 3) {
+            let attempt = 0;
+            let delay = 1000; // Start with a 1-second delay
 
-                const metadata = await metaResponse.json();
-                if (!metadata.sheets || metadata.sheets.length === 0) {
-                    console.warn(`Sheet for ${fileName} has no tabs.`);
-                    return;
-                }
+            while (attempt < maxRetries) {
+                try {
+                    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}&fields=sheets.properties.title`;
+                    const metaResponse = await fetch(metaUrl);
 
-                const firstSheetName = metadata.sheets[0].properties.title;
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(firstSheetName)}?key=${sheetsConfig.apiKey}`;
-                const response = await fetch(url);
+                    if (metaResponse.status === 429) {
+                        // Throw a specific error to trigger the retry logic
+                        throw new Error('Rate limited');
+                    }
+                    if (!metaResponse.ok) throw new Error('Could not fetch sheet metadata');
 
-                if (!response.ok) {
-                    console.warn(`Could not load data from tab "${firstSheetName}" for ${fileName}`);
-                    return;
-                }
+                    const metadata = await metaResponse.json();
+                    if (!metadata.sheets || metadata.sheets.length === 0) {
+                        console.warn(`Sheet for ${fileName} has no tabs.`);
+                        return; // This is a success, so we exit
+                    }
 
-                const data = await response.json();
-                if (!data.values || data.values.length === 0) {
-                    console.warn(`Sheet "${fileName}" is empty`);
-                    return;
-                }
+                    const firstSheetName = metadata.sheets[0].properties.title;
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(firstSheetName)}?key=${sheetsConfig.apiKey}`;
+                    const response = await fetch(url);
 
-                if (fileName.includes('Audience')) {
-                    processedData[fileName] = parseAudienceData(data.values, fileName);
-                } else {
-                    const headers = data.values[0];
-                    const rows = data.values.slice(1);
-                    const parsedData = rows.map(row => {
-                        const obj = {};
-                        headers.forEach((header, index) => {
-                            obj[header] = row[index] || '';
+                    if (response.status === 429) {
+                        // Throw a specific error to trigger the retry logic
+                        throw new Error('Rate limited');
+                    }
+                    if (!response.ok) {
+                        console.warn(`Could not load data from tab "${firstSheetName}" for ${fileName}`);
+                        return; // Not a failure we can retry, so we exit
+                    }
+
+                    const data = await response.json();
+                    if (!data.values || data.values.length === 0) {
+                        console.warn(`Sheet "${fileName}" is empty`);
+                        return; // This is a success, so we exit
+                    }
+
+                    if (fileName.includes('Audience')) {
+                        processedData[fileName] = parseAudienceData(data.values, fileName);
+                    } else {
+                        const headers = data.values[0];
+                        const rows = data.values.slice(1);
+                        const parsedData = rows.map(row => {
+                            const obj = {};
+                            headers.forEach((header, index) => {
+                                obj[header] = row[index] || '';
+                            });
+                            return obj;
                         });
-                        return obj;
-                    });
-                    processedData[fileName] = parsedData;
-                }
+                        processedData[fileName] = parsedData;
+                    }
 
-                console.log(`✓ Loaded data from ${fileName}`);
-            } catch (error) {
-                console.error(`Error loading ${fileName}:`, error);
+                    console.log(`✓ Loaded data from ${fileName}`);
+                    return; // Successful load, so we exit the retry loop
+
+                } catch (error) {
+                    if (error.message.includes('Rate limited')) {
+                        attempt++;
+                        if (attempt >= maxRetries) {
+                            console.error(`Could not load ${fileName} after ${maxRetries} attempts.`);
+                            // Stop trying and let the app continue with the data it has
+                            return;
+                        }
+                        console.warn(`Rate limited on ${fileName}. Retrying in ${delay / 1000}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2; // Double the delay for the next attempt
+                    } else {
+                        // This was a different error (not rate-limiting), so we don't retry.
+                        console.error(`An unexpected error occurred while loading ${fileName}:`, error);
+                        return;
+                    }
+                }
             }
         }
-
         function parseAudienceData(values, fileName) {
             const data = { ageGender: [], topCities: [], topCountries: [] };
             let currentSection = '';
