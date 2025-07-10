@@ -27,7 +27,7 @@
         .controls { background-color: var(--duke-white); padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
         .control-group { display: flex; flex-direction: column; }
         .control-group label { font-size: 0.8rem; margin-bottom: 5px; color: var(--duke-gray); font-weight: 500; }
-        input[type="date"], select, button { padding: 8px 12px; border-radius: 5px; border: 1px solid #ccc; font-family: 'Inter', sans-serif; }
+        input[type="date"], select, button { padding: 8px 12px; border-radius: 5px; border: 1px solid #ccc; font-family: 'Inter', sans-serif; height: 38px; box-sizing: border-box; }
         button { background-color: var(--duke-blue); color: white; cursor: pointer; transition: background-color 0.3s; border: none; padding: 10px 15px; align-self: flex-end; margin-left: auto;}
         button:hover { background-color: var(--duke-light-blue); }
         .tab-bar { display: flex; border-bottom: 2px solid var(--duke-light-gray); margin-bottom: 20px; }
@@ -56,6 +56,9 @@
         .loader-container { text-align: center; padding: 40px; }
         .loader { font-size: 1.2rem; margin-bottom: 20px; }
         #status-panel { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; text-align: left; font-family: monospace; max-width: 800px; margin: 20px auto; line-height: 1.6; }
+        #status-panel ul { list-style-type: none; padding-left: 0; }
+        #status-panel .status-found { color: #198754; font-weight: bold; }
+        #status-panel .status-missing { color: #dc3545; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -93,7 +96,11 @@
         
         <div id="loader-container" class="loader-container">
             <div id="loader" class="loader">Connecting to Google Drive...</div>
-            <div id="status-panel" style="display: none;"></div>
+            <div id="status-panel" style="display: none;">
+                <h3>API Connection Status</h3>
+                <div id="status-message"></div>
+                <ul id="status-list"></ul>
+            </div>
         </div>
 
         <div id="dashboard-content" style="display: none;">
@@ -149,16 +156,23 @@
                     </div>
                 </div>
             </div>
-             <div id="social" class="tab-content"></div>
-             <div id="email" class="tab-content"></div>
-             <div id="youtube" class="tab-content"></div>
+             <div id="social" class="tab-content">
+                <div class="card"><h2 class="card-title">Social Analytics</h2><p>This section is under construction.</p></div>
+             </div>
+             <div id="email" class="tab-content">
+                <div class="card"><h2 class="card-title">Email Analytics</h2><p>This section is under construction.</p></div>
+             </div>
+             <div id="youtube" class="tab-content">
+                <div class="card"><h2 class="card-title">YouTube Analytics</h2><p>This section is under construction.</p></div>
+             </div>
         </div>
     </div>
     
     <script>
-        const API_KEY = 'AIzaSyAqoLAJLVZyScFX6cG4eSJiroMkA4KH-nE'; // Replace with your Google API Key
-        const FOLDER_ID = '1Kc8tHlVmPYMtNipycBRd0HSC61u2uLDP'; // Replace with your Google Drive Folder ID
+        const API_KEY = 'AIzaSyAqoLAJLVZyScFX6cG4eSJiroMkA4KH-nE'; // IMPORTANT: Replace with your actual Google API Key
+        const FOLDER_ID = '1Kc8tHlVmPYMtNipycBRd0HSC61u2uLDP'; // IMPORTANT: Replace with your Google Drive Folder ID
         const SHEET_NAME = 'Sheet1';
+
         const FILENAME_TO_KEY_MAP = {
             'GA_Traffic_Acquisition': 'gaTraffic', 
             'GA_Demographics': 'gaDemographics', 
@@ -177,36 +191,47 @@
             document.getElementById('filterButton').addEventListener('click', updateDashboard);
             document.getElementById('dateRange').addEventListener('change', handleDateRangePreset);
         });
-
-        function handleDateRangePreset(event) {
-            const preset = event.target.value;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); 
+        
+        function openTab(evt, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             
-            let startDate, endDate;
+            document.getElementById(tabName).classList.add('active');
+            
+            if (evt && evt.currentTarget) {
+                evt.currentTarget.classList.add('active');
+            } else {
+                const activeButton = Array.from(document.querySelectorAll('.tab-button')).find(btn => btn.getAttribute('onclick').includes(`'${tabName}'`));
+                if (activeButton) activeButton.classList.add('active');
+            }
+        }
+
+        function handleDateRangePreset() {
+            const preset = document.getElementById('dateRange').value;
+            const refDate = processedData.maxDate ? new Date(processedData.maxDate) : new Date();
+            refDate.setUTCHours(0, 0, 0, 0); 
+
             const startDateInput = document.getElementById('startDate');
             const endDateInput = document.getElementById('endDate');
+            let startDate, endDate;
 
             switch (preset) {
                 case 'last7days':
-                    endDate = new Date(today);
-                    endDate.setDate(today.getDate() - 1); // Yesterday
-                    startDate = new Date(endDate);
-                    startDate.setDate(endDate.getDate() - 6);
+                    endDate = new Date(refDate);
+                    startDate = new Date(refDate);
+                    startDate.setDate(refDate.getDate() - 6);
                     break;
                 case 'last30days':
-                    endDate = new Date(today);
-                    endDate.setDate(today.getDate() - 1); // Yesterday
-                    startDate = new Date(endDate);
-                    startDate.setDate(endDate.getDate() - 29);
+                    endDate = new Date(refDate);
+                    startDate = new Date(refDate);
+                    startDate.setDate(refDate.getDate() - 29);
                     break;
                 case 'thisMonth':
-                    endDate = new Date(today);
-                    endDate.setDate(today.getDate() - 1); // Yesterday
-                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    startDate = new Date(refDate.getFullYear(), refDate.getMonth(), 1);
+                    endDate = new Date(refDate);
                     break;
                 case 'lastMonth':
-                    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    const lastMonth = new Date(refDate.getFullYear(), refDate.getMonth() - 1, 1);
                     startDate = new Date(lastMonth);
                     endDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
                     break;
@@ -217,8 +242,8 @@
                     return; 
             }
             
-            startDateInput.value = startDate.toISOString().split('T')[0];
-            endDateInput.value = endDate.toISOString().split('T')[0];
+            startDateInput.valueAsDate = startDate;
+            endDateInput.valueAsDate = endDate;
             startDateInput.disabled = true;
             endDateInput.disabled = true;
 
@@ -226,19 +251,51 @@
         }
 
         async function loadAllData() {
-            // ... (loadAllData function remains largely the same)
-            // It fetches data, then calls processAllData, and finally...
-            handleDateRangePreset({ target: { value: 'last30days' } }); // Set initial default view
-            openTab(null, 'web');
+            const loader = document.getElementById('loader');
+            const statusPanel = document.getElementById('status-panel');
+            const dashboard = document.getElementById('dashboard-content');
+            
+            statusPanel.style.display = 'block';
+            dashboard.style.display = 'none';
+
+            try {
+                const spreadsheetIds = await getSpreadsheetIdsFromFolder(statusPanel.querySelector('ul'));
+                statusPanel.querySelector('#status-message').textContent = `Found ${Object.keys(spreadsheetIds).length} matching file(s). Now fetching data...`;
+                loader.textContent = 'Loading data from Google Sheets...';
+
+                const keysToFetch = Object.keys(spreadsheetIds);
+                const promises = keysToFetch.map(key => {
+                    const sheetId = spreadsheetIds[key];
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/'${SHEET_NAME}'?key=${API_KEY}`;
+                    return fetch(url).then(res => res.json()).then(data => ({ 
+                        key, 
+                        data: googleSheetsValuesToObjects(data.values) 
+                    })).catch(err => ({ key, data: [] }));
+                });
+
+                const results = await Promise.all(promises);
+                const rawData = results.reduce((acc, { key, data }) => { acc[key] = data; return acc; }, {});
+                
+                processAllData(rawData);
+                
+                document.getElementById('loader-container').style.display = 'none';
+                dashboard.style.display = 'block';
+
+                handleDateRangePreset();
+                openTab(null, 'web');
+
+            } catch (error) {
+                loader.textContent = 'An error occurred!';
+                statusPanel.querySelector('#status-message').innerHTML = `<span class="status-missing">${error.message}</span>`;
+            }
         }
 
         function updateDashboard() {
-            const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
-            const endDate = new Date(document.getElementById('endDate').value + 'T23:59:59');
+            const startDate = document.getElementById('startDate').valueAsDate;
+            const endDate = new Date(document.getElementById('endDate').value + 'T23:59:59Z');
             
-            // Calculate previous period
             const diff = endDate.getTime() - startDate.getTime();
-            const prevEndDate = new Date(startDate.getTime() - 1);
+            const prevEndDate = new Date(startDate.getTime() - (24 * 60 * 60 * 1000));
             const prevStartDate = new Date(prevEndDate.getTime() - diff);
 
             const filterDataForPeriod = (start, end) => {
@@ -256,27 +313,13 @@
 
             updateWebAnalytics(currentPeriodData, previousPeriodData);
         }
-
-        function calculatePoP(current, previous) {
-            const popElement = document.createElement('p');
-            popElement.className = 'kpi-comparison';
-            if (previous === 0) {
-                popElement.textContent = 'vs ∞'; // Or 'N/A'
-                return popElement;
-            }
-            const change = ((current - previous) / previous) * 100;
-            popElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
-            popElement.classList.add(change >= 0 ? 'positive' : 'negative');
-            return popElement;
-        }
-
+        
         function updateWebAnalytics(currentData, previousData) {
             if (!currentData.gaTraffic || !currentData.gaDemographics || !currentData.gaPages) {
-                console.warn("One or more Google Analytics data sources are missing for the current period.");
+                console.warn("One or more required Google Analytics data sources are missing for the current period.");
                 return;
             }
 
-            // --- KPIs with PoP ---
             const calculateKpis = (data) => {
                 let kpis = { totalUsers: 0, newUsers: 0, totalSessions: 0, engagedSessions: 0 };
                 if (data && data.gaTraffic) {
@@ -294,45 +337,196 @@
             const previousKpis = calculateKpis(previousData);
 
             document.getElementById('totalUsers').textContent = formatNumber(currentKpis.totalUsers);
-            document.getElementById('totalUsers-pop').replaceWith(calculatePoP(currentKpis.totalUsers, previousKpis.totalUsers));
-            document.getElementById('totalUsers-pop').id = 'totalUsers-pop'; // re-assign id
+            updatePoP('totalUsers-pop', currentKpis.totalUsers, previousKpis.totalUsers);
 
             document.getElementById('newUsers').textContent = formatNumber(currentKpis.newUsers);
-            document.getElementById('newUsers-pop').replaceWith(calculatePoP(currentKpis.newUsers, previousKpis.newUsers));
-            document.getElementById('newUsers-pop').id = 'newUsers-pop';
+            updatePoP('newUsers-pop', currentKpis.newUsers, previousKpis.newUsers);
 
             document.getElementById('totalSessions').textContent = formatNumber(currentKpis.totalSessions);
-            document.getElementById('totalSessions-pop').replaceWith(calculatePoP(currentKpis.totalSessions, previousKpis.totalSessions));
-            document.getElementById('totalSessions-pop').id = 'totalSessions-pop';
+            updatePoP('totalSessions-pop', currentKpis.totalSessions, previousKpis.totalSessions);
             
             document.getElementById('engagedSessions').textContent = formatNumber(currentKpis.engagedSessions);
-            document.getElementById('engagedSessions-pop').replaceWith(calculatePoP(currentKpis.engagedSessions, previousKpis.engagedSessions));
-            document.getElementById('engagedSessions-pop').id = 'engagedSessions-pop';
+            updatePoP('engagedSessions-pop', currentKpis.engagedSessions, previousKpis.engagedSessions);
+            
+            const { gaDemographics, gaTraffic, gaPages } = currentData;
+            
+            const getTrafficChannel = (sourceMedium) => {
+                if (!sourceMedium) return 'Other';
+                if (sourceMedium.includes('organic')) return 'Organic Search';
+                if (['(direct) / (none)', 'direct'].includes(sourceMedium)) return 'Direct';
+                if (sourceMedium.match(/social|facebook|instagram|t\.co/)) return 'Social';
+                if (sourceMedium.includes('email')) return 'Email';
+                if (sourceMedium.includes('referral')) return 'Referral';
+                return 'Other';
+            };
+            const trafficSources = gaTraffic.reduce((acc, row) => {
+                const channel = getTrafficChannel(row['Session source / medium']);
+                const sessions = parseInt(row['Sessions']) || 0;
+                acc[channel] = (acc[channel] || 0) + sessions;
+                return acc;
+            }, {});
+            createOrUpdateChart('trafficSourcesChart', 'pie', trafficSources, 'Traffic Sources', { legendPos: 'bottom'});
+            
+            const usersByCountry = aggregateData(gaDemographics, 'Country', 'Total users').slice(0, 5);
+            createOrUpdateChart('countryChart', 'bar', usersByCountry, 'Top 5 Countries by Users', { indexAxis: 'y' });
 
-            // --- Charts and Tables (using current period data only) ---
-            // ... (The rest of the updateWebAnalytics function for charts and tables remains the same)
+            const usersByAge = aggregateData(gaDemographics, 'Age', 'Total users');
+            createOrUpdateChart('ageChart', 'bar', usersByAge, 'Users by Age');
+
+            const usersByGender = aggregateData(gaDemographics, 'Gender', 'Total users');
+            createOrUpdateChart('genderChart', 'doughnut', usersByGender, 'Users by Gender', { legendPos: 'right' });
+            
+            const pagesBody = document.querySelector("#pagesTable tbody");
+            pagesBody.innerHTML = '';
+            const aggregatedPages = gaPages.reduce((acc, row) => {
+                const landingPage = row['Landing page + query string'];
+                if (landingPage && landingPage !== '(not set)') {
+                    if (!acc[landingPage]) acc[landingPage] = { sessions: 0, totalEngagementSeconds: 0 };
+                    const sessions = parseInt(row['Sessions']) || 0;
+                    const engagementTime = parseFloat(row['Average engagement time']) || 0;
+                    acc[landingPage].sessions += sessions;
+                    acc[landingPage].totalEngagementSeconds += engagementTime * sessions;
+                }
+                return acc;
+            }, {});
+
+            Object.entries(aggregatedPages).sort(([,a],[,b]) => b.sessions - a.sessions).slice(0, 10).forEach(([page, data]) => {
+                const avgEngagement = data.sessions > 0 ? (data.totalEngagementSeconds / data.sessions) : 0;
+                pagesBody.innerHTML += `<tr><td>${page}</td><td>${formatNumber(data.sessions)}</td><td>${avgEngagement.toFixed(2)}s</td></tr>`;
+            });
+        }
+        
+        // --- ALL UTILITY FUNCTIONS ---
+
+        function updatePoP(elementId, currentValue, previousValue) {
+            const popElement = document.getElementById(elementId);
+            if (!popElement) return;
+
+            popElement.className = 'kpi-comparison';
+            if (previousValue === 0) {
+                popElement.textContent = '–';
+                return;
+            }
+
+            const change = ((currentValue - previousValue) / previousValue) * 100;
+            popElement.textContent = `${change >= 0 ? '▲' : '▼'} ${Math.abs(change).toFixed(1)}%`;
+            popElement.classList.add(change >= 0 ? 'positive' : 'negative');
+        }
+        
+        function processAllData(rawData) {
+            let minDate = new Date('2100-01-01');
+            let maxDate = new Date('1970-01-01');
+            const addDate = (date) => {
+                if (date && !isNaN(date)) {
+                    if (date < minDate) minDate = date;
+                    if (date > maxDate) maxDate = date;
+                }
+            };
+            
+            for (const key in rawData) {
+                if (Array.isArray(rawData[key])) {
+                    processedData[key] = rawData[key].map(row => {
+                        const date = parseDate(row['Date']);
+                        addDate(date);
+                        return { ...row, date };
+                    });
+                }
+            }
+            processedData.minDate = minDate;
+            processedData.maxDate = maxDate;
         }
 
-        // --- Other Utility Functions (openTab, getSpreadsheetIdsFromFolder, etc.) ---
-        // ... (These functions remain the same as the previous version)
+        async function getSpreadsheetIdsFromFolder(statusListElem) {
+            const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}' in parents and trashed=false&key=${API_KEY}&fields=files(id,name)`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Google Drive API error! Status: ${response.status}. Check Folder ID/Permissions.`);
+            
+            const data = await response.json();
+            const foundFiles = data.files || [];
+            const spreadsheetIds = {};
+            
+            Object.keys(FILENAME_TO_KEY_MAP).forEach(requiredName => {
+                const foundFile = foundFiles.find(f => f.name.includes(requiredName));
+                const key = FILENAME_TO_KEY_MAP[requiredName];
+                const statusItem = document.createElement('li');
+                if (foundFile) {
+                    spreadsheetIds[key] = foundFile.id;
+                    statusItem.innerHTML = `[<span class="status-found">FOUND</span>] ${requiredName}`;
+                } else {
+                    statusItem.innerHTML = `[<span class="status-missing">MISSING</span>] ${requiredName}`;
+                }
+                statusListElem.appendChild(statusItem);
+            });
 
+            if (Object.keys(spreadsheetIds).length === 0) throw new Error("No required files found.");
+            return spreadsheetIds;
+        }
+
+        function googleSheetsValuesToObjects(values) {
+            if (!values || values.length < 2) return [];
+            const headers = values[0];
+            return values.slice(1).map(row => headers.reduce((obj, header, i) => {
+                obj[header] = row[i];
+                return obj;
+            }, {}));
+        }
+        
         function formatNumber(num) { return num ? Number(num).toLocaleString() : '0'; }
 
         function parseDate(dateStr) {
             if (!dateStr || String(dateStr).length < 8) return null;
-            try {
-                const s = String(dateStr);
-                const year = parseInt(s.substring(0, 4), 10);
-                const month = parseInt(s.substring(4, 6), 10) - 1;
-                const day = parseInt(s.substring(6, 8), 10);
-                const date = new Date(Date.UTC(year, month, day));
-                return isNaN(date) ? null : date;
-            } catch (e) {
-                return null;
-            }
+            const s = String(dateStr);
+            const year = parseInt(s.substring(0, 4), 10);
+            const month = parseInt(s.substring(4, 6), 10) - 1;
+            const day = parseInt(s.substring(6, 8), 10);
+            const date = new Date(Date.UTC(year, month, day));
+            return isNaN(date) ? null : date;
         }
-        // ... (And so on for the other utility functions like createOrUpdateChart, aggregateData, etc.)
+        
+        function destroyChart(chartId) { if (chartInstances[chartId]) chartInstances[chartId].destroy(); }
 
+        function aggregateData(data, categoryCol, valueCol) {
+            if (!data) return [];
+            const aggregation = data.reduce((acc, row) => {
+                const category = row[categoryCol];
+                if (category && category !== '(not set)') {
+                    acc[category] = (acc[category] || 0) + (parseInt(row[valueCol]) || 0);
+                }
+                return acc;
+            }, {});
+            return Object.entries(aggregation).sort(([,a],[,b]) => b - a);
+        }
+
+        function createOrUpdateChart(canvasId, type, data, title, { indexAxis = 'x', legendPos = 'top' } = {}) {
+            destroyChart(canvasId);
+            const chartData = Array.isArray(data) ? {
+                labels: data.map(item => item[0]),
+                values: data.map(item => item[1])
+            } : {
+                labels: Object.keys(data),
+                values: Object.values(data)
+            };
+
+            chartInstances[canvasId] = new Chart(document.getElementById(canvasId).getContext('2d'), {
+                type: type,
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{ 
+                        data: chartData.values, 
+                        backgroundColor: ['#012169', '#00539B', '#5B9BD5', '#A9C4E5', '#E5E5E5', '#666666'] 
+                    }]
+                },
+                options: { 
+                    indexAxis,
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { position: legendPos, display: type.match(/pie|doughnut/) },
+                        title: { display: true, text: title, font: { size: 16, family: "'Playfair Display', serif" }, color: '#012169' } 
+                    } 
+                }
+            });
+        }
     </script>
 </body>
 </html>
