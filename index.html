@@ -1238,7 +1238,7 @@
             const currentTrafficData = filterDataByDateRange(trafficData, dateField, startDate, endDate);
 
             // **Use the correct (traffic) data for metrics calculation**
-            const metrics = calculateWebMetrics(currentDemographicsData);
+            const metrics = calculateWebMetrics(currentTrafficData);
 
             let comparisonMetrics = {};
             const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
@@ -1759,7 +1759,7 @@
             });
             return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
         }
-        
+
         function aggregateTrafficSources(data) {
             const map = {};
             if (!data) return [];
