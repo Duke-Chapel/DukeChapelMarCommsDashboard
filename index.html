@@ -818,7 +818,7 @@
 
             dashboard.innerHTML = '';
         }
-        
+
         async function loadSingleSheet(sheetId, fileName, maxRetries = 3) {
             let attempt = 0;
             let delay = 1000; // Start with a 1-second delay
@@ -1238,7 +1238,7 @@
             const currentTrafficData = filterDataByDateRange(trafficData, dateField, startDate, endDate);
 
             // **Use the correct (traffic) data for metrics calculation**
-            const metrics = calculateWebMetrics(currentTrafficData);
+            const metrics = calculateWebMetrics(currentDemographicsData);
 
             let comparisonMetrics = {};
             const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
@@ -1712,22 +1712,34 @@
         // Calculation functions
         function calculateWebMetrics(data) {
             const metrics = { totalUsers: 0, newUsers: 0, sessions: 0, engagedSessions: 0, avgEngagement: 0, avgSessionTime: 0 };
-            let totalEngagementTime = 0;
-            if (!data) return metrics;
+            let totalEngagementTimeSeconds = 0;
+
+            if (!data || data.length === 0) return metrics;
+
             data.forEach(row => {
-                metrics.totalUsers += parseInt(row['Total users'] || 0);
+                // Use the exact header names from the CSV file
+                metrics.totalUsers += parseInt(row['Users'] || 0);
                 metrics.newUsers += parseInt(row['New users'] || 0);
-                metrics.engagedSessions += parseInt(row['Engaged sessions'] || 0);
                 metrics.sessions += parseInt(row['Sessions'] || 0);
-                totalEngagementTime += parseFloat(row['Total engagement time'] || 0);
+                metrics.engagedSessions += parseInt(row['Engaged sessions'] || 0);
+
+                // Correctly calculate total engagement time from the average
+                const avgTime = parseFloat(row['Average engagement time']) || 0;
+                const rowSessions = parseInt(row['Sessions'] || 0);
+                if (rowSessions > 0) {
+                    totalEngagementTimeSeconds += avgTime * rowSessions;
+                }
             });
+
             if (metrics.sessions > 0) {
                 metrics.avgEngagement = (metrics.engagedSessions / metrics.sessions) * 100;
-                metrics.avgSessionTime = Math.round(totalEngagementTime / metrics.sessions);
+                // Calculate the true average session time from the new total
+                metrics.avgSessionTime = Math.round(totalEngagementTimeSeconds / metrics.sessions);
             }
+
             return metrics;
         }
-
+        
         function getTopLocations(data) {
             const map = {};
             if (!data) return [];
