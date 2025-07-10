@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --duke-navy: #012169;
@@ -22,31 +25,31 @@
             --danger-red: #DC3545;
             --warning-yellow: #FFC107;
             --info-blue: #17A2B8;
-            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
-            --shadow-md: 0 4px 8px rgba(0,0,0,0.1);
-            --shadow-lg: 0 8px 16px rgba(0,0,0,0.1);
-            --shadow-xl: 0 16px 32px rgba(0,0,0,0.15);
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.15);
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f8f9fa;
             color: var(--duke-black);
             line-height: 1.6;
         }
-        
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         /* Header Styles */
         .header {
             background: var(--duke-navy);
@@ -55,14 +58,14 @@
             margin-bottom: 30px;
             box-shadow: var(--shadow-md);
         }
-        
+
         .header-content {
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
             text-align: center;
         }
-        
+
         .header h1 {
             font-family: 'Playfair Display', serif;
             font-size: 3rem;
@@ -70,13 +73,13 @@
             margin-bottom: 10px;
             letter-spacing: -0.5px;
         }
-        
+
         .header p {
             font-size: 1.2rem;
             opacity: 0.9;
             font-weight: 300;
         }
-        
+
         /* Controls Section */
         .controls {
             background: white;
@@ -84,22 +87,23 @@
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: var(--shadow-md);
-            display: none; /* Hidden until connected */
+            display: none;
+            /* Hidden until connected */
         }
-        
+
         .controls-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
-        
+
         .control-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        
+
         .control-group label {
             font-weight: 600;
             color: var(--duke-gray);
@@ -107,7 +111,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .control-group input,
         .control-group select {
             padding: 10px 15px;
@@ -117,21 +121,21 @@
             transition: all 0.3s ease;
             background: white;
         }
-        
+
         .control-group input:focus,
         .control-group select:focus {
             outline: none;
             border-color: var(--duke-blue);
             box-shadow: 0 0 0 3px rgba(0, 83, 155, 0.1);
         }
-        
+
         .quick-range-buttons {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
-        
+
         .quick-range-btn {
             background: #f8f9fa;
             color: var(--duke-navy);
@@ -143,19 +147,19 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        
+
         .quick-range-btn:hover {
             background: var(--duke-blue);
             color: white;
             border-color: var(--duke-blue);
         }
-        
+
         .action-buttons {
             display: flex;
             gap: 15px;
             margin-top: 20px;
         }
-        
+
         .update-btn {
             background: var(--duke-blue);
             color: white;
@@ -170,13 +174,13 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .update-btn:hover {
             background: var(--duke-navy);
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
-        
+
         /* Main Tab Navigation */
         .main-tab-container {
             display: flex;
@@ -215,11 +219,13 @@
         }
 
         .tab-panel {
-            display: none; /* Hidden by default */
+            display: none;
+            /* Hidden by default */
         }
 
         .tab-panel.active {
-            display: block; /* Shown when active */
+            display: block;
+            /* Shown when active */
         }
 
         /* Dashboard Grid */
@@ -229,13 +235,13 @@
             gap: 25px;
             margin-bottom: 30px;
         }
-        
+
         @media (max-width: 1200px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
         }
-        
+
         /* Card Styles */
         .card {
             background: white;
@@ -244,15 +250,15 @@
             box-shadow: var(--shadow-md);
             transition: all 0.3s ease;
         }
-        
+
         .card:hover {
             box-shadow: var(--shadow-lg);
         }
-        
+
         .card.full-width {
             grid-column: 1 / -1;
         }
-        
+
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -261,7 +267,7 @@
             padding-bottom: 15px;
             border-bottom: 2px solid #f0f0f0;
         }
-        
+
         .card-title {
             font-size: 1.25rem;
             font-weight: 700;
@@ -270,11 +276,11 @@
             align-items: center;
             gap: 10px;
         }
-        
+
         .card-icon {
             font-size: 1.5rem;
         }
-        
+
         /* Metrics Grid */
         .metrics-grid {
             display: grid;
@@ -282,7 +288,7 @@
             gap: 20px;
             margin-bottom: 25px;
         }
-        
+
         .metric-card {
             background: #f8f9fa;
             padding: 20px;
@@ -292,7 +298,7 @@
             overflow: hidden;
             transition: all 0.3s ease;
         }
-        
+
         .metric-card::before {
             content: '';
             position: absolute;
@@ -302,25 +308,25 @@
             height: 4px;
             background: var(--duke-blue);
         }
-        
+
         .metric-card:hover {
             transform: translateY(-3px);
             box-shadow: var(--shadow-md);
         }
-        
+
         .metric-value {
             font-size: 2rem;
             font-weight: 700;
             color: var(--duke-navy);
             margin-bottom: 5px;
         }
-        
+
         .metric-label {
             font-size: 0.875rem;
             color: var(--duke-gray);
             font-weight: 500;
         }
-        
+
         .metric-change {
             font-size: 0.75rem;
             margin-top: 10px;
@@ -329,17 +335,17 @@
             padding: 4px 8px;
             border-radius: 4px;
         }
-        
+
         .metric-change.positive {
             color: var(--success-green);
             background: rgba(40, 167, 69, 0.1);
         }
-        
+
         .metric-change.negative {
             color: var(--danger-red);
             background: rgba(220, 53, 69, 0.1);
         }
-        
+
         /* Chart Container */
         .chart-container {
             width: 100%;
@@ -347,7 +353,7 @@
             margin-top: 20px;
             position: relative;
         }
-        
+
         /* Table Styles */
         .table-container {
             overflow-x: auto;
@@ -355,19 +361,20 @@
             border-radius: 8px;
             border: 1px solid var(--duke-light-gray);
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.875rem;
         }
-        
-        th, td {
+
+        th,
+        td {
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid var(--duke-light-gray);
         }
-        
+
         th {
             background: #f8f9fa;
             font-weight: 600;
@@ -379,11 +386,11 @@
             top: 0;
             z-index: 10;
         }
-        
+
         tbody tr:hover {
             background: #f8f9fa;
         }
-        
+
         /* Section Headers */
         .section-header {
             background: linear-gradient(135deg, var(--duke-navy), var(--duke-blue));
@@ -398,7 +405,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .section-header::after {
             content: '';
             position: absolute;
@@ -406,15 +413,20 @@
             right: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             animation: shimmer 15s linear infinite;
         }
-        
+
         @keyframes shimmer {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* Loading State */
         .loading {
             text-align: center;
@@ -422,22 +434,24 @@
             color: var(--duke-gray);
             font-size: 1.1rem;
         }
-        
+
         .loading-spinner {
             display: inline-block;
             width: 40px;
             height: 40px;
-            border: 3px solid rgba(0,0,0,.1);
+            border: 3px solid rgba(0, 0, 0, .1);
             border-radius: 50%;
             border-top-color: var(--duke-blue);
             animation: spin 1s ease-in-out infinite;
             margin-bottom: 15px;
         }
-        
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* Error State */
         .error {
             background: #fee;
@@ -448,7 +462,7 @@
             border-left: 4px solid var(--danger-red);
             font-weight: 500;
         }
-        
+
         /* Date Range Info */
         .date-range-info {
             background: #e3f2fd;
@@ -461,7 +475,7 @@
             align-items: center;
             gap: 10px;
         }
-        
+
         /* Tabs */
         .tab-container {
             display: flex;
@@ -470,7 +484,7 @@
             border-bottom: 2px solid var(--duke-light-gray);
             overflow-x: auto;
         }
-        
+
         .tab-button {
             padding: 10px 20px;
             background: none;
@@ -482,16 +496,16 @@
             white-space: nowrap;
             position: relative;
         }
-        
+
         .tab-button:hover {
             color: var(--duke-navy);
         }
-        
+
         .tab-button.active {
             color: var(--duke-blue);
             font-weight: 600;
         }
-        
+
         .tab-button.active::after {
             content: '';
             position: absolute;
@@ -501,7 +515,7 @@
             height: 2px;
             background: var(--duke-blue);
         }
-        
+
         /* Comparison Styles */
         .comparison-badge {
             display: inline-block;
@@ -511,86 +525,86 @@
             font-weight: 600;
             margin-left: 10px;
         }
-        
+
         .comparison-badge.previous {
             background: #e3f2fd;
             color: var(--duke-blue);
         }
-        
+
         .comparison-badge.year {
             background: #f3e5f5;
             color: #7b1fa2;
         }
-        
+
         /* Empty State */
         .empty-state {
             text-align: center;
             padding: 60px 20px;
             color: var(--duke-gray);
         }
-        
+
         .empty-state-icon {
             font-size: 4rem;
             margin-bottom: 20px;
             opacity: 0.3;
         }
-        
+
         .empty-state h3 {
             font-size: 1.5rem;
             margin-bottom: 10px;
             color: var(--duke-navy);
         }
-        
+
         .empty-state p {
             font-size: 1rem;
             max-width: 500px;
             margin: 0 auto;
         }
-        
+
         /* Info Boxes */
         .info-box {
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
         }
-        
+
         .info-box.warning {
             background: #fff8e1;
             border-left: 4px solid var(--warning-yellow);
         }
-        
+
         .info-box.info {
             background: #e3f2fd;
             border-left: 4px solid var(--info-blue);
         }
-        
+
         .info-box.error {
             background: #fee;
             border-left: 4px solid var(--danger-red);
         }
-        
+
         .info-box h4 {
             margin-bottom: 10px;
             color: var(--duke-navy);
         }
-        
+
         .info-box p {
             margin: 0 0 10px 0;
             color: #666;
         }
-        
+
         .info-box ul {
             margin: 0;
             padding-left: 20px;
             color: #666;
         }
-        
+
         /* Responsive */
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
             }
-            
+
             .header h1 {
                 font-size: 2rem;
             }
@@ -599,34 +613,36 @@
                 padding: 10px 15px;
                 font-size: 1rem;
             }
-            
+
             .controls-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .metrics-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 15px;
             }
-            
+
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .chart-container {
                 height: 250px;
             }
-            
+
             table {
                 font-size: 0.75rem;
             }
-            
-            th, td {
+
+            th,
+            td {
                 padding: 8px 10px;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <div class="header-content">
@@ -634,9 +650,9 @@
             <p>Comprehensive Marketing Performance Dashboard</p>
         </div>
     </div>
-    
+
     <div class="container">
-        
+
         <div class="controls" id="controls">
             <div class="quick-range-buttons">
                 <button class="quick-range-btn" onclick="setDateRange(7)">Last 7 Days</button>
@@ -646,7 +662,7 @@
                 <button class="quick-range-btn" onclick="setDateRange(365)">Last Year</button>
                 <button class="quick-range-btn" onclick="selectFullRange()">All Time</button>
             </div>
-            
+
             <div class="controls-grid">
                 <div class="control-group">
                     <label>Start Date</label>
@@ -665,21 +681,21 @@
                     </select>
                 </div>
             </div>
-            
+
             <div class="action-buttons">
                 <button class="update-btn" onclick="updateDashboard()">
                     <span>🔄</span> Update Dashboard
                 </button>
             </div>
-            
+
             <div class="date-range-info" id="dateRangeInfo" style="display: none;">
                 <span>📅</span>
                 <span id="dateRangeText"></span>
             </div>
         </div>
-        
+
         <div id="dashboard">
-             </div>
+        </div>
     </div>
 
     <script>
@@ -701,11 +717,11 @@
             connected: false,
             discoveredSheets: {}
         };
-        
+
         // Expected Google Sheets and their corresponding data files
         const EXPECTED_SHEETS = {
             'GA_Demographics': 'GA_Demographics.csv',
-            'GA_Traffic_Acquisition': 'GA_Traffic_Acquisition.csv', 
+            'GA_Traffic_Acquisition': 'GA_Traffic_Acquisition.csv',
             'GA_Pages_And_Screens': 'GA_Pages_And_Screens.csv',
             'GA_UTMs': 'GA_UTMs.csv',
             'FB_Reach': 'FB_Reach.csv',
@@ -731,7 +747,7 @@
             'YouTube_Geography': 'YouTube_Geography.csv',
             'YouTube_Subscription_Status': 'YouTube_Subscription_Status.csv'
         };
-        
+
         // Initialize the application
         async function initializeApp() {
             const dashboard = document.getElementById('dashboard');
@@ -744,13 +760,13 @@
                 </div>`;
                 return;
             }
-            
+
             try {
                 const driveUrl = `https://www.googleapis.com/drive/v3/files?q='${sheetsConfig.folderId}'+in+parents+and+mimeType='application/vnd.google-apps.spreadsheet'&key=${sheetsConfig.apiKey}&fields=files(id,name)`;
-                
+
                 const response = await fetch(driveUrl);
                 if (!response.ok) throw new Error(`Failed to connect: ${response.status} ${response.statusText}. Check your API key and Folder ID.`);
-                
+
                 const data = await response.json();
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(file => {
@@ -759,38 +775,38 @@
                         }
                     });
                 }
-                
+
                 if (Object.keys(sheetsConfig.discoveredSheets).length === 0) {
-                     throw new Error('No matching Google Sheets found in the specified folder. Please check your sheet names.');
+                    throw new Error('No matching Google Sheets found in the specified folder. Please check your sheet names.');
                 }
 
                 sheetsConfig.connected = true;
                 await loadAllSheetData();
-                
+
                 document.getElementById('controls').style.display = 'block';
                 setDefaultDates();
                 updateDashboard();
-                
+
             } catch (error) {
                 console.error('Initialization error:', error);
                 dashboard.innerHTML = `<div class="info-box error"><h4>Connection Failed</h4><p>${error.message}</p></div>`;
                 sheetsConfig.connected = false;
             }
         }
-        
+
         async function loadAllSheetData() {
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Loading data from ${Object.keys(sheetsConfig.discoveredSheets).length} sheet(s)...</p></div>`;
-            
+
             const loadPromises = Object.entries(sheetsConfig.discoveredSheets).map(([sheetName, sheetId]) => {
                 const fileName = EXPECTED_SHEETS[sheetName];
                 return loadSingleSheet(sheetId, fileName);
             });
-            
+
             await Promise.all(loadPromises);
             dashboard.innerHTML = '';
         }
-        
+
         async function loadSingleSheet(sheetId, fileName) {
             try {
                 const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${sheetsConfig.apiKey}&fields=sheets.properties.title`;
@@ -811,13 +827,13 @@
                     console.warn(`Could not load data from tab "${firstSheetName}" for ${fileName}`);
                     return;
                 }
-                
+
                 const data = await response.json();
                 if (!data.values || data.values.length === 0) {
                     console.warn(`Sheet "${fileName}" is empty`);
                     return;
                 }
-                
+
                 if (fileName.includes('Audience')) {
                     processedData[fileName] = parseAudienceData(data.values, fileName);
                 } else {
@@ -832,7 +848,7 @@
                     });
                     processedData[fileName] = parsedData;
                 }
-                
+
                 console.log(`✓ Loaded data from ${fileName}`);
             } catch (error) {
                 console.error(`Error loading ${fileName}:`, error);
@@ -843,11 +859,11 @@
             const data = { ageGender: [], topCities: [], topCountries: [] };
             let currentSection = '';
             let headers = [];
-            
+
             for (let i = 0; i < values.length; i++) {
                 const row = values[i];
                 const firstCell = (row[0] || '').toString().toLowerCase();
-                
+
                 if (firstCell.includes('age') && firstCell.includes('gender')) {
                     currentSection = 'ageGender';
                     i++; if (i < values.length) headers = values[i];
@@ -865,50 +881,50 @@
             }
             return data;
         }
-        
+
         // Date handling
         function initializeDateControls() {
             const startDate = document.getElementById('startDate');
             const endDate = document.getElementById('endDate');
-            
+
             startDate.addEventListener('change', validateDateRange);
             endDate.addEventListener('change', validateDateRange);
         }
-        
+
         function validateDateRange() {
             const startDate = document.getElementById('startDate');
             const endDate = document.getElementById('endDate');
-            
+
             if (startDate.value && endDate.value && new Date(startDate.value) > new Date(endDate.value)) {
                 endDate.value = startDate.value;
             }
         }
-        
+
         function setDefaultDates() {
             const dateRange = getDataDateRange();
             const startDate = document.getElementById('startDate');
             const endDate = document.getElementById('endDate');
-            
+
             if (dateRange.min && dateRange.max) {
                 const thirtyDaysAgo = new Date(dateRange.max);
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                
+
                 startDate.value = formatDate(Math.max(thirtyDaysAgo, dateRange.min));
                 endDate.value = formatDate(dateRange.max);
-                
+
                 startDate.min = formatDate(dateRange.min);
                 startDate.max = formatDate(dateRange.max);
                 endDate.min = formatDate(dateRange.min);
                 endDate.max = formatDate(dateRange.max);
             }
         }
-        
+
         function getDataDateRange() {
             let minDate = null, maxDate = null;
-            
+
             Object.entries(processedData).forEach(([fileName, data]) => {
                 if (fileName.includes('Audience') || !Array.isArray(data) || data.length === 0) return;
-                
+
                 let dateField;
                 if (fileName.startsWith('GA_')) dateField = 'Date + hour (YYYYMMDDHH)';
                 else if (fileName.includes('FB_') || fileName.includes('IG_')) dateField = 'Date';
@@ -918,15 +934,15 @@
                 data.forEach(row => {
                     const dateValue = row[dateField];
                     if (!dateValue) return;
-                    
+
                     let date;
                     if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d{8,12}$/.test(dateValue))) {
                         const str = dateValue.toString().substr(0, 8);
-                        date = new Date(str.substr(0,4), parseInt(str.substr(4,2))-1, str.substr(6,2));
+                        date = new Date(str.substr(0, 4), parseInt(str.substr(4, 2)) - 1, str.substr(6, 2));
                     } else {
                         date = new Date(dateValue);
                     }
-                    
+
                     if (!isNaN(date.getTime())) {
                         if (!minDate || date < minDate) minDate = date;
                         if (!maxDate || date > maxDate) maxDate = date;
@@ -935,23 +951,23 @@
             });
             return { min: minDate, max: maxDate };
         }
-        
+
         function setDateRange(days) {
             const dateRange = getDataDateRange();
             if (!dateRange.max) return;
-            
+
             const endDate = new Date(dateRange.max);
             const startDate = new Date(endDate);
             startDate.setDate(startDate.getDate() - days);
-            
+
             const actualStartDate = dateRange.min && startDate < dateRange.min ? dateRange.min : startDate;
-            
+
             document.getElementById('startDate').value = formatDate(actualStartDate);
             document.getElementById('endDate').value = formatDate(endDate);
-            
+
             updateDashboard();
         }
-        
+
         function selectFullRange() {
             const dateRange = getDataDateRange();
             if (dateRange.min && dateRange.max) {
@@ -960,7 +976,7 @@
                 updateDashboard();
             }
         }
-        
+
         function formatDate(date) {
             if (!date) return '';
             const d = new Date(date);
@@ -968,38 +984,38 @@
                 day = '' + d.getDate(),
                 year = d.getFullYear();
 
-            if (month.length < 2) 
+            if (month.length < 2)
                 month = '0' + month;
-            if (day.length < 2) 
+            if (day.length < 2)
                 day = '0' + day;
 
             return [year, month, day].join('-');
         }
-        
+
         // Data filtering
         function filterDataByDateRange(data, dateField, startDate, endDate) {
             if (!startDate || !endDate || !Array.isArray(data)) return data || [];
-            
+
             const start = new Date(startDate);
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999); // Include the whole end day
-            
+
             return data.filter(row => {
                 const dateValue = row[dateField];
                 if (!dateValue) return false;
-                
+
                 let date;
                 if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d{8,12}$/.test(dateValue))) {
                     const str = dateValue.toString().substr(0, 8);
-                    date = new Date(str.substr(0,4), parseInt(str.substr(4,2))-1, str.substr(6,2));
+                    date = new Date(str.substr(0, 4), parseInt(str.substr(4, 2)) - 1, str.substr(6, 2));
                 } else {
                     date = new Date(dateValue);
                 }
-                
+
                 return date >= start && date <= end;
             });
         }
-        
+
         // Calculation helpers
         function formatNumber(num) {
             if (num === null || isNaN(num)) return '0';
@@ -1008,12 +1024,12 @@
             if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
             return Math.round(num).toLocaleString();
         }
-        
+
         function formatPercentage(num) {
             if (num === null || isNaN(num)) return '0.0%';
             return (parseFloat(num)).toFixed(1) + '%';
         }
-        
+
         function calculateChange(current, previous) {
             if (previous === 0) {
                 return current > 0 ? Infinity : 0;
@@ -1024,7 +1040,7 @@
 
         function getComparisonDateRange(startDate, endDate, compareType) {
             if (compareType === 'none') return null;
-            
+
             const start = new Date(startDate);
             const end = new Date(endDate);
             const diff = end.getTime() - start.getTime();
@@ -1048,49 +1064,49 @@
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const compareType = document.getElementById('compareType').value;
-            
+
             if (!startDate || !endDate) {
                 showError('Please select a date range');
                 return;
             }
-            
+
             currentDateRange = { start: startDate, end: endDate };
             updateDateRangeInfo(startDate, endDate, compareType);
-            
+
             const dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Generating dashboard...</p></div>`;
-            
+
             setTimeout(() => generateDashboard(startDate, endDate, compareType), 100);
         }
-        
+
         function updateDateRangeInfo(startDate, endDate, compareType) {
             const infoDiv = document.getElementById('dateRangeInfo');
             const textSpan = document.getElementById('dateRangeText');
-            
+
             const start = new Date(startDate);
             const end = new Date(endDate);
             const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-            
+
             let text = `Showing ${daysDiff} days: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
             if (compareType === 'previous') {
                 const compRange = getComparisonDateRange(startDate, endDate, compareType);
                 text += ` (vs ${new Date(compRange.start).toLocaleDateString()} - ${new Date(compRange.end).toLocaleDateString()})`;
             }
             else if (compareType === 'year') text += ' (vs same period last year)';
-            
+
             textSpan.textContent = text;
             infoDiv.style.display = 'flex';
         }
-        
+
         function generateDashboard(startDate, endDate, compareType) {
             const dashboardContainer = document.getElementById('dashboard');
-            dashboardContainer.innerHTML = ''; 
+            dashboardContainer.innerHTML = '';
 
             if (Object.keys(processedData).length === 0) {
                 dashboardContainer.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No Data Connected</h3><p>Please check your configuration and sheet names in Google Drive.</p></div>`;
                 return;
             }
-            
+
             const sections = {
                 '🌐 Web': generateWebAnalytics,
                 '📱 Social': generateSocialAnalytics,
@@ -1116,9 +1132,9 @@
                 const panel = document.createElement('div');
                 panel.className = 'tab-panel';
                 panel.id = `panel-${index}`;
-                
-                generatorFn(panel, startDate, endDate, compareType); 
-                
+
+                generatorFn(panel, startDate, endDate, compareType);
+
                 if (panel.hasChildNodes()) {
                     tabContainer.appendChild(button);
                     panelContainer.appendChild(panel);
@@ -1133,7 +1149,7 @@
 
             dashboardContainer.appendChild(tabContainer);
             dashboardContainer.appendChild(panelContainer);
-            
+
             function switchTab(activeIndex) {
                 tabButtons.forEach((btn, i) => btn.classList.toggle('active', i === activeIndex));
                 tabPanels.forEach((panel, i) => panel.classList.toggle('active', i === activeIndex));
@@ -1147,40 +1163,47 @@
                     btn.onclick = () => switchTab(visibleIndex);
                 }
             });
-            
+
             switchTab(activeTabIndex);
         }
-        
+
         // Web Analytics Section
         function generateWebAnalytics(container, startDate, endDate, compareType) {
             const hasWebData = Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('GA_'));
             if (!hasWebData) return;
-            
+
             container.innerHTML += `<div class="section-header">🌐 Web Analytics</div>`;
             const grid = document.createElement('div');
             grid.className = 'dashboard-grid';
-            
+
             if (sheetsConfig.discoveredSheets['GA_Demographics']) grid.appendChild(createDemographicsCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) grid.appendChild(createTrafficSourcesCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['GA_Pages_And_Screens']) grid.appendChild(createTopPagesCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['GA_UTMs']) grid.appendChild(createCampaignPerformanceCard(startDate, endDate, compareType));
-            
+
             container.appendChild(grid);
         }
-        
+
         function createDemographicsCard(startDate, endDate, compareType) {
             const card = createCard('Demographics & User Insights', '👥');
-            const rawData = processedData['GA_Demographics.csv'];
+            // Original data sources
+            const demographicsData = processedData['GA_Demographics.csv'];
+            const trafficData = processedData['GA_Traffic_Acquisition.csv']; // Get traffic data
             const dateField = 'Date + hour (YYYYMMDDHH)';
-            
-            const currentData = filterDataByDateRange(rawData, dateField, startDate, endDate);
-            const metrics = calculateWebMetrics(currentData);
-            
+
+            // Filter both datasets by the selected date range
+            const currentDemographicsData = filterDataByDateRange(demographicsData, dateField, startDate, endDate);
+            const currentTrafficData = filterDataByDateRange(trafficData, dateField, startDate, endDate);
+
+            // **Use the correct (traffic) data for metrics calculation**
+            const metrics = calculateWebMetrics(currentTrafficData);
+
             let comparisonMetrics = {};
             const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
             if (comparisonRange) {
-                const comparisonData = filterDataByDateRange(rawData, dateField, comparisonRange.start, comparisonRange.end);
-                comparisonMetrics = calculateWebMetrics(comparisonData);
+                // Filter traffic data for the comparison period
+                const comparisonTrafficData = filterDataByDateRange(trafficData, dateField, comparisonRange.start, comparisonRange.end);
+                comparisonMetrics = calculateWebMetrics(comparisonTrafficData);
             }
 
             card.appendChild(createMetricsGrid([
@@ -1191,7 +1214,7 @@
                 { label: 'Avg. Session Time', displayValue: metrics.avgSessionTime + 's', rawValue: metrics.avgSessionTime, compareValue: comparisonMetrics.avgSessionTime },
                 { label: 'Engaged Sessions', displayValue: formatNumber(metrics.engagedSessions), rawValue: metrics.engagedSessions, compareValue: comparisonMetrics.engagedSessions }
             ], compareType !== 'none'));
-            
+
             const locationData = getTopLocations(currentData);
             if (locationData.length > 0) {
                 card.appendChild(createTable(
@@ -1206,7 +1229,7 @@
             const card = createCard('Traffic Sources & Channels', '🚀', true);
             const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
             const sourceData = aggregateTrafficSources(currentData);
-            
+
             if (sourceData.length > 0) {
                 const chartContainer = document.createElement('div');
                 chartContainer.className = 'chart-container';
@@ -1215,7 +1238,7 @@
                 card.appendChild(chartContainer);
                 createTrafficChart(canvas, sourceData);
             }
-            
+
             card.appendChild(createTable(
                 ['Source/Medium', 'Sessions', 'Engaged Sessions', 'Engagement Rate'],
                 sourceData.slice(0, 10).map(source => [
@@ -1227,18 +1250,18 @@
             ));
             return card;
         }
-        
+
         function createTopPagesCard(startDate, endDate, compareType) {
             const card = createCard('Top Landing Pages', '📄', true);
             const currentData = filterDataByDateRange(processedData['GA_Pages_And_Screens.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
             const pageData = aggregatePageData(currentData);
-            
+
             const tabContainer = createTabs(['By Views', 'By Users', 'By Engagement Time'], (tabIndex) => {
                 const sortedData = [...pageData];
                 if (tabIndex === 0) sortedData.sort((a, b) => b.views - a.views);
                 else if (tabIndex === 1) sortedData.sort((a, b) => b.users - a.users);
                 else sortedData.sort((a, b) => b.engagementTime - a.engagementTime);
-                
+
                 updateTableData(card.querySelector('table'), sortedData.slice(0, 10).map(page => [
                     (page.path || '').substring(0, 50) + ((page.path || '').length > 50 ? '...' : ''),
                     formatNumber(page.views),
@@ -1247,7 +1270,7 @@
                 ]));
             });
             card.appendChild(tabContainer);
-            
+
             const sortedByViews = [...pageData].sort((a, b) => b.views - a.views);
             card.appendChild(createTable(
                 ['Page Path', 'Views', 'Users', 'Total Engagement'],
@@ -1260,16 +1283,16 @@
             ));
             return card;
         }
-        
+
         function createCampaignPerformanceCard(startDate, endDate, compareType) {
             const card = createCard('Campaign Performance (UTM)', '🎯', true);
             const utmData = processedData['GA_UTMs.csv'];
-            
+
             if (!utmData || utmData.length === 0 || !utmData[0]['Session manual campaign name']) {
                 card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Campaign Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or incorrectly formatted. Please download it from GA4 (Reports → Acquisition → Traffic Acquisition, with primary dimension 'Session source / medium' and secondary dimension 'Session manual campaign name') and add it to your Google Drive folder.</p></div>`;
                 return card;
             }
-            
+
             const currentData = filterDataByDateRange(utmData, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
             const campaignData = aggregateCampaignData(currentData);
             card.appendChild(createTable(
@@ -1292,7 +1315,7 @@
             if (Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('FB_'))) grid.appendChild(createFacebookMetricsCard(startDate, endDate, compareType));
             if (Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('IG_'))) grid.appendChild(createInstagramMetricsCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['FB_Posts'] || sheetsConfig.discoveredSheets['IG_Posts']) grid.appendChild(createTopSocialPostsCard(startDate, endDate));
-            
+
             container.appendChild(grid);
         }
 
@@ -1306,16 +1329,16 @@
                 card.innerHTML += `<div class="info-box info"><p>No demographic data available. Add FB_Audience and/or IG_Audience sheets to see demographics.</p></div>`;
                 return card;
             }
-            
+
             const tabContainer = createTabs(platforms, (tabIndex) => {
                 displayAudienceData(card.querySelector('#socialDemographicsContent'), platforms[tabIndex]);
             });
             card.appendChild(tabContainer);
-            
+
             const contentDiv = document.createElement('div');
             contentDiv.id = 'socialDemographicsContent';
             card.appendChild(contentDiv);
-            
+
             displayAudienceData(contentDiv, platforms[0]);
             return card;
         }
@@ -1324,19 +1347,19 @@
             container.innerHTML = '';
             const fileName = platform === 'Facebook' ? 'FB_Audience.csv' : 'IG_Audience.csv';
             const data = processedData[fileName];
-            
+
             if (!data || !data.ageGender) {
                 container.innerHTML = '<p style="text-align: center; color: var(--duke-gray);">No demographic data available</p>';
                 return;
             }
-            
+
             if (data.ageGender && data.ageGender.length > 0) {
                 const ageSection = document.createElement('div');
                 ageSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Age & Gender Distribution</h4>';
                 ageSection.appendChild(createTable(['Age Group', 'Women', 'Men'], data.ageGender.map(row => [row['Age'] || row['age'], row['Women'] || '0%', row['Men'] || '0%'])));
                 container.appendChild(ageSection);
             }
-            
+
             if (data.topCities && data.topCities.length > 0) {
                 const citiesSection = document.createElement('div');
                 citiesSection.innerHTML = '<h4 style="margin: 20px 0 15px; color: var(--duke-navy);">Top Cities</h4>';
@@ -1344,7 +1367,7 @@
                 container.appendChild(citiesSection);
             }
         }
-        
+
         function createFacebookMetricsCard(startDate, endDate, compareType) {
             const card = createCard('Facebook Performance', '📘');
             const metrics = calculateSocialMetrics('FB', startDate, endDate);
@@ -1353,7 +1376,7 @@
             if (comparisonRange) {
                 comparisonMetrics = calculateSocialMetrics('FB', comparisonRange.start, comparisonRange.end);
             }
-            
+
             card.appendChild(createMetricsGrid([
                 { label: 'Total Reach', displayValue: formatNumber(metrics.reach), rawValue: metrics.reach, compareValue: comparisonMetrics.reach },
                 { label: 'Interactions', displayValue: formatNumber(metrics.interactions), rawValue: metrics.interactions, compareValue: comparisonMetrics.interactions },
@@ -1375,7 +1398,7 @@
             if (comparisonRange) {
                 comparisonMetrics = calculateSocialMetrics('IG', comparisonRange.start, comparisonRange.end);
             }
-            
+
             card.appendChild(createMetricsGrid([
                 { label: 'Total Reach', displayValue: formatNumber(metrics.reach), rawValue: metrics.reach, compareValue: comparisonMetrics.reach },
                 { label: 'Interactions', displayValue: formatNumber(metrics.interactions), rawValue: metrics.interactions, compareValue: comparisonMetrics.interactions },
@@ -1407,11 +1430,11 @@
                 displayTopPosts(contentDiv, platform, startDate, endDate);
             });
             card.appendChild(tabContainer);
-            
+
             const contentDiv = document.createElement('div');
             contentDiv.className = 'top-posts-content';
             card.appendChild(contentDiv);
-            
+
             displayTopPosts(contentDiv, platforms[0], startDate, endDate);
 
             return card;
@@ -1421,7 +1444,7 @@
             container.innerHTML = '';
             const postData = processedData[platform === 'Facebook' ? 'FB_Posts.csv' : 'IG_Posts.csv'];
             const currentData = filterDataByDateRange(postData, 'Date', startDate, endDate);
-            
+
             if (!currentData || currentData.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: var(--duke-gray); padding: 20px;">No post data for this period.</p>';
                 return;
@@ -1452,11 +1475,11 @@
             container.innerHTML += `<div class="section-header">📧 Email Marketing Analytics</div>`;
             const grid = document.createElement('div');
             grid.className = 'dashboard-grid';
-            
+
             grid.appendChild(createEmailOverviewCard(startDate, endDate, compareType));
             grid.appendChild(createTopEmailCampaignsCard(startDate, endDate));
             grid.appendChild(createSubscriberInsightsCard(startDate, endDate));
-            
+
             container.appendChild(grid);
         }
 
@@ -1464,8 +1487,8 @@
             const card = createCard('Email Marketing Overview', '📊');
             const emailData = processedData['Email_Campaign_Performance.csv'] || [];
             // Email data is often not date-filterable in the same way. We'll show all-time campaign stats.
-            const metrics = calculateEmailMetrics(emailData); 
-            
+            const metrics = calculateEmailMetrics(emailData);
+
             card.appendChild(createMetricsGrid([
                 { label: 'Total Campaigns', displayValue: emailData.length },
                 { label: 'Total Sent', displayValue: formatNumber(metrics.totalSent) },
@@ -1484,25 +1507,25 @@
             const tabContainer = createTabs(['By Open Rate', 'By Click Rate'], (tabIndex) => {
                 let sortedData = [...emailData];
                 const getVal = (row, key) => parseFloat(String(row[key] || '0').replace(/[^0-9.]/g, ''));
-                
+
                 if (tabIndex === 0) sortedData.sort((a, b) => getVal(b, 'Email open rate (MPP excluded)') - getVal(a, 'Email open rate (MPP excluded)'));
                 else sortedData.sort((a, b) => getVal(b, 'Email click rate') - getVal(a, 'Email click rate'));
-                
+
                 updateTableData(card.querySelector('table'), sortedData.slice(0, 5).map(c => [
-                    c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'], 
+                    c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'],
                     formatNumber(getVal(c, 'Email clicked'))
                 ]));
             });
             card.appendChild(tabContainer);
-            
-            const sortedByOpen = [...emailData].sort((a, b) => parseFloat(String(b['Email open rate (MPP excluded)'] || '0').replace('%','')) - parseFloat(String(a['Email open rate (MPP excluded)'] || '0').replace('%','')));
+
+            const sortedByOpen = [...emailData].sort((a, b) => parseFloat(String(b['Email open rate (MPP excluded)'] || '0').replace('%', '')) - parseFloat(String(a['Email open rate (MPP excluded)'] || '0').replace('%', '')));
             card.appendChild(createTable(['Campaign', 'Open Rate', 'Click Rate', 'Total Clicks'], sortedByOpen.slice(0, 5).map(c => [
-                c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'], 
+                c.Campaign, c['Email open rate (MPP excluded)'], c['Email click rate'],
                 formatNumber(parseFloat(String(c['Email clicked'] || 0).replace(/,/g, '')))
             ])));
             return card;
         }
-        
+
         function createSubscriberInsightsCard(startDate, endDate) {
             const card = createCard('Subscriber Insights & Engagement', '👤', true);
             const emailData = processedData['Email_Campaign_Performance.csv'] || [];
@@ -1524,16 +1547,16 @@
         function generateYouTubeAnalytics(container, startDate, endDate, compareType) {
             const hasYouTubeData = Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('YouTube_'));
             if (!hasYouTubeData) return;
-            
+
             container.innerHTML += `<div class="section-header">🎥 YouTube Analytics</div>`;
             const grid = document.createElement('div');
             grid.className = 'dashboard-grid';
-            
+
             if (sheetsConfig.discoveredSheets['YouTube_Content']) grid.appendChild(createYouTubeOverviewCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['YouTube_Age'] || sheetsConfig.discoveredSheets['YouTube_Gender'] || sheetsConfig.discoveredSheets['YouTube_Geography']) grid.appendChild(createYouTubeDemographicsCard());
             if (sheetsConfig.discoveredSheets['YouTube_Content']) grid.appendChild(createTopVideosCard(startDate, endDate));
             if (sheetsConfig.discoveredSheets['YouTube_Subscription_Status']) grid.appendChild(createSubscriberAnalysisCard());
-            
+
             container.appendChild(grid);
         }
 
@@ -1544,14 +1567,14 @@
 
             const currentData = filterDataByDateRange(rawData, dateField, startDate, endDate);
             const metrics = calculateYouTubeMetrics(currentData);
-            
+
             let comparisonMetrics = {};
             const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
             if (comparisonRange) {
                 const comparisonData = filterDataByDateRange(rawData, dateField, comparisonRange.start, comparisonRange.end);
                 comparisonMetrics = calculateYouTubeMetrics(comparisonData);
             }
-            
+
             card.appendChild(createMetricsGrid([
                 { label: 'Total Views', displayValue: formatNumber(metrics.totalViews), rawValue: metrics.totalViews, compareValue: comparisonMetrics.totalViews },
                 { label: 'Watch Time (hrs)', displayValue: formatNumber(Math.round(metrics.totalWatchTime)), rawValue: metrics.totalWatchTime, compareValue: comparisonMetrics.totalWatchTime },
@@ -1575,7 +1598,7 @@
                 card.appendChild(chartContainer);
                 createYouTubeAgeChart(canvas, processedData['YouTube_Age.csv']);
             }
-            
+
             if (processedData['YouTube_Gender.csv']) {
                 const genderGrid = document.createElement('div');
                 genderGrid.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;';
@@ -1600,7 +1623,7 @@
             const card = createCard('Top Performing Videos', '🏆', true);
             let contentData = processedData['YouTube_Content.csv'] || [];
             if (startDate && endDate) contentData = filterDataByDateRange(contentData, 'Video publish time', startDate, endDate);
-            
+
             const tabContainer = createTabs(['By Views', 'By Watch Time', 'By Subscribers'], (tabIndex) => {
                 let sortedData = [...contentData];
                 const getVal = (row, key) => parseFloat(row[key] || 0);
@@ -1608,14 +1631,14 @@
                 if (tabIndex === 0) sortedData.sort((a, b) => getVal(b, 'Views') - getVal(a, 'Views'));
                 else if (tabIndex === 1) sortedData.sort((a, b) => getVal(b, 'Watch time (hours)') - getVal(a, 'Watch time (hours)'));
                 else sortedData.sort((a, b) => getVal(b, 'Subscribers') - getVal(a, 'Subscribers'));
-                
+
                 updateTableData(card.querySelector('table'), sortedData.slice(0, 5).map(v => [
                     (v['Video title'] || '').substring(0, 50), formatNumber(v.Views), formatNumber(Math.round(v['Watch time (hours)'])),
                     '+' + formatNumber(v.Subscribers)
                 ]));
             });
             card.appendChild(tabContainer);
-            
+
             const sortedByViews = [...contentData].sort((a, b) => (b.Views || 0) - (a.Views || 0));
             card.appendChild(createTable(['Video Title', 'Views', 'Watch Time (hrs)', 'New Subscribers'], sortedByViews.slice(0, 5).map(v => [
                 (v['Video title'] || '').substring(0, 50), formatNumber(v.Views), formatNumber(Math.round(v['Watch time (hours)'])),
@@ -1623,16 +1646,16 @@
             ])));
             return card;
         }
-        
+
         function createSubscriberAnalysisCard() {
             const card = createCard('Viewership: Subscribed vs. Not Subscribed', '👤');
             const subData = processedData['YouTube_Subscription_Status.csv'] || [];
-            
+
             if (subData.length < 2) return card;
-            
+
             const subscribedData = subData.find(r => r['Subscription status'] === 'Subscribed') || {};
             const notSubscribedData = subData.find(r => r['Subscription status'] === 'Not subscribed') || {};
-            
+
             const chartContainer = document.createElement('div');
             chartContainer.className = 'chart-container';
             chartContainer.style.height = '300px';
@@ -1683,7 +1706,7 @@
                 map[source].sessions += parseInt(row['Sessions'] || 0);
                 map[source].engagedSessions += parseInt(row['Engaged sessions'] || 0);
             });
-            return Object.values(map).map(s => ({ ...s, engagementRate: s.sessions > 0 ? (s.engagedSessions / s.sessions) * 100 : 0 })).sort((a,b) => b.sessions - a.sessions);
+            return Object.values(map).map(s => ({ ...s, engagementRate: s.sessions > 0 ? (s.engagedSessions / s.sessions) * 100 : 0 })).sort((a, b) => b.sessions - a.sessions);
         }
 
         function aggregatePageData(data) {
@@ -1709,7 +1732,7 @@
                 map[key].engagedSessions += parseInt(row['Engaged sessions'] || 0);
                 map[key].keyEvents += parseFloat(row['Key events'] || 0);
             });
-            return Object.values(map).sort((a,b) => b.sessions - a.sessions);
+            return Object.values(map).sort((a, b) => b.sessions - a.sessions);
         }
 
         function calculateSocialMetrics(platform, startDate, endDate) {
@@ -1768,7 +1791,7 @@
             };
             return metrics;
         }
-        
+
         // UI Helper functions
         function createCard(title, icon, fullWidth = false) {
             const card = document.createElement('div');
@@ -1776,7 +1799,7 @@
             card.innerHTML = `<div class="card-header"><div class="card-title">${icon ? `<span class="card-icon">${icon}</span>` : ''} ${title}</div></div>`;
             return card;
         }
-        
+
         function createMetricsGrid(metrics, showComparison) {
             const grid = document.createElement('div');
             grid.className = 'metrics-grid';
@@ -1785,7 +1808,7 @@
                 if (showComparison && metric.compareValue !== undefined && metric.compareValue !== null) {
                     const currentVal = metric.rawValue;
                     const change = calculateChange(currentVal, metric.compareValue);
-                    
+
                     if (isFinite(change) && Math.abs(change) > 0.01) {
                         const changeClass = change > 0 ? 'positive' : 'negative';
                         const changeText = (change > 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(1) + '%';
@@ -1798,7 +1821,7 @@
             });
             return grid;
         }
-        
+
         function createTable(headers, rows) {
             const container = document.createElement('div');
             container.className = 'table-container';
@@ -1807,13 +1830,13 @@
             container.appendChild(table);
             return container;
         }
-        
+
         function updateTableData(table, rows) {
             if (!table) return;
             const tbody = table.querySelector('tbody');
             tbody.innerHTML = rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('');
         }
-        
+
         function createTabs(labels, onTabChange) {
             const container = document.createElement('div');
             container.className = 'tab-container';
@@ -1830,7 +1853,7 @@
             });
             return container;
         }
-        
+
         // Chart creation functions
         function createTrafficChart(canvas, sourceData) {
             new Chart(canvas.getContext('2d'), {
@@ -1842,7 +1865,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }, title: { display: true, text: 'Traffic Distribution by Source', font: { size: 16, weight: 'bold' }, padding: 20 } } }
             });
         }
-        
+
         function createYouTubeAgeChart(canvas, ageData) {
             new Chart(canvas.getContext('2d'), {
                 type: 'bar',
@@ -1853,7 +1876,7 @@
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }, plugins: { legend: { display: false } } }
             });
         }
-        
+
         function createSubscriberChart(canvas, subscribedData, notSubscribedData) {
             new Chart(canvas.getContext('2d'), {
                 type: 'pie',
@@ -1864,7 +1887,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }, title: { display: true, text: 'Views by Subscription Status', font: { size: 16, weight: 'bold' }, padding: 20 } } }
             });
         }
-        
+
         function showError(message) {
             const dashboard = document.getElementById('dashboard');
             const errorDiv = document.createElement('div');
@@ -1873,7 +1896,7 @@
             dashboard.insertBefore(errorDiv, dashboard.firstChild);
             setTimeout(() => errorDiv.remove(), 5000);
         }
-        
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             initializeDateControls();
@@ -1881,4 +1904,5 @@
         });
     </script>
 </body>
+
 </html>
