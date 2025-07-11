@@ -1217,8 +1217,12 @@
             const grid = document.createElement('div');
             grid.className = 'dashboard-grid';
 
-            if (sheetsConfig.discoveredSheets['GA_Demographics']) grid.appendChild(createDemographicsCard(startDate, endDate, compareType));
-            if (sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) grid.appendChild(createTrafficSourcesCard(startDate, endDate, compareType));
+            if (sheetsConfig.discoveredSheets['GA_Demographics'] && sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) {
+                const card = createDemographicsCard(startDate, endDate, compareType);
+                if (card) { // Only append the card if the function didn't return null
+                    grid.appendChild(card);
+                }
+            } if (sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) grid.appendChild(createTrafficSourcesCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['GA_Pages_And_Screens']) grid.appendChild(createTopPagesCard(startDate, endDate, compareType));
             if (sheetsConfig.discoveredSheets['GA_UTMs']) grid.appendChild(createCampaignPerformanceCard(startDate, endDate, compareType));
 
@@ -1226,29 +1230,40 @@
         }
 
         function createDemographicsCard(startDate, endDate, compareType) {
-            const card = createCard('Demographics & User Insights', '👥');
-
-            // Define all data sources first
-            const demographicsData = processedData['GA_Demographics.csv'];
+            // This card requires BOTH traffic and demographics data to be useful.
+            // Let's ensure both are present before we proceed.
             const trafficData = processedData['GA_Traffic_Acquisition.csv'];
+            const demographicsData = processedData['GA_Demographics.csv'];
+
+            if (!trafficData || !demographicsData) {
+                // If either essential data source is missing, we cannot build this card.
+                // Return null so it doesn't appear on the dashboard.
+                return null;
+            }
+
+            const card = createCard('Demographics & User Insights', '👥');
             const dateField = 'Date + hour (YYYYMMDDHH)';
 
-            // Filter both datasets by the selected date range
-            const currentDemographicsData = filterDataByDateRange(demographicsData, dateField, startDate, endDate);
+            // Filter both data sources by the selected date range
             const currentTrafficData = filterDataByDateRange(trafficData, dateField, startDate, endDate);
+            const currentDemographicsData = filterDataByDateRange(demographicsData, dateField, startDate, endDate);
 
-            // **Use the correct (traffic) data for metrics calculation**
+            // If there's no data in the date range for either source, don't show the card.
+            if (currentTrafficData.length === 0 || currentDemographicsData.length === 0) {
+                return null;
+            }
+
+            // --- Calculate Metrics using the CORRECT (Traffic) Data ---
             const metrics = calculateWebMetrics(currentTrafficData);
 
             let comparisonMetrics = {};
             const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
             if (comparisonRange) {
-                // Filter traffic data for the comparison period as well
                 const comparisonTrafficData = filterDataByDateRange(trafficData, dateField, comparisonRange.start, comparisonRange.end);
                 comparisonMetrics = calculateWebMetrics(comparisonTrafficData);
             }
 
-            // This part uses the metrics calculated above
+            // Append the metrics grid
             card.appendChild(createMetricsGrid([
                 { label: 'Total Users', displayValue: formatNumber(metrics.totalUsers), rawValue: metrics.totalUsers, compareValue: comparisonMetrics.totalUsers },
                 { label: 'New Users', displayValue: formatNumber(metrics.newUsers), rawValue: metrics.newUsers, compareValue: comparisonMetrics.newUsers },
@@ -1258,7 +1273,7 @@
                 { label: 'Engaged Sessions', displayValue: formatNumber(metrics.engagedSessions), rawValue: metrics.engagedSessions, compareValue: comparisonMetrics.engagedSessions }
             ], compareType !== 'none'));
 
-            // This part correctly uses the demographics data for the location table
+            // --- Add Location Table using the Demographics Data ---
             const locationData = getTopLocations(currentDemographicsData);
             if (locationData.length > 0) {
                 card.appendChild(createTable(
@@ -1266,8 +1281,10 @@
                     locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])
                 ));
             }
+
             return card;
         }
+
         function createTrafficSourcesCard(startDate, endDate, compareType) {
             const card = createCard('Traffic Sources & Channels', '🚀', true);
             const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
