@@ -755,9 +755,9 @@
 
             if (sheetsConfig.folderId === 'YOUR_GOOGLE_DRIVE_FOLDER_ID' || sheetsConfig.apiKey === 'YOUR_GOOGLE_API_KEY') {
                 dashboard.innerHTML = `<div class="info-box error">
-                    <h4>🚀 Configuration Needed</h4>
-                    <p>Please edit the <code>index.html</code> file. You need to add your <strong>Google Drive Folder ID</strong> and <strong>API Key</strong> to the <code>CONFIG</code> variable at the top of the <code>&lt;script&gt;</code> section.</p>
-                </div>`;
+                <h4>🚀 Configuration Needed</h4>
+                <p>Please edit the <code>index.html</code> file. You need to add your <strong>Google Drive Folder ID</strong> and <strong>API Key</strong> to the <code>CONFIG</code> variable at the top of the <code>&lt;script&gt;</code> section.</p>
+            </div>`;
                 return;
             }
 
@@ -1071,6 +1071,18 @@
             return (parseFloat(num)).toFixed(1) + '%';
         }
 
+        function formatDuration(seconds) {
+            if (isNaN(seconds) || seconds === 0) return '0s';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            let result = '';
+            if (h > 0) result += `${h}h `;
+            if (m > 0) result += `${m}m `;
+            if (s > 0 || result === '') result += `${s}s`;
+            return result.trim();
+        }
+
         function calculateChange(current, previous) {
             if (previous === 0) {
                 return current > 0 ? Infinity : 0;
@@ -1208,7 +1220,7 @@
             switchTab(activeTabIndex);
         }
 
-        // Web Analytics Section
+        // --- NEW WEB ANALYTICS SECTION ---
         function generateWebAnalytics(container, startDate, endDate, compareType) {
             const hasWebData = Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('GA_'));
             if (!hasWebData) return;
@@ -1217,77 +1229,84 @@
             const grid = document.createElement('div');
             grid.className = 'dashboard-grid';
 
-            if (sheetsConfig.discoveredSheets['GA_Demographics'] && sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) {
+            // Card 1: Demographics (Age, Gender, Location)
+            if (sheetsConfig.discoveredSheets['GA_Demographics']) {
                 const card = createDemographicsCard(startDate, endDate, compareType);
-                if (card) { // Only append the card if the function didn't return null
-                    grid.appendChild(card);
-                }
-            } if (sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) grid.appendChild(createTrafficSourcesCard(startDate, endDate, compareType));
-            if (sheetsConfig.discoveredSheets['GA_Pages_And_Screens']) grid.appendChild(createTopPagesCard(startDate, endDate, compareType));
-            if (sheetsConfig.discoveredSheets['GA_UTMs']) grid.appendChild(createCampaignPerformanceCard(startDate, endDate, compareType));
+                if (card) grid.appendChild(card);
+            }
+
+            // Card 2: Traffic Sources
+            if (sheetsConfig.discoveredSheets['GA_Traffic_Acquisition']) {
+                const card = createTrafficSourcesCard(startDate, endDate, compareType);
+                if (card) grid.appendChild(card);
+            }
+
+            // Card 3: Top Landing Pages
+            if (sheetsConfig.discoveredSheets['GA_Pages_And_Screens']) {
+                const card = createTopPagesCard(startDate, endDate, compareType);
+                if (card) grid.appendChild(card);
+            }
+
+            // Card 4: Campaign Performance
+            if (sheetsConfig.discoveredSheets['GA_UTMs']) {
+                const card = createCampaignPerformanceCard(startDate, endDate, compareType);
+                if (card) grid.appendChild(card);
+            }
 
             container.appendChild(grid);
         }
 
+        // KPI Card 1: Demographics
         function createDemographicsCard(startDate, endDate, compareType) {
-            // This card requires BOTH traffic and demographics data to be useful.
-            // Let's ensure both are present before we proceed.
-            const trafficData = processedData['GA_Traffic_Acquisition.csv'];
-            const demographicsData = processedData['GA_Demographics.csv'];
+            const rawData = processedData['GA_Demographics.csv'];
+            if (!rawData) return null;
 
-            if (!trafficData || !demographicsData) {
-                // If either essential data source is missing, we cannot build this card.
-                // Return null so it doesn't appear on the dashboard.
-                return null;
+            const data = filterDataByDateRange(rawData, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            if (data.length === 0) return null;
+
+            const card = createCard('User Demographics', '👥', true);
+
+            // Aggregate data for each demographic dimension
+            const ageData = aggregateDemographicData(data, 'User age bracket');
+            const genderData = aggregateDemographicData(data, 'Gender');
+            const cityData = aggregateDemographicData(data, 'City', 'Country');
+
+            // Age Table
+            if (ageData.length > 0) {
+                card.innerHTML += '<h4>Age</h4>';
+                card.appendChild(createTable(['Age Bracket', 'Users', 'Sessions'],
+                    ageData.map(d => [d.dimension, formatNumber(d.users), formatNumber(d.sessions)])
+                ));
             }
 
-            const card = createCard('Demographics & User Insights', '👥');
-            const dateField = 'Date + hour (YYYYMMDDHH)';
-
-            // Filter both data sources by the selected date range
-            const currentTrafficData = filterDataByDateRange(trafficData, dateField, startDate, endDate);
-            const currentDemographicsData = filterDataByDateRange(demographicsData, dateField, startDate, endDate);
-
-            // If there's no data in the date range for either source, don't show the card.
-            if (currentTrafficData.length === 0 || currentDemographicsData.length === 0) {
-                return null;
+            // Gender Table
+            if (genderData.length > 0) {
+                card.innerHTML += '<h4 style="margin-top: 20px;">Gender</h4>';
+                card.appendChild(createTable(['Gender', 'Users', 'Sessions'],
+                    genderData.map(d => [d.dimension, formatNumber(d.users), formatNumber(d.sessions)])
+                ));
             }
 
-            // --- Calculate Metrics using the CORRECT (Traffic) Data ---
-            const metrics = calculateWebMetrics(currentTrafficData);
-
-            let comparisonMetrics = {};
-            const comparisonRange = getComparisonDateRange(startDate, endDate, compareType);
-            if (comparisonRange) {
-                const comparisonTrafficData = filterDataByDateRange(trafficData, dateField, comparisonRange.start, comparisonRange.end);
-                comparisonMetrics = calculateWebMetrics(comparisonTrafficData);
-            }
-
-            // Append the metrics grid
-            card.appendChild(createMetricsGrid([
-                { label: 'Total Users', displayValue: formatNumber(metrics.totalUsers), rawValue: metrics.totalUsers, compareValue: comparisonMetrics.totalUsers },
-                { label: 'New Users', displayValue: formatNumber(metrics.newUsers), rawValue: metrics.newUsers, compareValue: comparisonMetrics.newUsers },
-                { label: 'Sessions', displayValue: formatNumber(metrics.sessions), rawValue: metrics.sessions, compareValue: comparisonMetrics.sessions },
-                { label: 'Avg. Engagement', displayValue: formatPercentage(metrics.avgEngagement), rawValue: metrics.avgEngagement, compareValue: comparisonMetrics.avgEngagement },
-                { label: 'Avg. Session Time', displayValue: metrics.avgSessionTime + 's', rawValue: metrics.avgSessionTime, compareValue: comparisonMetrics.avgSessionTime },
-                { label: 'Engaged Sessions', displayValue: formatNumber(metrics.engagedSessions), rawValue: metrics.engagedSessions, compareValue: comparisonMetrics.engagedSessions }
-            ], compareType !== 'none'));
-
-            // --- Add Location Table using the Demographics Data ---
-            const locationData = getTopLocations(currentDemographicsData);
-            if (locationData.length > 0) {
-                card.appendChild(createTable(
-                    ['Country', 'City', 'Users', 'Sessions'],
-                    locationData.map(loc => [loc.country, loc.city, formatNumber(loc.users), formatNumber(loc.sessions)])
+            // Location Table
+            if (cityData.length > 0) {
+                card.innerHTML += '<h4 style="margin-top: 20px;">Top 10 Cities</h4>';
+                card.appendChild(createTable(['City', 'Country', 'Users', 'Sessions'],
+                    cityData.slice(0, 10).map(d => [d.dimension, d.secondaryDimension, formatNumber(d.users), formatNumber(d.sessions)])
                 ));
             }
 
             return card;
         }
 
+        // KPI Card 2: Traffic Sources
         function createTrafficSourcesCard(startDate, endDate, compareType) {
-            const card = createCard('Traffic Sources & Channels', '🚀', true);
-            const currentData = filterDataByDateRange(processedData['GA_Traffic_Acquisition.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            const rawData = processedData['GA_Traffic_Acquisition.csv'];
+            if (!rawData) return null;
+
+            const currentData = filterDataByDateRange(rawData, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            if (currentData.length === 0) return null;
+
+            const card = createCard('Traffic Sources', '🚀', true);
             const sourceData = aggregateTrafficSources(currentData);
 
             if (sourceData.length > 0) {
@@ -1300,60 +1319,68 @@
             }
 
             card.appendChild(createTable(
-                ['Source/Medium', 'Sessions', 'Engaged Sessions', 'Engagement Rate'],
-                sourceData.slice(0, 10).map(source => [
-                    source.source,
+                ['Channel', 'Sessions', 'Users', 'Engagement Rate'],
+                sourceData.map(source => [
+                    source.channel,
                     formatNumber(source.sessions),
-                    formatNumber(source.engagedSessions),
+                    formatNumber(source.users),
                     formatPercentage(source.engagementRate)
                 ])
             ));
             return card;
         }
 
+        // KPI Card 3: Top Landing Pages
         function createTopPagesCard(startDate, endDate, compareType) {
+            const rawData = processedData['GA_Pages_And_Screens.csv'];
+            if (!rawData) return null;
+
+            const currentData = filterDataByDateRange(rawData, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            if (currentData.length === 0) return null;
+
             const card = createCard('Top Landing Pages', '📄', true);
-            const currentData = filterDataByDateRange(processedData['GA_Pages_And_Screens.csv'], 'Date + hour (YYYYMMDDHH)', startDate, endDate);
             const pageData = aggregatePageData(currentData);
 
-            const tabContainer = createTabs(['By Views', 'By Users', 'By Engagement Time'], (tabIndex) => {
+            const tabContainer = createTabs(['By Sessions', 'By Engagement Time'], (tabIndex) => {
                 const sortedData = [...pageData];
-                if (tabIndex === 0) sortedData.sort((a, b) => b.views - a.views);
-                else if (tabIndex === 1) sortedData.sort((a, b) => b.users - a.users);
-                else sortedData.sort((a, b) => b.engagementTime - a.engagementTime);
+                if (tabIndex === 0) sortedData.sort((a, b) => b.sessions - a.sessions);
+                else if (tabIndex === 1) sortedData.sort((a, b) => b.avgEngagementTime - a.avgEngagementTime);
 
                 updateTableData(card.querySelector('table'), sortedData.slice(0, 10).map(page => [
-                    (page.path || '').substring(0, 50) + ((page.path || '').length > 50 ? '...' : ''),
-                    formatNumber(page.views),
-                    formatNumber(page.users),
-                    Math.round(page.engagementTime / 60) + ' min'
+                    (page.path || '').substring(0, 70) + ((page.path || '').length > 70 ? '...' : ''),
+                    formatNumber(page.sessions),
+                    formatDuration(page.avgEngagementTime)
                 ]));
             });
             card.appendChild(tabContainer);
 
-            const sortedByViews = [...pageData].sort((a, b) => b.views - a.views);
+            const sortedBySessions = [...pageData].sort((a, b) => b.sessions - a.sessions);
             card.appendChild(createTable(
-                ['Page Path', 'Views', 'Users', 'Total Engagement'],
-                sortedByViews.slice(0, 10).map(page => [
-                    (page.path || '').substring(0, 50) + ((page.path || '').length > 50 ? '...' : ''),
-                    formatNumber(page.views),
-                    formatNumber(page.users),
-                    Math.round(page.engagementTime / 60) + ' min'
+                ['Landing Page', 'Sessions', 'Avg. Engagement Time'],
+                sortedBySessions.slice(0, 10).map(page => [
+                    (page.path || '').substring(0, 70) + ((page.path || '').length > 70 ? '...' : ''),
+                    formatNumber(page.sessions),
+                    formatDuration(page.avgEngagementTime)
                 ])
             ));
             return card;
         }
 
+        // KPI Card 4: Campaign Performance
         function createCampaignPerformanceCard(startDate, endDate, compareType) {
-            const card = createCard('Campaign Performance (UTM)', '🎯', true);
             const utmData = processedData['GA_UTMs.csv'];
 
-            if (!utmData || utmData.length === 0 || !utmData[0]['Session manual campaign name']) {
-                card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Campaign Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or incorrectly formatted. Please download it from GA4 (Reports → Acquisition → Traffic Acquisition, with primary dimension 'Session source / medium' and secondary dimension 'Session manual campaign name') and add it to your Google Drive folder.</p></div>`;
+            if (!utmData || utmData.length === 0) return null;
+            if (!utmData[0]['Session manual campaign name']) {
+                const card = createCard('Campaign Performance (UTM)', '🎯', true);
+                card.innerHTML += `<div class="info-box error"><h4>⚠️ UTM Campaign Data Issue</h4><p>The <strong>GA_UTMs</strong> sheet is missing or incorrectly formatted. Please ensure it contains a 'Session manual campaign name' column.</p></div>`;
                 return card;
             }
 
             const currentData = filterDataByDateRange(utmData, 'Date + hour (YYYYMMDDHH)', startDate, endDate);
+            if (currentData.length === 0) return null;
+
+            const card = createCard('Campaign Performance (UTM)', '🎯', true);
             const campaignData = aggregateCampaignData(currentData);
             card.appendChild(createTable(
                 ['Campaign', 'Source/Medium', 'Sessions', 'Engaged Sessions', 'Key Events'],
@@ -1362,6 +1389,87 @@
             return card;
         }
 
+        // --- DATA AGGREGATION FUNCTIONS (MODIFIED) ---
+
+        // New generic function for demographics
+        function aggregateDemographicData(data, dimensionKey, secondaryDimensionKey = null) {
+            const map = new Map();
+            data.forEach(row => {
+                const dimension = row[dimensionKey];
+                if (!dimension || dimension === '(not set)') return;
+
+                const secondaryDimension = secondaryDimensionKey ? row[secondaryDimensionKey] : null;
+                const key = secondaryDimension ? `${dimension}_${secondaryDimension}` : dimension;
+
+                if (!map.has(key)) {
+                    map.set(key, {
+                        dimension: dimension,
+                        secondaryDimension: secondaryDimension,
+                        users: 0,
+                        sessions: 0
+                    });
+                }
+                const entry = map.get(key);
+                entry.users += parseInt(row['Users'] || 0);
+                entry.sessions += parseInt(row['Sessions'] || 0);
+            });
+            return Array.from(map.values()).sort((a, b) => b.users - a.users);
+        }
+
+        // Modified for high-level channels
+        function aggregateTrafficSources(data) {
+            const map = {};
+            if (!data) return [];
+            data.forEach(row => {
+                // Prioritize 'Session default channel group' as it's what the user wants
+                const channel = row['Session default channel group'] || '(not set)';
+                if (!map[channel]) {
+                    map[channel] = { channel, sessions: 0, users: 0, engagedSessions: 0 };
+                }
+                map[channel].sessions += parseInt(row['Sessions'] || 0);
+                map[channel].users += parseInt(row['Users'] || 0);
+                map[channel].engagedSessions += parseInt(row['Engaged sessions'] || 0);
+            });
+
+            return Object.values(map).map(s => ({
+                ...s,
+                engagementRate: s.sessions > 0 ? (s.engagedSessions / s.sessions) * 100 : 0
+            })).sort((a, b) => b.sessions - a.sessions);
+        }
+
+        // Modified for sessions and avg engagement
+        function aggregatePageData(data) {
+            const map = {};
+            if (!data) return [];
+            data.forEach(row => {
+                const path = row['Page path and screen class'] || 'Unknown';
+                if (!map[path]) {
+                    map[path] = { path, sessions: 0, totalEngagementTime: 0 };
+                }
+                map[path].sessions += parseInt(row.Sessions || 0);
+                map[path].totalEngagementTime += parseFloat(row['Total engagement time'] || 0);
+            });
+            return Object.values(map).map(p => ({
+                ...p,
+                avgEngagementTime: p.sessions > 0 ? p.totalEngagementTime / p.sessions : 0
+            }));
+        }
+
+        function aggregateCampaignData(data) {
+            const map = {};
+            if (!data) return [];
+            data.forEach(row => {
+                const key = `${row['Session manual campaign name']}_${row['Session source / medium']}`;
+                if (!map[key]) map[key] = { name: row['Session manual campaign name'], source: row['Session source / medium'], sessions: 0, engagedSessions: 0, keyEvents: 0 };
+                map[key].sessions += parseInt(row.Sessions || 0);
+                map[key].engagedSessions += parseInt(row['Engaged sessions'] || 0);
+                map[key].keyEvents += parseFloat(row['Key events'] || 0);
+            });
+            return Object.values(map).sort((a, b) => b.sessions - a.sessions);
+        }
+
+
+        // --- SOCIAL, EMAIL, YOUTUBE (UNCHANGED) ---
         // Social Analytics Section
         function generateSocialAnalytics(container, startDate, endDate, compareType) {
             const hasSocialData = Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('FB_') || k.startsWith('IG_'));
@@ -1527,8 +1635,6 @@
             });
         }
 
-
-        // Email Analytics Section
         function generateEmailAnalytics(container, startDate, endDate, compareType) {
             if (!sheetsConfig.discoveredSheets['Email_Campaign_Performance']) return;
 
@@ -1603,7 +1709,6 @@
             return card;
         }
 
-        // YouTube Analytics Section
         function generateYouTubeAnalytics(container, startDate, endDate, compareType) {
             const hasYouTubeData = Object.keys(sheetsConfig.discoveredSheets).some(k => k.startsWith('YouTube_'));
             if (!hasYouTubeData) return;
@@ -1724,95 +1829,6 @@
             card.appendChild(chartContainer);
             createSubscriberChart(canvas, subscribedData, notSubscribedData);
             return card;
-        }
-
-        // Calculation functions
-        function calculateWebMetrics(data) {
-            const metrics = { totalUsers: 0, newUsers: 0, sessions: 0, engagedSessions: 0, avgEngagement: 0, avgSessionTime: 0 };
-            let totalEngagementTimeSeconds = 0;
-
-            if (!data || data.length === 0) return metrics;
-
-            data.forEach(row => {
-                // Use the exact header names from the CSV file
-                metrics.totalUsers += parseInt(row['Users'] || 0);
-                metrics.newUsers += parseInt(row['New users'] || 0);
-                metrics.sessions += parseInt(row['Sessions'] || 0);
-                metrics.engagedSessions += parseInt(row['Engaged sessions'] || 0);
-
-                // Correctly calculate total engagement time from the average
-                const avgTime = parseFloat(row['Average engagement time']) || 0;
-                const rowSessions = parseInt(row['Sessions'] || 0);
-                if (rowSessions > 0) {
-                    totalEngagementTimeSeconds += avgTime * rowSessions;
-                }
-            });
-
-            if (metrics.sessions > 0) {
-                metrics.avgEngagement = (metrics.engagedSessions / metrics.sessions) * 100;
-                // Calculate the true average session time from the new total
-                metrics.avgSessionTime = Math.round(totalEngagementTimeSeconds / metrics.sessions);
-            }
-
-            return metrics;
-        }
-
-        function getTopLocations(data) {
-            const map = {};
-            if (!data) return [];
-            data.forEach(row => {
-                const key = `${row['Country'] || 'Unknown'}_${row['City'] || 'Unknown'}`;
-                if (!map[key]) {
-                    map[key] = {
-                        country: row['Country'] || 'Unknown',
-                        city: row['City'] || 'Unknown',
-                        users: 0,
-                        sessions: 0
-                    };
-                }
-                // This line is now fixed to use the correct 'Users' column
-                map[key].users += parseInt(row['Users'] || 0);
-                map[key].sessions += parseInt(row['Sessions'] || 0);
-            });
-            return Object.values(map).sort((a, b) => b.users - a.users).slice(0, 5);
-        }
-
-        function aggregateTrafficSources(data) {
-            const map = {};
-            if (!data) return [];
-            data.forEach(row => {
-                const source = row['Session source / medium'] || 'Unknown';
-                if (!map[source]) map[source] = { source, sessions: 0, engagedSessions: 0 };
-                map[source].sessions += parseInt(row['Sessions'] || 0);
-                map[source].engagedSessions += parseInt(row['Engaged sessions'] || 0);
-            });
-            return Object.values(map).map(s => ({ ...s, engagementRate: s.sessions > 0 ? (s.engagedSessions / s.sessions) * 100 : 0 })).sort((a, b) => b.sessions - a.sessions);
-        }
-
-        function aggregatePageData(data) {
-            const map = {};
-            if (!data) return [];
-            data.forEach(row => {
-                const path = row['Page path and screen class'] || 'Unknown';
-                if (!map[path]) map[path] = { path, views: 0, users: 0, engagementTime: 0 };
-                map[path].views += parseInt(row.Views || 0);
-                map[path].users += parseInt(row['Active users'] || 0);
-                map[path].engagementTime += parseFloat(row['Total engagement time'] || 0);
-            });
-            return Object.values(map);
-        }
-
-        function aggregateCampaignData(data) {
-            const map = {};
-            if (!data) return [];
-            data.forEach(row => {
-                const key = `${row['Session manual campaign name']}_${row['Session source / medium']}`;
-                if (!map[key]) map[key] = { name: row['Session manual campaign name'], source: row['Session source / medium'], sessions: 0, engagedSessions: 0, keyEvents: 0 };
-                map[key].sessions += parseInt(row.Sessions || 0);
-                map[key].engagedSessions += parseInt(row['Engaged sessions'] || 0);
-                map[key].keyEvents += parseFloat(row['Key events'] || 0);
-            });
-            return Object.values(map).sort((a, b) => b.sessions - a.sessions);
         }
 
         function calculateSocialMetrics(platform, startDate, endDate) {
@@ -1939,10 +1955,10 @@
             new Chart(canvas.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: sourceData.slice(0, 6).map(s => s.source),
+                    labels: sourceData.slice(0, 6).map(s => s.channel),
                     datasets: [{ data: sourceData.slice(0, 6).map(s => s.sessions), backgroundColor: ['#012169', '#00539B', '#5B9BD5', '#666666', '#E5E5E5', '#262626'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }, title: { display: true, text: 'Traffic Distribution by Source', font: { size: 16, weight: 'bold' }, padding: 20 } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { padding: 20, usePointStyle: true } }, title: { display: true, text: 'Sessions by Channel', font: { size: 16, weight: 'bold' }, padding: 20 } } }
             });
         }
 
